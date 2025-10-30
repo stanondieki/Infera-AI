@@ -3,7 +3,7 @@ import { Header } from './Header';
 
 export function Hero() {
   return (
-    <div className="min-h-screen bg-gray-50">
+    <section id="hero" className="min-h-screen bg-gray-50">
       <Header />
       
       {/* Blue badge */}
@@ -205,6 +205,6 @@ export function Hero() {
           </div>
         </div>
       </div>
-    </div>
+    </section>
   );
 }
