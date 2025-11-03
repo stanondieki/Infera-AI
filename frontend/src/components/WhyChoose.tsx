@@ -90,7 +90,8 @@ export function WhyChoose() {
           {features.map((feature, index) => (
             <div 
               key={index}
-              className="group bg-white rounded-3xl p-6 shadow-sm hover:shadow-xl transition-all duration-500 hover:-translate-y-2 border border-gray-50 hover:border-gray-100 relative overflow-hidden"
+              className="group !bg-white rounded-3xl p-6 shadow-sm hover:shadow-xl transition-all duration-500 hover:-translate-y-2 border border-gray-50 hover:border-gray-100 relative overflow-hidden"
+              style={{ backgroundColor: '#ffffff' }}
             >
               {/* Background Pattern */}
               <div className="absolute top-0 right-0 w-20 h-20 opacity-5 group-hover:opacity-10 transition-opacity duration-500">

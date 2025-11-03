@@ -1,200 +1,222 @@
-export function Opportunities() {
-  const categories = [
-    { name: 'All', active: true },
-    { name: 'Software Engineering', active: false },
-    { name: 'AI/ML', active: false },
-    { name: 'Data Science', active: false },
-    { name: 'Writing & Editing', active: false },
-    { name: 'Education', active: false },
-    { name: 'Creative', active: false },
-  ];
+import { Card, CardContent, CardHeader } from './ui/card';
+import { Badge } from './ui/badge';
+import { Button } from './ui/button';
+import { motion } from 'framer-motion';
+import { ArrowRight, Clock, DollarSign, Users, Star, TrendingUp, MapPin } from 'lucide-react';
 
-  const opportunities = [
-    {
-      category: 'Software Engineering',
-      rate: '$40-60/hr',
-      title: 'Code Review & Quality Assurance',
-      description: 'Review AI-generated code and provide detailed feedback on quality, efficiency, and industry best practices.',
-      skills: ['Python', 'JavaScript', 'Code Review'],
-      color: 'blue',
-      bgColor: 'bg-blue-500',
-      bgLight: 'bg-blue-50',
-      textColor: 'text-blue-600',
-      icon: '💻'
-    },
-    {
-      category: 'AI/ML',
-      rate: '$35-50/hr',
-      title: 'Prompt Engineering & Optimization',
-      description: 'Create and refine sophisticated prompts to improve AI model responses and accuracy across various tasks.',
-      skills: ['LLMs', 'Natural Language', 'Testing'],
-      color: 'purple',
-      bgColor: 'bg-purple-500',
-      bgLight: 'bg-purple-50',
-      textColor: 'text-purple-600',
-      icon: '🤖'
-    },
-    {
-      category: 'Data Science',
-      rate: '$25-40/hr',
-      title: 'Data Annotation & Labeling',
-      description: 'Label and categorize complex datasets to help train machine learning models with exceptional accuracy.',
-      skills: ['Attention to Detail', 'Classification', 'Quality Control'],
-      color: 'green',
-      bgColor: 'bg-green-500',
-      bgLight: 'bg-green-50',
-      textColor: 'text-green-600',
-      icon: '📊'
-    },
-    {
-      category: 'Writing & Editing',
-      rate: '$30-45/hr',
-      title: 'Content Evaluation & Analysis',
-      description: 'Assess AI-generated content for accuracy, coherence, tone, and appropriateness across multiple domains.',
-      skills: ['Writing', 'Fact-Checking', 'Analysis'],
-      color: 'orange',
-      bgColor: 'bg-orange-500',
-      bgLight: 'bg-orange-50',
-      textColor: 'text-orange-600',
-      icon: '✍️'
-    },
-    {
-      category: 'Education',
-      rate: '$45-65/hr',
-      title: 'STEM Tutoring & Problem Solving',
-      description: 'Help train AI models in mathematical reasoning, scientific problem-solving, and educational methodology.',
-      skills: ['Mathematics', 'Physics', 'Teaching'],
-      color: 'blue',
-      bgColor: 'bg-indigo-500',
-      bgLight: 'bg-indigo-50',
-      textColor: 'text-indigo-600',
-      icon: '🎓'
-    },
-    {
-      category: 'Creative',
-      rate: '$35-55/hr',
-      title: 'Creative Writing & Storytelling',
-      description: 'Generate engaging creative content and evaluate AI storytelling capabilities across different genres.',
-      skills: ['Creative Writing', 'Storytelling', 'Editing'],
-      color: 'pink',
-      bgColor: 'bg-pink-500',
-      bgLight: 'bg-pink-50',
-      textColor: 'text-pink-600',
-      icon: '🎨'
-    }
-  ];
+const featuredOpportunities = [
+  {
+    id: '1',
+    title: 'AI Training Data Specialist',
+    category: 'AI/ML',
+    rate: '$25-40/hr',
+    description: 'Help train large language models by creating high-quality training data and providing feedback on AI responses.',
+    skills: ['Machine Learning', 'Python', 'Data Analysis'],
+    timeCommitment: '10-20 hrs/week',
+    applicants: 234,
+    rating: 4.9,
+    location: 'Remote',
+    badge: 'Top Pay',
+    badgeColor: 'bg-green-100 text-green-700 border-green-200',
+    trending: true
+  },
+  {
+    id: '2',
+    title: 'Code Review & Optimization',
+    category: 'Software Engineering',
+    rate: '$30-50/hr',
+    description: 'Review and optimize code for AI systems, ensuring best practices and performance improvements.',
+    skills: ['JavaScript', 'Python', 'Code Review'],
+    timeCommitment: '15-25 hrs/week',
+    applicants: 156,
+    rating: 4.8,
+    location: 'Remote',
+    badge: 'High Demand',
+    badgeColor: 'bg-blue-100 text-blue-700 border-blue-200',
+    trending: false
+  },
+  {
+    id: '3',
+    title: 'Technical Content Creator',
+    category: 'Writing & Education',
+    rate: '$20-35/hr',
+    description: 'Create educational content and tutorials about AI technologies for training purposes.',
+    skills: ['Technical Writing', 'AI Knowledge', 'Content Creation'],
+    timeCommitment: '8-15 hrs/week',
+    applicants: 89,
+    rating: 4.7,
+    location: 'Worldwide',
+    badge: 'Flexible',
+    badgeColor: 'bg-purple-100 text-purple-700 border-purple-200',
+    trending: true
+  }
+];
+
+interface OpportunitiesProps {
+  onApplyClick: () => void;
+}
+
+export function Opportunities({ onApplyClick }: OpportunitiesProps) {
+  const handleViewAll = () => {
+    // Trigger event to switch to all opportunities view
+    window.dispatchEvent(new CustomEvent('viewAllOpportunities'));
+  };
 
   return (
-    <section id="opportunities" className="py-20 bg-white relative overflow-hidden">
-      {/* Background Elements */}
-      <div className="absolute inset-0">
-        <div className="absolute top-20 right-20 w-32 h-32 bg-blue-100 rounded-full opacity-50"></div>
-        <div className="absolute bottom-20 left-20 w-24 h-24 bg-purple-100 rounded-full opacity-30"></div>
-        <div className="absolute top-1/2 left-1/4 w-16 h-16 bg-pink-100 rounded-full opacity-40"></div>
-      </div>
-      
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-        {/* Header */}
-        <div className="text-center mb-12">
-          <h2 className="text-3xl lg:text-4xl font-normal text-gray-800 mb-4">
-            Available <span className="bg-gradient-to-r from-blue-500 to-purple-600 bg-clip-text text-transparent font-medium">Opportunities</span>
-          </h2>
-          <p className="text-base text-gray-500 max-w-2xl mx-auto font-light">
-            Explore diverse projects across multiple domains and skill levels
-          </p>
+    <section id="opportunities" className="py-20 bg-gray-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="text-center mb-16">
+          <motion.h2 
+            className="text-4xl font-bold text-gray-900 mb-4"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            viewport={{ once: true }}
+          >
+            Current <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Opportunities</span>
+          </motion.h2>
+          <motion.p 
+            className="text-xl text-gray-600 max-w-3xl mx-auto"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.1 }}
+            viewport={{ once: true }}
+          >
+            Explore high-paying opportunities to help train the next generation of AI systems
+          </motion.p>
         </div>
 
-        {/* Enhanced Category Filter */}
-        <div className="flex flex-wrap justify-center gap-3 mb-12">
-          {categories.map((category, index) => (
-            <button
-              key={category.name}
-              className={`group px-5 py-2.5 rounded-full text-sm font-normal transition-all duration-300 ${
-                category.active
-                  ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg'
-                  : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200 hover:border-gray-300 hover:shadow-sm'
-              }`}
-              style={{
-                animationDelay: `${index * 50}ms`
-              }}
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
+          {featuredOpportunities.map((opportunity, index) => (
+            <motion.div
+              key={opportunity.id}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: index * 0.1 }}
+              viewport={{ once: true }}
             >
-              {category.name}
-            </button>
-          ))}
-        </div>
+              <Card className="h-full hover:shadow-xl transition-all duration-300 border border-gray-100/50 bg-white group cursor-pointer">
+                <CardHeader className="pb-4">
+                  <div className="flex justify-between items-start mb-3">
+                    <div className="flex items-center gap-2">
+                      <Badge className={`${opportunity.badgeColor} font-medium`}>
+                        {opportunity.badge}
+                      </Badge>
+                      {opportunity.trending && (
+                        <div className="flex items-center text-orange-600 text-xs font-medium">
+                          <TrendingUp className="h-3 w-3 mr-1" />
+                          Trending
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex items-center text-green-600 font-bold text-lg">
+                      <DollarSign className="h-5 w-5 mr-1" />
+                      {opportunity.rate}
+                    </div>
+                  </div>
 
-        {/* Enhanced Opportunities Grid */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
-          {opportunities.map((opportunity, index) => (
-            <div 
-              key={index} 
-              className="group bg-white rounded-3xl p-6 border border-gray-100 hover:border-gray-200 shadow-sm hover:shadow-xl transition-all duration-500 hover:-translate-y-2 relative overflow-hidden"
-              style={{
-                animationDelay: `${index * 100}ms`
-              }}
-            >
-              {/* Background Pattern */}
-              <div className="absolute top-0 right-0 w-20 h-20 opacity-5 group-hover:opacity-10 transition-opacity">
-                <div className={`w-full h-full ${opportunity.bgColor} rounded-full transform rotate-12`}></div>
-              </div>
-
-              {/* Category Badge and Rate */}
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center space-x-2">
-                  <span className="text-2xl">{opportunity.icon}</span>
-                  <span className="text-sm font-normal text-gray-500">
+                  <h3 className="text-xl font-bold text-gray-900 group-hover:text-blue-600 transition-colors">
+                    {opportunity.title}
+                  </h3>
+                  
+                  <Badge variant="outline" className="w-fit text-xs">
                     {opportunity.category}
-                  </span>
-                </div>
-                <div className={`${opportunity.bgLight} ${opportunity.textColor} px-3 py-1 rounded-full`}>
-                  <span className="text-sm font-medium">{opportunity.rate}</span>
-                </div>
-              </div>
-
-              {/* Title */}
-              <h3 className="text-lg font-medium text-gray-800 mb-3 group-hover:text-gray-900 transition-colors">
-                {opportunity.title}
-              </h3>
-
-              {/* Description */}
-              <p className="text-gray-500 text-sm leading-relaxed mb-5 font-light">
-                {opportunity.description}
-              </p>
-
-              {/* Skills */}
-              <div className="flex flex-wrap gap-2 mb-6">
-                {opportunity.skills.map((skill, skillIndex) => (
-                  <span
-                    key={skillIndex}
-                    className="bg-gray-50 text-gray-600 px-3 py-1.5 rounded-full text-xs font-normal hover:bg-gray-100 transition-colors"
-                  >
-                    {skill}
-                  </span>
-                ))}
-              </div>
-
-              {/* Enhanced Apply Button */}
-              <button className={`group/btn w-full ${opportunity.bgColor} hover:scale-105 text-white py-3 rounded-2xl font-medium transition-all duration-300 flex items-center justify-center space-x-2 shadow-lg hover:shadow-xl relative overflow-hidden`}>
-                <span className="relative z-10">Apply Now</span>
-                <span className="relative z-10 group-hover/btn:translate-x-1 transition-transform duration-300">→</span>
+                  </Badge>
+                </CardHeader>
                 
-                {/* Button shine effect */}
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent transform -skew-x-12 -translate-x-full group-hover/btn:translate-x-full transition-transform duration-700"></div>
-              </button>
+                <CardContent className="pt-0">
+                  <p className="text-gray-600 mb-6 line-clamp-3 leading-relaxed">
+                    {opportunity.description}
+                  </p>
 
-              {/* Bottom accent */}
-              <div className={`absolute bottom-0 left-0 w-0 h-1 ${opportunity.bgColor} group-hover:w-full transition-all duration-700 rounded-b-3xl`}></div>
-            </div>
+                  <div className="flex flex-wrap gap-2 mb-6">
+                    {opportunity.skills.slice(0, 3).map((skill) => (
+                      <Badge 
+                        key={skill} 
+                        variant="outline" 
+                        className="text-xs bg-gray-50 border-gray-200 text-gray-700"
+                      >
+                        {skill}
+                      </Badge>
+                    ))}
+                  </div>
+
+                  <div className="space-y-4 mb-6">
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center text-gray-600">
+                        <Clock className="h-4 w-4 mr-2" />
+                        {opportunity.timeCommitment}
+                      </div>
+                      <div className="flex items-center text-gray-600">
+                        <MapPin className="h-4 w-4 mr-2" />
+                        {opportunity.location}
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center text-amber-600">
+                        <Star className="h-4 w-4 mr-1 fill-current" />
+                        <span className="font-medium">{opportunity.rating}</span>
+                      </div>
+                      <div className="flex items-center text-gray-600">
+                        <Users className="h-4 w-4 mr-1" />
+                        {opportunity.applicants} applied
+                      </div>
+                    </div>
+                  </div>
+
+                  <Button 
+                    onClick={onApplyClick}
+                    className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium py-3 rounded-lg transition-all duration-300 group-hover:shadow-lg"
+                  >
+                    Apply Now
+                    <ArrowRight className="h-4 w-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                  </Button>
+                </CardContent>
+              </Card>
+            </motion.div>
           ))}
         </div>
 
-        {/* Enhanced View All Button */}
-        <div className="text-center">
-          <button className="group bg-white hover:bg-gray-50 text-gray-700 px-8 py-3 rounded-2xl font-medium transition-all duration-300 border border-gray-200 hover:border-gray-300 hover:shadow-lg flex items-center space-x-2 mx-auto">
-            <span>View All Opportunities</span>
-            <span className="group-hover:translate-x-1 transition-transform duration-300">→</span>
-          </button>
-        </div>
+        <motion.div 
+          className="text-center bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl p-8 mt-12"
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.4 }}
+          viewport={{ once: true }}
+        >
+          <h3 className="text-2xl font-bold text-gray-900 mb-4">
+            Ready to Explore More?
+          </h3>
+          <p className="text-gray-600 mb-6 max-w-2xl mx-auto">
+            Join over 10,000 professionals earning competitive rates while helping shape AI technology. 
+            Browse hundreds of opportunities across different specializations.
+          </p>
+          
+          <div className="flex flex-wrap justify-center gap-8 mb-8 text-sm text-gray-600">
+            <div className="flex items-center">
+              <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+              500+ Active Projects
+            </div>
+            <div className="flex items-center">
+              <div className="w-2 h-2 bg-blue-500 rounded-full mr-2"></div>
+              Weekly Payments
+            </div>
+            <div className="flex items-center">
+              <div className="w-2 h-2 bg-purple-500 rounded-full mr-2"></div>
+              Global Remote Work
+            </div>
+          </div>
+          
+          <Button 
+            onClick={handleViewAll}
+            size="lg" 
+            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-4 text-lg font-medium rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
+          >
+            Browse All Opportunities
+            <ArrowRight className="ml-3 h-5 w-5" />
+          </Button>
+        </motion.div>
       </div>
     </section>
   );

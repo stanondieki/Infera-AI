@@ -1,269 +1,359 @@
-'use client';
+"use client";
 
-import Image from 'next/image';
-import { useState } from 'react';
+import { Star, Quote, ChevronLeft, ChevronRight, Briefcase, MapPin } from "lucide-react";
+import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Card, CardContent } from "./ui/card";
+import { Avatar, AvatarFallback } from "./ui/avatar";
+import { Badge } from "./ui/badge";
+
+const testimonials = [
+  {
+    name: "Sarah Chen",
+    role: "Software Engineer",
+    location: "San Francisco, CA",
+    text: "Infera AI has been incredible for supplementing my income. I work on code review projects during evenings and weekends, and the flexibility is unmatched.",
+    rating: 5,
+    earnings: "$12,450",
+    projects: 156,
+    image: "https://images.unsplash.com/photo-1581065178026-390bc4e78dad?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxhc2lhbiUyMHdvbWFuJTIwcHJvZmVzc2lvbmFsfGVufDF8fHx8MTc2MTc3ODMyM3ww&ixlib=rb-4.1.0&q=80&w=1080",
+  },
+  {
+    name: "Marcus Johnson",
+    role: "Data Scientist",
+    location: "New York, NY",
+    text: "The quality of projects and the support from the Infera AI team is outstanding. I've grown my skills significantly while earning great income.",
+    rating: 5,
+    earnings: "$18,920",
+    projects: 203,
+    image: "https://images.unsplash.com/photo-1758598304704-8dc72fe16003?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjBtYW4lMjB0ZWNobm9sb2d5fGVufDF8fHx8MTc2MTc5MDM3OXww&ixlib=rb-4.1.0&q=80&w=1080",
+  },
+  {
+    name: "Emily Rodriguez",
+    role: "Content Writer",
+    location: "Toronto, Canada",
+    text: "I've been with Infera AI for 6 months and it's been amazing. The platform is easy to use and payments are always on time.",
+    rating: 5,
+    earnings: "$9,340",
+    projects: 124,
+    image: "https://images.unsplash.com/photo-1581065178047-8ee15951ede6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjB3b21hbiUyMHBvcnRyYWl0fGVufDF8fHx8MTc2MTcwMzg3MXww&ixlib=rb-4.1.0&q=80&w=1080",
+  },
+  {
+    name: "David Kim",
+    role: "ML Engineer",
+    location: "Seattle, WA",
+    text: "Working with Infera AI has allowed me to explore cutting-edge AI projects while maintaining my work-life balance. Highly recommended!",
+    rating: 5,
+    earnings: "$21,560",
+    projects: 187,
+    image: "https://images.unsplash.com/photo-1758598304704-8dc72fe16003?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjBtYW4lMjB0ZWNobm9sb2d5fGVufDF8fHx8MTc2MTc5MDM3OXww&ixlib=rb-4.1.0&q=80&w=1080",
+  },
+  {
+    name: "Priya Patel",
+    role: "AI Researcher",
+    location: "London, UK",
+    text: "The diversity of projects keeps things interesting. I love how I can contribute to meaningful AI development from anywhere in the world.",
+    rating: 5,
+    earnings: "$16,780",
+    projects: 165,
+    image: "https://images.unsplash.com/photo-1581065178026-390bc4e78dad?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxhc2lhbiUyMHdvbWFuJTIwcHJvZmVzc2lvbmFsfGVufDF8fHx8MTc2MTc3ODMyM3ww&ixlib=rb-4.1.0&q=80&w=1080",
+  },
+];
 
 export function Testimonials() {
-  const [currentTestimonial, setCurrentTestimonial] = useState(0);
-  
-  const featuredTestimonials = [
-    {
-      id: 1,
-      name: "Sarah Chen",
-      role: "Software Engineer",
-      location: "San Francisco, CA",
-      image: "/images/testimonials/sarah.jpg", // You'll need to add this image
-      rating: 5,
-      score: 99,
-      totalEarnings: "$12,450",
-      projectsCompleted: 156,
-      quote: "Infera AI has been incredible for supplementing my income. I work on code review projects during evenings and weekends, and the flexibility is unmatched."
-    },
-    {
-      id: 2,
-      name: "Marcus Johnson",
-      role: "Data Scientist",
-      location: "New York, NY",
-      image: "/images/testimonials/marcus.jpg",
-      rating: 5,
-      score: 97,
-      totalEarnings: "$18,900",
-      projectsCompleted: 203,
-      quote: "The quality of projects and the support from the Infera AI team is outstanding. I've grown my skills significantly while earning great income."
-    },
-    {
-      id: 3,
-      name: "Emily Rodriguez",
-      role: "Content Writer",
-      location: "Austin, TX",
-      image: "/images/testimonials/emily.jpg",
-      rating: 5,
-      score: 98,
-      totalEarnings: "$9,750",
-      projectsCompleted: 124,
-      quote: "I've been with Infera AI for 6 months and it's been amazing. The platform is easy to use and payments are always on time."
-    }
-  ];
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [direction, setDirection] = useState(0);
 
-  const testimonialCards = [
-    {
-      name: "Sarah Chen",
-      role: "Software Engineer",
-      avatar: "/images/avatars/sarah.jpg",
-      rating: 5,
-      quote: "Infera AI has been incredible for supplementing my income. I work on code review projects during evenings and weekends, and the flexibility is unmatched."
+  const slideVariants = {
+    enter: (direction: number) => ({
+      x: direction > 0 ? 1000 : -1000,
+      opacity: 0,
+    }),
+    center: {
+      zIndex: 1,
+      x: 0,
+      opacity: 1,
     },
-    {
-      name: "Marcus Johnson", 
-      role: "Data Scientist",
-      avatar: "/images/avatars/marcus.jpg",
-      rating: 5,
-      quote: "The quality of projects and the support from the Infera AI team is outstanding. I've grown my skills significantly while earning great income."
-    },
-    {
-      name: "Emily Rodriguez",
-      role: "Content Writer", 
-      avatar: "/images/avatars/emily.jpg",
-      rating: 5,
-      quote: "I've been with Infera AI for 6 months and it's been amazing. The platform is easy to use and payments are always on time."
-    }
-  ];
+    exit: (direction: number) => ({
+      zIndex: 0,
+      x: direction < 0 ? 1000 : -1000,
+      opacity: 0,
+    }),
+  };
 
-  const renderStars = (rating: number) => {
-    return Array.from({ length: 5 }, (_, i) => (
-      <span key={i} className={`text-xl ${i < rating ? 'text-yellow-400' : 'text-gray-300'}`}>
-        ⭐
-      </span>
-    ));
+  const swipeConfidenceThreshold = 10000;
+  const swipePower = (offset: number, velocity: number) => {
+    return Math.abs(offset) * velocity;
+  };
+
+  const paginate = (newDirection: number) => {
+    setDirection(newDirection);
+    setCurrentIndex((prevIndex) => {
+      let newIndex = prevIndex + newDirection;
+      if (newIndex < 0) newIndex = testimonials.length - 1;
+      if (newIndex >= testimonials.length) newIndex = 0;
+      return newIndex;
+    });
   };
 
   return (
-    <>
-      {/* Creative Section Divider */}
-      <div className="relative">
-        {/* Wavy Transition */}
-        <div className="absolute inset-0 overflow-hidden">
-          <svg
-            className="absolute bottom-0 w-full h-24 text-white"
-            preserveAspectRatio="none"
-            viewBox="0 0 1200 120"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path
-              d="M0,0V46.29c47.79,22.2,103.59,32.17,158,28,70.36-5.37,136.33-33.31,206.8-37.5C438.64,32.43,512.34,53.67,583,72.05c69.27,18,138.3,24.88,209.4,13.08,36.15-6,69.85-17.84,104.45-29.34C989.49,25,1113-14.29,1200,52.47V0Z"
-              opacity=".25"
-              className="fill-current"
-            ></path>
-            <path
-              d="M0,0V15.81C13,36.92,27.64,56.86,47.69,72.05,99.41,111.27,165,111,224.58,91.58c31.15-10.15,60.09-26.07,89.67-39.8,40.92-19,84.73-46,130.83-49.67,36.26-2.85,70.9,9.42,98.6,31.56,31.77,25.39,62.32,62,103.63,73,40.44,10.79,81.35-6.69,119.13-24.28s75.16-39,116.92-43.05c59.73-5.85,113.28,22.88,168.9,38.84,30.2,8.66,59,6.17,87.09-7.5,22.43-10.89,48-26.93,60.65-49.24V0Z"
-              opacity=".5"
-              className="fill-current"
-            ></path>
-            <path
-              d="M0,0V5.63C149.93,59,314.09,71.32,475.83,42.57c43-7.64,84.23-20.12,127.61-26.46,59-8.63,112.48,12.24,165.56,35.4C827.93,77.22,886,95.24,951.2,90c86.53-7,172.46-45.71,248.8-84.81V0Z"
-              className="fill-current"
-            ></path>
-          </svg>
-        </div>
-        
-        {/* Floating Elements */}
-        <div className="relative py-16 bg-gradient-to-br from-gray-50 to-white">
-          <div className="absolute inset-0 overflow-hidden">
-            <div className="absolute top-10 left-10 w-20 h-20 bg-purple-200/30 rounded-full animate-pulse"></div>
-            <div className="absolute top-1/2 right-20 w-16 h-16 bg-pink-200/30 rounded-full animate-bounce"></div>
-            <div className="absolute bottom-20 left-1/4 w-12 h-12 bg-blue-200/30 rounded-full animate-ping"></div>
-          </div>
-          
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
-            <div className="inline-flex items-center space-x-4 bg-white/80 backdrop-blur-sm rounded-full px-8 py-4 shadow-lg">
-              <span className="text-2xl">🎉</span>
-              <span className="text-gray-600 font-medium">Ready to join our success stories?</span>
-              <span className="text-2xl">🚀</span>
-            </div>
-          </div>
-        </div>
-      </div>
+    <section id="testimonials" className="py-24 bg-gradient-to-br from-slate-50 via-purple-50 to-blue-50 relative overflow-hidden">
+      {/* Background Elements */}
+      <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSA2MCAwIEwgMCAwIDAgNjAiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzMzMzMzMyIgc3Ryb2tlLW9wYWNpdHk9IjAuMDIiIHN0cm9rZS13aWR0aD0iMSIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNncmlkKSIvPjwvc3ZnPg==')] opacity-40"></div>
+      <motion.div
+        className="absolute top-20 left-20 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl"
+        animate={{
+          scale: [1, 1.2, 1],
+          opacity: [0.3, 0.5, 0.3],
+        }}
+        transition={{
+          duration: 8,
+          repeat: Infinity,
+          ease: "easeInOut",
+        }}
+      />
 
-      <section id="testimonials" className="py-20 bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 relative">
-        {/* Background Pattern */}
-        <div className="absolute inset-0 opacity-5">
-          <div className="absolute top-20 left-20 w-40 h-40 bg-purple-500 rounded-full blur-3xl"></div>
-          <div className="absolute bottom-20 right-20 w-60 h-60 bg-pink-500 rounded-full blur-3xl"></div>
-          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-blue-500 rounded-full blur-3xl"></div>
-        </div>
-        
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         {/* Header */}
-        <div className="text-center mb-16">
-          <div className="bg-purple-100 text-purple-600 px-4 py-2 rounded-full text-sm font-normal inline-flex items-center mb-6">
-            <span className="mr-2">💜</span>
-            Testimonials
-          </div>
-          <h2 className="text-3xl lg:text-4xl font-normal text-gray-800 mb-4">
-            Loved by <span className="bg-gradient-to-r from-purple-500 to-pink-600 bg-clip-text text-transparent font-medium">Thousands</span>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6 }}
+          className="text-center mb-16"
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5 }}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-purple-100 rounded-full mb-6"
+          >
+            <Star className="h-4 w-4 text-purple-600 fill-purple-600" />
+            <span className="text-sm text-purple-600">Testimonials</span>
+          </motion.div>
+
+          <h2 className="text-4xl md:text-5xl text-gray-900 mb-6">
+            Loved by <span className="bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Thousands</span>
           </h2>
-          <p className="text-base text-gray-500 max-w-2xl mx-auto font-light">
+          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
             Join thousands of satisfied contributors earning with Infera AI
           </p>
-        </div>
+        </motion.div>
 
-        {/* Featured Testimonial */}
-        <div className="bg-white rounded-3xl p-8 lg:p-12 shadow-lg mb-12 relative overflow-hidden">
-          {/* Background Pattern */}
-          <div className="absolute top-0 right-0 w-32 h-32 opacity-5">
-            <div className="w-full h-full bg-gradient-to-br from-purple-500 to-pink-500 rounded-full transform rotate-12"></div>
+        {/* Main Carousel */}
+        <div className="relative max-w-5xl mx-auto mb-16">
+          <div className="relative h-[500px] flex items-center">
+            <AnimatePresence initial={false} custom={direction}>
+              <motion.div
+                key={currentIndex}
+                custom={direction}
+                variants={slideVariants}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={{
+                  x: { type: "spring", stiffness: 300, damping: 30 },
+                  opacity: { duration: 0.2 },
+                }}
+                drag="x"
+                dragConstraints={{ left: 0, right: 0 }}
+                dragElastic={1}
+                onDragEnd={(e, { offset, velocity }) => {
+                  const swipe = swipePower(offset.x, velocity.x);
+
+                  if (swipe < -swipeConfidenceThreshold) {
+                    paginate(1);
+                  } else if (swipe > swipeConfidenceThreshold) {
+                    paginate(-1);
+                  }
+                }}
+                className="absolute w-full"
+              >
+                <Card className="bg-white/90 backdrop-blur-xl border-gray-200/50 shadow-2xl overflow-hidden">
+                  <CardContent className="p-0">
+                    <div className="grid md:grid-cols-2 gap-0">
+                      {/* Image Side */}
+                      <div className="relative h-[500px]">
+                        <img
+                          src={testimonials[currentIndex].image}
+                          alt={testimonials[currentIndex].name}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODgiIGhlaWdodD0iODgiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgc3Ryb2tlPSIjMDAwIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBvcGFjaXR5PSIuMyIgZmlsbD0ibm9uZSIgc3Ryb2tlLXdpZHRoPSIzLjciPjxyZWN0IHg9IjE2IiB5PSIxNiIgd2lkdGg9IjU2IiBoZWlnaHQ9IjU2IiByeD0iNiIvPjxwYXRoIGQ9Im0xNiA1OCAxNi0xOCAzMiAzMiIvPjxjaXJjbGUgY3g9IjUzIiBjeT0iMzUiIHI9IjciLz48L3N2Zz4KCg==';
+                          }}
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+                        
+                        {/* Stats Overlay */}
+                        <div className="absolute bottom-6 left-6 right-6">
+                          <div className="flex gap-4">
+                            <div className="bg-white/20 backdrop-blur-xl rounded-xl p-4 flex-1 border border-white/30">
+                              <div className="text-2xl text-white mb-1">{testimonials[currentIndex].earnings}</div>
+                              <div className="text-xs text-white/80">Total Earnings</div>
+                            </div>
+                            <div className="bg-white/20 backdrop-blur-xl rounded-xl p-4 flex-1 border border-white/30">
+                              <div className="text-2xl text-white mb-1">{testimonials[currentIndex].projects}</div>
+                              <div className="text-xs text-white/80">Projects</div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Content Side */}
+                      <div className="p-12 flex flex-col justify-center">
+                        {/* Quote Icon */}
+                        <motion.div
+                          initial={{ scale: 0 }}
+                          animate={{ scale: 1 }}
+                          transition={{ duration: 0.5, delay: 0.2 }}
+                          className="mb-8"
+                        >
+                          <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center shadow-lg">
+                            <Quote className="h-8 w-8 text-white" />
+                          </div>
+                        </motion.div>
+
+                        {/* Rating */}
+                        <div className="flex gap-1 mb-6">
+                          {[...Array(testimonials[currentIndex].rating)].map((_, i) => (
+                            <motion.div
+                              key={i}
+                              initial={{ opacity: 0, scale: 0 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              transition={{ duration: 0.3, delay: 0.3 + i * 0.1 }}
+                            >
+                              <Star className="h-6 w-6 text-yellow-500 fill-yellow-500" />
+                            </motion.div>
+                          ))}
+                        </div>
+
+                        {/* Testimonial Text */}
+                        <motion.p
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.6, delay: 0.4 }}
+                          className="text-xl text-gray-700 mb-8 leading-relaxed italic"
+                        >
+                          "{testimonials[currentIndex].text}"
+                        </motion.p>
+
+                        {/* Author Info */}
+                        <motion.div
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.6, delay: 0.5 }}
+                        >
+                          <h4 className="text-xl text-gray-900 mb-2">
+                            {testimonials[currentIndex].name}
+                          </h4>
+                          <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600">
+                            <Badge variant="outline" className="gap-1">
+                              <Briefcase className="h-3 w-3" />
+                              {testimonials[currentIndex].role}
+                            </Badge>
+                            <span className="flex items-center gap-1">
+                              <MapPin className="h-3 w-3" />
+                              {testimonials[currentIndex].location}
+                            </span>
+                          </div>
+                        </motion.div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            </AnimatePresence>
           </div>
-          
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            {/* User Image and Stats */}
-            <div className="relative">
-              {/* Placeholder for user image - replace with actual image */}
-              <div className="w-80 h-80 bg-gradient-to-br from-purple-100 to-pink-100 rounded-3xl mx-auto relative overflow-hidden">
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="w-32 h-32 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
-                    <span className="text-white text-4xl font-bold">
-                      {featuredTestimonials[currentTestimonial].name.charAt(0)}
-                    </span>
-                  </div>
-                </div>
-                
-                {/* Stats Overlay */}
-                <div className="absolute bottom-6 left-6 right-6 grid grid-cols-2 gap-4">
-                  <div className="bg-black/70 backdrop-blur-sm rounded-2xl p-4 text-white">
-                    <div className="text-2xl font-bold">{featuredTestimonials[currentTestimonial].totalEarnings}</div>
-                    <div className="text-sm opacity-80">Total Earnings</div>
-                  </div>
-                  <div className="bg-black/70 backdrop-blur-sm rounded-2xl p-4 text-white">
-                    <div className="text-2xl font-bold">{featuredTestimonials[currentTestimonial].projectsCompleted}</div>
-                    <div className="text-sm opacity-80">Projects</div>
-                  </div>
-                </div>
-              </div>
-            </div>
 
-            {/* Testimonial Content */}
-            <div className="space-y-6">
-              {/* Score Badge */}
-              <div className="bg-gradient-to-r from-purple-500 to-pink-500 text-white w-16 h-16 rounded-2xl flex items-center justify-center text-2xl font-bold">
-                {featuredTestimonials[currentTestimonial].score}
-              </div>
-
-              {/* Rating */}
-              <div className="flex space-x-1">
-                {renderStars(featuredTestimonials[currentTestimonial].rating)}
-              </div>
-
-              {/* Quote */}
-              <blockquote className="text-xl text-gray-600 font-light leading-relaxed italic">
-                "{featuredTestimonials[currentTestimonial].quote}"
-              </blockquote>
-
-              {/* User Info */}
-              <div className="space-y-2">
-                <div className="text-xl font-medium text-gray-800">
-                  {featuredTestimonials[currentTestimonial].name}
-                </div>
-                <div className="flex items-center space-x-4 text-gray-500">
-                  <span className="flex items-center space-x-1">
-                    <span>💼</span>
-                    <span className="text-sm">{featuredTestimonials[currentTestimonial].role}</span>
-                  </span>
-                  <span className="flex items-center space-x-1">
-                    <span>📍</span>
-                    <span className="text-sm">{featuredTestimonials[currentTestimonial].location}</span>
-                  </span>
-                </div>
-              </div>
-            </div>
+          {/* Navigation Buttons */}
+          <div className="absolute top-1/2 -translate-y-1/2 left-0 right-0 flex justify-between pointer-events-none px-4">
+            <motion.button
+              onClick={() => paginate(-1)}
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+              className="h-12 w-12 rounded-full bg-white shadow-lg flex items-center justify-center text-gray-700 hover:bg-gray-50 transition-colors pointer-events-auto"
+            >
+              <ChevronLeft className="h-6 w-6" />
+            </motion.button>
+            <motion.button
+              onClick={() => paginate(1)}
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+              className="h-12 w-12 rounded-full bg-white shadow-lg flex items-center justify-center text-gray-700 hover:bg-gray-50 transition-colors pointer-events-auto"
+            >
+              <ChevronRight className="h-6 w-6" />
+            </motion.button>
           </div>
 
-          {/* Carousel Dots */}
-          <div className="flex justify-center space-x-2 mt-8">
-            {featuredTestimonials.map((_, index) => (
-              <button
+          {/* Dots Indicator */}
+          <div className="flex justify-center gap-2 mt-8">
+            {testimonials.map((_, index) => (
+              <motion.button
                 key={index}
-                onClick={() => setCurrentTestimonial(index)}
-                className={`w-3 h-3 rounded-full transition-all duration-300 ${
-                  index === currentTestimonial 
-                    ? 'bg-gradient-to-r from-purple-500 to-pink-500 w-8' 
-                    : 'bg-gray-300 hover:bg-gray-400'
+                onClick={() => {
+                  setDirection(index > currentIndex ? 1 : -1);
+                  setCurrentIndex(index);
+                }}
+                whileHover={{ scale: 1.2 }}
+                className={`h-2 rounded-full transition-all ${
+                  index === currentIndex
+                    ? "w-8 bg-gradient-to-r from-purple-600 to-pink-600"
+                    : "w-2 bg-gray-300 hover:bg-gray-400"
                 }`}
               />
             ))}
           </div>
         </div>
 
-        {/* Testimonial Cards Grid */}
-        <div className="grid md:grid-cols-3 gap-6">
-          {testimonialCards.map((testimonial, index) => (
-            <div key={index} className="bg-white rounded-2xl p-6 shadow-sm hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
-              {/* User Info */}
-              <div className="flex items-center space-x-3 mb-4">
-                <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
-                  <span className="text-white font-bold">
-                    {testimonial.name.charAt(0)}
-                  </span>
-                </div>
-                <div>
-                  <div className="font-medium text-gray-800">{testimonial.name}</div>
-                  <div className="text-sm text-gray-500">{testimonial.role}</div>
-                </div>
-              </div>
-
-              {/* Rating */}
-              <div className="flex space-x-1 mb-4">
-                {renderStars(testimonial.rating)}
-              </div>
-
-              {/* Quote */}
-              <p className="text-gray-600 text-sm leading-relaxed font-light">
-                "{testimonial.quote}"
-              </p>
-            </div>
+        {/* Bottom Grid - All Testimonials */}
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {testimonials.slice(0, 3).map((testimonial, index) => (
+            <motion.div
+              key={testimonial.name}
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5, delay: index * 0.1 }}
+              whileHover={{ y: -5 }}
+            >
+              <Card className="bg-white/80 backdrop-blur-sm border-gray-200/50 shadow-lg hover:shadow-xl transition-all h-full">
+                <CardContent className="p-6">
+                  <div className="flex items-start gap-4 mb-4">
+                    <Avatar className="h-14 w-14 border-2 border-purple-200">
+                      <img
+                        src={testimonial.image}
+                        alt={testimonial.name}
+                        className="object-cover w-full h-full rounded-full"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                        }}
+                      />
+                      <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-600 text-white">
+                        {testimonial.name.charAt(0)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-grow">
+                      <h4 className="text-base text-gray-900">{testimonial.name}</h4>
+                      <p className="text-sm text-gray-600">{testimonial.role}</p>
+                      <div className="flex gap-0.5 mt-2">
+                        {[...Array(testimonial.rating)].map((_, i) => (
+                          <Star key={i} className="h-4 w-4 text-yellow-500 fill-yellow-500" />
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-sm text-gray-700 leading-relaxed">
+                    "{testimonial.text}"
+                  </p>
+                </CardContent>
+              </Card>
+            </motion.div>
           ))}
         </div>
       </div>
     </section>
-    </>
   );
 }
