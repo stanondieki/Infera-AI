@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { projectId, publicAnonKey } from './supabase/info';
+import { API_CONFIG, API_ENDPOINTS, apiClient, buildApiUrl } from './api';
 
 interface User {
   id: string;
@@ -119,34 +119,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       // Try API first
       try {
-        const response = await fetch(
-          `https://${projectId}.supabase.co/functions/v1/server/signin`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${publicAnonKey}`,
-            },
-            body: JSON.stringify({ email, password }),
-          }
+        const response = await apiClient.post(
+          buildApiUrl(API_ENDPOINTS.AUTH.LOGIN),
+          { email, password }
         );
 
-        if (response.ok) {
-          const data = await response.json();
-          
-          if (data.accessToken && data.user) {
-            setAccessToken(data.accessToken);
-            setUser(data.user);
+        if (response.success && response.accessToken && response.user) {
+          setAccessToken(response.accessToken);
+          setUser(response.user);
 
-            // Persist to localStorage
-            localStorage.setItem(LOCAL_SESSION_KEY, JSON.stringify({
-              accessToken: data.accessToken,
-              user: data.user,
-            }));
-            
-            console.log('[CLIENT] ✓ Sign in successful (API):', data.user.email);
-            return data.user;
-          }
+          // Persist to localStorage
+          localStorage.setItem(LOCAL_SESSION_KEY, JSON.stringify({
+            accessToken: response.accessToken,
+            user: response.user,
+          }));
+          
+          console.log('[CLIENT] ✓ Sign in successful (API):', response.user.email);
+          return response.user;
         }
       } catch (apiError) {
         console.log('[CLIENT] API unavailable, using local authentication');
@@ -252,27 +241,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       console.log('[CLIENT] Attempting to sign up:', email);
       
-      // Try API first
+      // Try backend API first
       try {
-        const response = await fetch(
-          `https://${projectId}.supabase.co/functions/v1/server/signup`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${publicAnonKey}`,
-            },
-            body: JSON.stringify({ email, password, name }),
-          }
-        );
+        const response = await apiClient.post(API_ENDPOINTS.AUTH.REGISTER, {
+          email,
+          password,
+          name
+        });
 
-        if (response.ok) {
-          // After signup, sign in automatically
-          await signIn(email, password);
-          return;
-        }
-      } catch (apiError) {
-        console.log('[CLIENT] API unavailable, using local authentication');
+        console.log('[CLIENT] ✓ Sign up successful (Backend):', email);
+        
+        // After signup, sign in automatically
+        await signIn(email, password);
+        return;
+      } catch (apiError: any) {
+        console.log('[CLIENT] Backend API error:', apiError.message);
+        console.log('[CLIENT] Falling back to local authentication');
       }
 
       // Fallback to local authentication
@@ -336,17 +320,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       if (accessToken && !accessToken.startsWith('local_token_')) {
         try {
-          await fetch(
-            `https://${projectId}.supabase.co/functions/v1/server/signout`,
-            {
-              method: 'POST',
-              headers: {
-                Authorization: `Bearer ${accessToken}`,
-              },
-            }
-          );
+          await apiClient.post(API_ENDPOINTS.AUTH.LOGOUT, {}, accessToken);
         } catch (error) {
-          console.log('API sign out failed, continuing with local sign out');
+          console.log('Backend sign out failed, continuing with local sign out');
         }
       }
     } catch (error) {

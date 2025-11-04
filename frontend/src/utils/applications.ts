@@ -1,6 +1,4 @@
-import { projectId, publicAnonKey } from './supabase/info';
-
-const API_URL = `https://${projectId}.supabase.co/functions/v1/server`;
+import { apiClient, API_ENDPOINTS } from './api';
 
 export interface ApplicationFormData {
   firstName: string;
@@ -172,20 +170,11 @@ function saveApplications(applications: Application[]): void {
 
 export async function submitApplication(formData: ApplicationFormData) {
   try {
-    const response = await fetch(`${API_URL}/submit-application`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(formData),
-    });
-
-    if (response.ok) {
-      const data = await response.json();
-      return data;
-    }
-  } catch (error) {
-    console.log('API unavailable, using local storage');
+    const response = await apiClient.post(API_ENDPOINTS.APPLICATIONS.SUBMIT, formData);
+    return response;
+  } catch (error: any) {
+    console.log('Backend API error:', error.message);
+    console.log('Falling back to local storage');
   }
 
   // Fallback to local storage
@@ -215,26 +204,19 @@ export async function submitApplication(formData: ApplicationFormData) {
 
 export async function getApplications(status?: string, accessToken?: string) {
   try {
-    const url = status 
-      ? `${API_URL}/admin/applications?status=${status}`
-      : `${API_URL}/admin/applications`;
+    const endpoint = status && status !== 'all'
+      ? `${API_ENDPOINTS.APPLICATIONS.LIST}?status=${status}`
+      : API_ENDPOINTS.APPLICATIONS.LIST;
     
-    const headers: HeadersInit = {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${accessToken || publicAnonKey}`
+    const response = await apiClient.get(endpoint, accessToken);
+    
+    return {
+      applications: response.applications || [],
+      total: response.total || 0
     };
-    
-    const response = await fetch(url, { headers });
-    
-    if (response.ok) {
-      const data = await response.json();
-      return {
-        applications: data.applications || [],
-        total: data.total || 0
-      };
-    }
-  } catch (error) {
-    console.log('API unavailable, using local storage');
+  } catch (error: any) {
+    console.log('Backend API error:', error.message);
+    console.log('Falling back to local storage');
   }
 
   // Fallback to local storage
@@ -252,8 +234,23 @@ export async function getApplications(status?: string, accessToken?: string) {
 export async function updateApplicationStatus(
   applicationId: string,
   status: 'pending' | 'reviewing' | 'accepted' | 'rejected',
-  notes?: string
+  notes?: string,
+  accessToken?: string
 ): Promise<{ application: Application }> {
+  try {
+    const response = await apiClient.put(
+      API_ENDPOINTS.APPLICATIONS.UPDATE_STATUS(applicationId),
+      { status, notes },
+      accessToken
+    );
+    
+    return { application: response.application };
+  } catch (error: any) {
+    console.log('Backend API error:', error.message);
+    console.log('Falling back to local storage');
+  }
+
+  // Fallback to local storage
   const applications = loadApplications();
   const appIndex = applications.findIndex(app => app.id === applicationId);
 

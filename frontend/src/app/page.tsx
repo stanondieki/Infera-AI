@@ -98,6 +98,7 @@ function AppContent() {
         <AllOpportunities 
           onBack={handleBackToHome}
           onSignInClick={handleSignInClick}
+          onApplyClick={handleApplyClick}
         />
       )}
 

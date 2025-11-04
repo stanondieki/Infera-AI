@@ -1,8 +1,11 @@
 import * as React from "react";
 
-import { cn } from "./utils";
+import { cn } from "@/lib/utils";
 
-function Input({ className, type, ...props }: React.ComponentProps<"input">) {
+const Input = React.forwardRef<
+  HTMLInputElement,
+  React.ComponentProps<"input">
+>(({ className, type, ...props }, ref) => {
   return (
     <input
       type={type}
@@ -13,9 +16,12 @@ function Input({ className, type, ...props }: React.ComponentProps<"input">) {
         "aria-invalid:ring-red-500/20 dark:aria-invalid:ring-red-500/40 aria-invalid:border-red-500",
         className,
       )}
+      ref={ref}
       {...props}
     />
   );
-}
+});
+
+Input.displayName = "Input";
 
 export { Input };

@@ -2,61 +2,33 @@ import { Card, CardContent, CardHeader } from './ui/card';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { motion } from 'framer-motion';
+import { useState, useEffect } from 'react';
 import { ArrowRight, Clock, DollarSign, Users, Star, TrendingUp, MapPin } from 'lucide-react';
-
-const featuredOpportunities = [
-  {
-    id: '1',
-    title: 'AI Training Data Specialist',
-    category: 'AI/ML',
-    rate: '$25-40/hr',
-    description: 'Help train large language models by creating high-quality training data and providing feedback on AI responses.',
-    skills: ['Machine Learning', 'Python', 'Data Analysis'],
-    timeCommitment: '10-20 hrs/week',
-    applicants: 234,
-    rating: 4.9,
-    location: 'Remote',
-    badge: 'Top Pay',
-    badgeColor: 'bg-green-100 text-green-700 border-green-200',
-    trending: true
-  },
-  {
-    id: '2',
-    title: 'Code Review & Optimization',
-    category: 'Software Engineering',
-    rate: '$30-50/hr',
-    description: 'Review and optimize code for AI systems, ensuring best practices and performance improvements.',
-    skills: ['JavaScript', 'Python', 'Code Review'],
-    timeCommitment: '15-25 hrs/week',
-    applicants: 156,
-    rating: 4.8,
-    location: 'Remote',
-    badge: 'High Demand',
-    badgeColor: 'bg-blue-100 text-blue-700 border-blue-200',
-    trending: false
-  },
-  {
-    id: '3',
-    title: 'Technical Content Creator',
-    category: 'Writing & Education',
-    rate: '$20-35/hr',
-    description: 'Create educational content and tutorials about AI technologies for training purposes.',
-    skills: ['Technical Writing', 'AI Knowledge', 'Content Creation'],
-    timeCommitment: '8-15 hrs/week',
-    applicants: 89,
-    rating: 4.7,
-    location: 'Worldwide',
-    badge: 'Flexible',
-    badgeColor: 'bg-purple-100 text-purple-700 border-purple-200',
-    trending: true
-  }
-];
+import { getOpportunities, type Opportunity } from '../utils/opportunities';
 
 interface OpportunitiesProps {
   onApplyClick: () => void;
 }
 
 export function Opportunities({ onApplyClick }: OpportunitiesProps) {
+  const [featuredOpportunities, setFeaturedOpportunities] = useState<Opportunity[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchFeaturedOpportunities();
+  }, []);
+
+  const fetchFeaturedOpportunities = async () => {
+    try {
+      const result = await getOpportunities(undefined, true); // Get featured opportunities
+      setFeaturedOpportunities(result.opportunities.slice(0, 3)); // Take only first 3 for featured section
+    } catch (error) {
+      console.error('Error fetching featured opportunities:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleViewAll = () => {
     // Trigger event to switch to all opportunities view
     window.dispatchEvent(new CustomEvent('viewAllOpportunities'));

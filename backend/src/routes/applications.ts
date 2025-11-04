@@ -1,0 +1,292 @@
+import express, { Request, Response } from 'express';
+import mongoose from 'mongoose';
+import { Application, IApplication, User } from '../models';
+import { validateApplication } from '../middleware/validation';
+import { applicationLimiter, apiLimiter } from '../middleware/rateLimiter';
+import { authenticateToken, requireAdmin, AuthRequest } from '../middleware/auth';
+
+const router = express.Router();
+
+// Submit new application
+router.post('/submit', applicationLimiter, validateApplication, async (req: Request, res: Response) => {
+  try {
+    const applicationData = req.body;
+
+    // Check if user already has a pending or accepted application
+    const existingApplication = await Application.findOne({ 
+      email: applicationData.email,
+      status: { $in: ['pending', 'reviewing', 'accepted'] }
+    });
+
+    if (existingApplication) {
+      return res.status(400).json({
+        success: false,
+        message: 'You already have an active application. Please wait for review.'
+      });
+    }
+
+    // Create new application
+    const application = new Application(applicationData);
+    await application.save();
+
+    res.status(201).json({
+      success: true,
+      message: 'Application submitted successfully',
+      application: {
+        id: application._id,
+        email: application.email,
+        firstName: application.firstName,
+        lastName: application.lastName,
+        status: application.status,
+        submittedAt: application.submittedAt
+      }
+    });
+  } catch (error) {
+    console.error('Application submission error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error during application submission'
+    });
+  }
+});
+
+// Get application status (public endpoint with email verification)
+router.get('/status/:email', async (req: Request, res: Response) => {
+  try {
+    const { email } = req.params;
+
+    const application = await Application.findOne({ email })
+      .select('status submittedAt reviewedAt reviewNotes')
+      .sort({ submittedAt: -1 });
+
+    if (!application) {
+      return res.status(404).json({
+        success: false,
+        message: 'No application found for this email'
+      });
+    }
+
+    res.json({
+      success: true,
+      application: {
+        status: application.status,
+        submittedAt: application.submittedAt,
+        reviewedAt: application.reviewedAt,
+        reviewNotes: application.reviewNotes
+      }
+    });
+  } catch (error) {
+    console.error('Application status check error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
+// Get all applications (Admin only)
+router.get('/', authenticateToken, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const { 
+      status, 
+      page = 1, 
+      limit = 10,
+      sortBy = 'submittedAt',
+      sortOrder = 'desc'
+    } = req.query;
+
+    const query: any = {};
+    if (status && status !== 'all') {
+      query.status = status;
+    }
+
+    const sort: any = {};
+    sort[sortBy as string] = sortOrder === 'asc' ? 1 : -1;
+
+    const skip = (Number(page) - 1) * Number(limit);
+
+    const applications = await Application.find(query)
+      .sort(sort)
+      .skip(skip)
+      .limit(Number(limit))
+      .populate('reviewedBy', 'name email')
+      .populate('userId', 'name email');
+
+    const total = await Application.countDocuments(query);
+
+    res.json({
+      success: true,
+      applications,
+      pagination: {
+        page: Number(page),
+        limit: Number(limit),
+        total,
+        pages: Math.ceil(total / Number(limit))
+      }
+    });
+  } catch (error) {
+    console.error('Get applications error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
+// Get single application details (Admin only)
+router.get('/:id', authenticateToken, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const application = await Application.findById(id)
+      .populate('reviewedBy', 'name email')
+      .populate('userId', 'name email');
+
+    if (!application) {
+      return res.status(404).json({
+        success: false,
+        message: 'Application not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      application
+    });
+  } catch (error) {
+    console.error('Get application error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
+// Update application status (Admin only)
+router.put('/:id/status', authenticateToken, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { status, reviewNotes } = req.body;
+    const reviewerId = req.user?._id;
+
+    if (!['pending', 'reviewing', 'accepted', 'rejected'].includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid status'
+      });
+    }
+
+    const application = await Application.findById(id);
+    if (!application) {
+      return res.status(404).json({
+        success: false,
+        message: 'Application not found'
+      });
+    }
+
+    // Update application
+    application.status = status;
+    application.reviewedBy = new mongoose.Types.ObjectId(reviewerId);
+    application.reviewedAt = new Date();
+    if (reviewNotes) {
+      application.reviewNotes = reviewNotes;
+    }
+
+    await application.save();
+
+    // If accepted, create user account
+    if (status === 'accepted' && !application.userId) {
+      try {
+        // Generate a temporary password
+        const tempPassword = Math.random().toString(36).slice(-8) + 'A1!';
+        
+        const newUser = new User({
+          name: `${application.firstName} ${application.lastName}`,
+          email: application.email,
+          password: tempPassword,
+          role: 'user',
+          skills: application.skills,
+          languages: application.languages,
+          location: `${application.city}, ${application.country}`,
+          timezone: application.timezone,
+          bio: application.motivation,
+          isVerified: true,
+          isActive: true
+        });
+
+        await newUser.save();
+        
+        application.userId = new mongoose.Types.ObjectId(newUser._id);
+        await application.save();
+
+        // TODO: Send welcome email with temporary password
+        console.log(`User created for ${application.email} with temp password: ${tempPassword}`);
+      } catch (userError) {
+        console.error('Error creating user account:', userError);
+        // Continue with application approval even if user creation fails
+      }
+    }
+
+    const updatedApplication = await Application.findById(id)
+      .populate('reviewedBy', 'name email')
+      .populate('userId', 'name email');
+
+    res.json({
+      success: true,
+      message: 'Application status updated successfully',
+      application: updatedApplication
+    });
+  } catch (error) {
+    console.error('Update application status error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
+// Get application statistics (Admin only)
+router.get('/stats/overview', authenticateToken, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const stats = await Application.aggregate([
+      {
+        $group: {
+          _id: '$status',
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    const totalApplications = await Application.countDocuments();
+    const todayApplications = await Application.countDocuments({
+      submittedAt: {
+        $gte: new Date(new Date().setHours(0, 0, 0, 0))
+      }
+    });
+
+    const statusStats = stats.reduce((acc, stat) => {
+      acc[stat._id] = stat.count;
+      return acc;
+    }, {} as Record<string, number>);
+
+    res.json({
+      success: true,
+      stats: {
+        total: totalApplications,
+        today: todayApplications,
+        pending: statusStats.pending || 0,
+        reviewing: statusStats.reviewing || 0,
+        accepted: statusStats.accepted || 0,
+        rejected: statusStats.rejected || 0
+      }
+    });
+  } catch (error) {
+    console.error('Get application stats error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
+export default router;

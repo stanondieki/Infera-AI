@@ -1,57 +1,262 @@
-import express from 'express';
-import bcrypt from 'bcryptjs';
+import express, { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
+import { User, IUser } from '../models';
+import { validateUserRegistration, validateUserLogin } from '../middleware/validation';
+import { authLimiter } from '../middleware/rateLimiter';
+import { authenticateToken, AuthRequest } from '../middleware/auth';
 
 const router = express.Router();
 
-// Register
-router.post('/register', async (req, res) => {
+// Generate JWT token
+const generateToken = (userId: string): string => {
+  return jwt.sign(
+    { userId },
+    process.env.JWT_SECRET || 'your-secret-key',
+    { expiresIn: '7d' }
+  );
+};
+
+// Register new user
+router.post('/register', authLimiter, validateUserRegistration, async (req: Request, res: Response) => {
   try {
-    const { email, password, name } = req.body;
+    const { email, password, name, role = 'user' } = req.body;
     
-    // Basic validation
-    if (!email || !password || !name) {
-      return res.status(400).json({ message: 'Please provide all required fields' });
+    // Check if user already exists
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'User with this email already exists' 
+      });
     }
 
-    // Hash password
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
-
-    // Create user (you'll need to implement User model)
-    const userData = {
+    // Create new user
+    const user = new User({
       name,
       email,
-      password: hashedPassword,
+      password,
+      role,
+      isVerified: false
+    });
+
+    await user.save();
+
+    // Generate token
+    const token = generateToken(user._id);
+
+    // Remove password from response
+    const userResponse = {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      avatar: user.avatar,
+      isVerified: user.isVerified,
+      joinedDate: user.joinedDate
     };
 
-    res.status(201).json({ message: 'User registered successfully', user: { name, email } });
+    res.status(201).json({ 
+      success: true, 
+      message: 'User registered successfully',
+      user: userResponse,
+      accessToken: token
+    });
   } catch (error) {
-    res.status(500).json({ message: 'Server error' });
+    console.error('Registration error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Server error during registration' 
+    });
   }
 });
 
-// Login
-router.post('/login', async (req, res) => {
+// Login user
+router.post('/login', authLimiter, validateUserLogin, async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
-
-    // Basic validation
-    if (!email || !password) {
-      return res.status(400).json({ message: 'Please provide email and password' });
+    
+    // Find user and include password for comparison
+    const user = await User.findOne({ email }).select('+password');
+    if (!user) {
+      return res.status(401).json({ 
+        success: false, 
+        message: 'Invalid email or password' 
+      });
     }
 
-    // For now, return success (implement proper authentication later)
-    const token = jwt.sign(
-      { userId: '12345', email },
-      process.env.JWT_SECRET || 'fallback_secret',
-      { expiresIn: '24h' }
-    );
+    // Check if account is active
+    if (!user.isActive) {
+      return res.status(401).json({ 
+        success: false, 
+        message: 'Account has been deactivated' 
+      });
+    }
 
-    res.json({ message: 'Login successful', token });
+    // Verify password
+    const isPasswordValid = await user.comparePassword(password);
+    if (!isPasswordValid) {
+      return res.status(401).json({ 
+        success: false, 
+        message: 'Invalid email or password' 
+      });
+    }
+
+    // Update last login date
+    user.lastLoginDate = new Date();
+    await user.save();
+
+    // Generate token
+    const token = generateToken(user._id);
+
+    // Prepare user response
+    const userResponse = {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      avatar: user.avatar,
+      bio: user.bio,
+      skills: user.skills,
+      languages: user.languages,
+      location: user.location,
+      website: user.website,
+      github: user.github,
+      linkedin: user.linkedin,
+      totalEarnings: user.totalEarnings,
+      completedTasks: user.completedTasks,
+      rating: user.rating,
+      reviewCount: user.reviewCount,
+      isVerified: user.isVerified,
+      joinedDate: user.joinedDate,
+      lastLoginDate: user.lastLoginDate
+    };
+
+    res.json({ 
+      success: true, 
+      message: 'Login successful',
+      user: userResponse,
+      accessToken: token
+    });
   } catch (error) {
-    res.status(500).json({ message: 'Server error' });
+    console.error('Login error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Server error during login' 
+    });
   }
 });
 
-module.exports = router;
+// Get current user profile
+router.get('/me', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const user = req.user;
+    if (!user) {
+      return res.status(401).json({ 
+        success: false, 
+        message: 'User not found' 
+      });
+    }
+
+    const userResponse = {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      avatar: user.avatar,
+      bio: user.bio,
+      skills: user.skills,
+      languages: user.languages,
+      timezone: user.timezone,
+      location: user.location,
+      website: user.website,
+      github: user.github,
+      linkedin: user.linkedin,
+      totalEarnings: user.totalEarnings,
+      completedTasks: user.completedTasks,
+      rating: user.rating,
+      reviewCount: user.reviewCount,
+      isVerified: user.isVerified,
+      joinedDate: user.joinedDate,
+      lastLoginDate: user.lastLoginDate
+    };
+
+    res.json({ 
+      success: true, 
+      user: userResponse 
+    });
+  } catch (error) {
+    console.error('Get profile error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Server error' 
+    });
+  }
+});
+
+// Update user profile
+router.put('/profile', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const user = req.user;
+    if (!user) {
+      return res.status(401).json({ 
+        success: false, 
+        message: 'User not found' 
+      });
+    }
+
+    const allowedUpdates = [
+      'name', 'bio', 'skills', 'languages', 'timezone', 
+      'location', 'website', 'github', 'linkedin', 'avatar'
+    ];
+    
+    const updates: any = {};
+    Object.keys(req.body).forEach(key => {
+      if (allowedUpdates.includes(key)) {
+        updates[key] = req.body[key];
+      }
+    });
+
+    const updatedUser = await User.findByIdAndUpdate(
+      user._id,
+      updates,
+      { new: true, runValidators: true }
+    ).select('-password');
+
+    if (!updatedUser) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'User not found' 
+      });
+    }
+
+    res.json({ 
+      success: true, 
+      message: 'Profile updated successfully',
+      user: updatedUser 
+    });
+  } catch (error) {
+    console.error('Profile update error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Server error during profile update' 
+    });
+  }
+});
+
+// Logout (client-side token removal, server-side we just confirm)
+router.post('/logout', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    res.json({ 
+      success: true, 
+      message: 'Logout successful' 
+    });
+  } catch (error) {
+    console.error('Logout error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Server error during logout' 
+    });
+  }
+});
+
+export default router;

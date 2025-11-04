@@ -1,6 +1,4 @@
-import { projectId, publicAnonKey } from './supabase/info';
-
-const API_URL = `https://${projectId}.supabase.co/functions/v1/server`;
+import { apiClient, API_ENDPOINTS } from './api';
 
 export interface User {
   id: string;
@@ -142,23 +140,13 @@ function saveUsers(users: User[]): void {
   }
 }
 
-export async function getUsers(): Promise<User[]> {
+export async function getUsers(accessToken?: string): Promise<User[]> {
   try {
-    // Try to fetch from API first
-    const response = await fetch(`${API_URL}/users`, {
-      method: 'GET',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${publicAnonKey}`
-      },
-    });
-
-    if (response.ok) {
-      const data = await response.json();
-      return data.users || [];
-    }
-  } catch (error) {
-    console.log('API unavailable, using local storage');
+    const response = await apiClient.get(API_ENDPOINTS.USERS.LIST, accessToken);
+    return response.users || [];
+  } catch (error: any) {
+    console.log('Backend API error:', error.message);
+    console.log('Falling back to local storage');
   }
 
   // Fallback to local storage
@@ -172,23 +160,13 @@ export async function createUser(userData: {
   role: 'user' | 'admin';
   hourly_rate?: number;
   password?: string;
-}): Promise<{ user: User; password: string }> {
+}, accessToken?: string): Promise<{ user: User; password: string }> {
   try {
-    // Try API first
-    const response = await fetch(`${API_URL}/users`, {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${publicAnonKey}`
-      },
-      body: JSON.stringify(userData),
-    });
-
-    if (response.ok) {
-      return await response.json();
-    }
-  } catch (error) {
-    console.log('API unavailable, using local storage');
+    const response = await apiClient.post(API_ENDPOINTS.USERS.CREATE, userData, accessToken);
+    return response;
+  } catch (error: any) {
+    console.log('Backend API error:', error.message);
+    console.log('Falling back to local storage');
   }
 
   // Fallback to local storage
@@ -237,23 +215,13 @@ export async function createUser(userData: {
   return { user: newUser, password };
 }
 
-export async function updateUser(userId: string, updates: Partial<User>): Promise<{ user: User }> {
+export async function updateUser(userId: string, updates: Partial<User>, accessToken?: string): Promise<{ user: User }> {
   try {
-    // Try API first
-    const response = await fetch(`${API_URL}/users/${userId}`, {
-      method: 'PATCH',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${publicAnonKey}`
-      },
-      body: JSON.stringify(updates),
-    });
-
-    if (response.ok) {
-      return await response.json();
-    }
-  } catch (error) {
-    console.log('API unavailable, using local storage');
+    const response = await apiClient.put(API_ENDPOINTS.USERS.UPDATE(userId), updates, accessToken);
+    return { user: response.user };
+  } catch (error: any) {
+    console.log('Backend API error:', error.message);
+    console.log('Falling back to local storage');
   }
 
   // Fallback to local storage
@@ -291,22 +259,13 @@ export async function updateUser(userId: string, updates: Partial<User>): Promis
   return { user: users[userIndex] };
 }
 
-export async function deleteUser(userId: string): Promise<{ message: string }> {
+export async function deleteUser(userId: string, accessToken?: string): Promise<{ message: string }> {
   try {
-    // Try API first
-    const response = await fetch(`${API_URL}/users/${userId}`, {
-      method: 'DELETE',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${publicAnonKey}`
-      },
-    });
-
-    if (response.ok) {
-      return await response.json();
-    }
-  } catch (error) {
-    console.log('API unavailable, using local storage');
+    await apiClient.delete(API_ENDPOINTS.USERS.DELETE(userId), accessToken);
+    return { message: 'User deleted successfully' };
+  } catch (error: any) {
+    console.log('Backend API error:', error.message);
+    console.log('Falling back to local storage');
   }
 
   // Fallback to local storage
@@ -331,23 +290,17 @@ export async function deleteUser(userId: string): Promise<{ message: string }> {
   return { message: 'User deleted successfully' };
 }
 
-export async function updatePaymentMethod(userId: string, paymentMethod: PaymentMethod): Promise<{ user: User }> {
+export async function updatePaymentMethod(userId: string, paymentMethod: PaymentMethod, accessToken?: string): Promise<{ user: User }> {
   try {
-    // Try API first
-    const response = await fetch(`${API_URL}/users/${userId}/payment-method`, {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${publicAnonKey}`
-      },
-      body: JSON.stringify({ payment_method: paymentMethod }),
-    });
-
-    if (response.ok) {
-      return await response.json();
-    }
-  } catch (error) {
-    console.log('API unavailable, using local storage');
+    const response = await apiClient.put(
+      API_ENDPOINTS.USERS.UPDATE(userId), 
+      { payment_method: paymentMethod }, 
+      accessToken
+    );
+    return { user: response.user };
+  } catch (error: any) {
+    console.log('Backend API error:', error.message);
+    console.log('Falling back to local storage');
   }
 
   // Fallback to local storage
@@ -364,25 +317,19 @@ export async function updatePaymentMethod(userId: string, paymentMethod: Payment
   return { user: users[userIndex] };
 }
 
-export async function resetUserPassword(userId: string, newPassword?: string): Promise<{ password: string }> {
+export async function resetUserPassword(userId: string, newPassword?: string, accessToken?: string): Promise<{ password: string }> {
   const password = newPassword || generatePassword();
   
   try {
-    // Try API first
-    const response = await fetch(`${API_URL}/users/${userId}/reset-password`, {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${publicAnonKey}`
-      },
-      body: JSON.stringify({ password }),
-    });
-
-    if (response.ok) {
-      return await response.json();
-    }
-  } catch (error) {
-    console.log('API unavailable, using local storage');
+    const response = await apiClient.put(
+      API_ENDPOINTS.USERS.UPDATE(userId), 
+      { password }, 
+      accessToken
+    );
+    return { password: response.password || password };
+  } catch (error: any) {
+    console.log('Backend API error:', error.message);
+    console.log('Falling back to local storage');
   }
 
   // Fallback to local storage

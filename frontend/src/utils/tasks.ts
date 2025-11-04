@@ -1,6 +1,4 @@
-import { projectId, publicAnonKey } from './supabase/info';
-
-const API_URL = `https://${projectId}.supabase.co/functions/v1/server`;
+import { apiClient, API_ENDPOINTS } from './api';
 
 export interface Task {
   id: string;
@@ -147,26 +145,18 @@ function saveTasks(tasks: Task[]): void {
   }
 }
 
-export async function getTasks(userId?: string): Promise<Task[]> {
+export async function getTasks(userId?: string, accessToken?: string): Promise<Task[]> {
   try {
-    const url = userId 
-      ? `${API_URL}/tasks?user_id=${userId}`
-      : `${API_URL}/tasks`;
-    
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${publicAnonKey}`
-      },
-    });
-
-    if (response.ok) {
-      const data = await response.json();
-      return data.tasks || [];
+    let endpoint = API_ENDPOINTS.TASKS.LIST;
+    if (userId) {
+      endpoint += `?user_id=${userId}`;
     }
-  } catch (error) {
-    console.log('API unavailable, using local storage');
+    
+    const response = await apiClient.get(endpoint, accessToken);
+    return response.tasks || [];
+  } catch (error: any) {
+    console.log('Backend API error:', error.message);
+    console.log('Falling back to local storage');
   }
 
   // Fallback to local storage
@@ -186,22 +176,13 @@ export async function createTask(taskData: {
   deadline?: string;
   estimated_hours?: number;
   hourly_rate?: number;
-}): Promise<{ task: Task }> {
+}, accessToken?: string): Promise<{ task: Task }> {
   try {
-    const response = await fetch(`${API_URL}/tasks`, {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${publicAnonKey}`
-      },
-      body: JSON.stringify(taskData),
-    });
-
-    if (response.ok) {
-      return await response.json();
-    }
-  } catch (error) {
-    console.log('API unavailable, using local storage');
+    const response = await apiClient.post(API_ENDPOINTS.TASKS.CREATE, taskData, accessToken);
+    return { task: response.task };
+  } catch (error: any) {
+    console.log('Backend API error:', error.message);
+    console.log('Falling back to local storage');
   }
 
   // Fallback to local storage
@@ -229,22 +210,13 @@ export async function createTask(taskData: {
   return { task: newTask };
 }
 
-export async function updateTask(taskId: string, updates: Partial<Task>): Promise<{ task: Task }> {
+export async function updateTask(taskId: string, updates: Partial<Task>, accessToken?: string): Promise<{ task: Task }> {
   try {
-    const response = await fetch(`${API_URL}/tasks/${taskId}`, {
-      method: 'PATCH',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${publicAnonKey}`
-      },
-      body: JSON.stringify(updates),
-    });
-
-    if (response.ok) {
-      return await response.json();
-    }
-  } catch (error) {
-    console.log('API unavailable, using local storage');
+    const response = await apiClient.put(API_ENDPOINTS.TASKS.UPDATE(taskId), updates, accessToken);
+    return { task: response.task };
+  } catch (error: any) {
+    console.log('Backend API error:', error.message);
+    console.log('Falling back to local storage');
   }
 
   // Fallback to local storage
@@ -269,21 +241,13 @@ export async function updateTask(taskId: string, updates: Partial<Task>): Promis
   return { task: tasks[taskIndex] };
 }
 
-export async function deleteTask(taskId: string): Promise<{ message: string }> {
+export async function deleteTask(taskId: string, accessToken?: string): Promise<{ message: string }> {
   try {
-    const response = await fetch(`${API_URL}/tasks/${taskId}`, {
-      method: 'DELETE',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${publicAnonKey}`
-      },
-    });
-
-    if (response.ok) {
-      return await response.json();
-    }
-  } catch (error) {
-    console.log('API unavailable, using local storage');
+    await apiClient.delete(API_ENDPOINTS.TASKS.DELETE(taskId), accessToken);
+    return { message: 'Task deleted successfully' };
+  } catch (error: any) {
+    console.log('Backend API error:', error.message);
+    console.log('Falling back to local storage');
   }
 
   // Fallback to local storage
@@ -302,22 +266,13 @@ export async function submitTask(taskId: string, data: {
   progress: number;
   actual_hours?: number;
   submission_notes?: string;
-}): Promise<{ task: Task }> {
+}, accessToken?: string): Promise<{ task: Task }> {
   try {
-    const response = await fetch(`${API_URL}/tasks/${taskId}/submit`, {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${publicAnonKey}`
-      },
-      body: JSON.stringify(data),
-    });
-
-    if (response.ok) {
-      return await response.json();
-    }
-  } catch (error) {
-    console.log('API unavailable, using local storage');
+    const response = await apiClient.post(API_ENDPOINTS.TASKS.SUBMIT(taskId), data, accessToken);
+    return { task: response.task };
+  } catch (error: any) {
+    console.log('Backend API error:', error.message);
+    console.log('Falling back to local storage');
   }
 
   // Fallback to local storage
@@ -326,5 +281,5 @@ export async function submitTask(taskId: string, data: {
     actual_hours: data.actual_hours,
     submission_notes: data.submission_notes,
     status: data.progress === 100 ? 'completed' : 'in_progress',
-  });
+  }, accessToken);
 }
