@@ -1,5 +1,3 @@
-"use client";
-
 import React from 'react';
 import { useAuth } from '../utils/auth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
@@ -8,6 +6,19 @@ import { Badge } from './ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { PaymentSettings } from './dashboard/PaymentSettings';
 import { MyTasks } from './dashboard/MyTasks';
+import { MyIssues } from './dashboard/MyIssues';
+import { ProfileSettings } from './dashboard/ProfileSettings';
+import { ActiveProjects } from './dashboard/ActiveProjects';
+import { SecuritySessions } from './dashboard/SecuritySessions';
+import { getUnresolvedIssuesCount } from '../utils/issues';
+import { ViewProfileDialog } from './dashboard/ViewProfileDialog';
+import { InviteFriendsDialog } from './dashboard/InviteFriendsDialog';
+import { NotificationsDialog } from './dashboard/NotificationsDialog';
+import { ReportDialog } from './dashboard/ReportDialog';
+import { MilestoneDialog } from './dashboard/MilestoneDialog';
+import { CourseDialog } from './dashboard/CourseDialog';
+import { ChallengeDialog } from './dashboard/ChallengeDialog';
+import { ProjectDetailsDialog } from './dashboard/ProjectDetailsDialog';
 import { Progress } from './ui/progress';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { Separator } from './ui/separator';
@@ -38,6 +49,7 @@ import {
   Filter,
   MoreVertical,
   ChevronRight,
+  Shield,
   PlayCircle,
   PauseCircle,
   BarChart3,
@@ -153,31 +165,12 @@ interface Milestone {
   completed: boolean;
 }
 
-// Extended User interface to include user_metadata and created_at
-interface ExtendedUser {
-  email?: string;
-  name?: string;
-  created_at?: string;
-  user_metadata?: {
-    name?: string;
-    phone?: string;
-    location?: string;
-    bio?: string;
-    jobTitle?: string;
-    company?: string;
-    website?: string;
-    timezone?: string;
-    language?: string;
-  };
-}
-
 interface DashboardProps {
   onBack: () => void;
 }
 
 export function Dashboard({ onBack }: DashboardProps) {
-  const { user: authUser, accessToken, signOut } = useAuth();
-  const user = authUser as ExtendedUser;
+  const { user, accessToken, signOut } = useAuth();
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
@@ -189,6 +182,27 @@ export function Dashboard({ onBack }: DashboardProps) {
     tasks: 0,
     rate: 0,
   });
+  const [viewProfileOpen, setViewProfileOpen] = useState(false);
+  const [inviteFriendsOpen, setInviteFriendsOpen] = useState(false);
+  const [notificationsDialogOpen, setNotificationsDialogOpen] = useState(false);
+  const [selectedTimeRange, setSelectedTimeRange] = useState('Last 6 Months');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [projectFilters, setProjectFilters] = useState({
+    active: true,
+    paused: false,
+    completed: true,
+    aiTraining: true,
+    dataAnnotation: true,
+    contentModeration: true,
+  });
+  const [showReportDialog, setShowReportDialog] = useState(false);
+  const [selectedMilestone, setSelectedMilestone] = useState<Milestone | null>(null);
+  const [milestoneDialogOpen, setMilestoneDialogOpen] = useState(false);
+  const [selectedCourse, setSelectedCourse] = useState<string | null>(null);
+  const [courseDialogOpen, setCourseDialogOpen] = useState(false);
+  const [selectedChallenge, setSelectedChallenge] = useState<string | null>(null);
+  const [challengeDialogOpen, setChallengeDialogOpen] = useState(false);
+  const [projectDetailsOpen, setProjectDetailsOpen] = useState(false);
 
   // Earnings data for chart
   const earningsData = [
@@ -556,82 +570,81 @@ export function Dashboard({ onBack }: DashboardProps) {
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-purple-50/30">
       {/* Top Navigation Bar with Glass Morphism */}
       <div className="bg-white/80 backdrop-blur-xl border-b border-gray-200/50 sticky top-0 z-50 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-4">
-              <Button variant="ghost" onClick={onBack} className="gap-2 hover:bg-blue-50 transition-colors">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-14 sm:h-16">
+            <div className="flex items-center gap-2 sm:gap-4">
+              <Button variant="ghost" onClick={onBack} className="gap-1 sm:gap-2 hover:bg-blue-50 transition-colors h-8 sm:h-10 px-2 sm:px-4">
                 <ArrowLeft className="h-4 w-4" />
                 <span className="hidden sm:inline">Infera AI</span>
               </Button>
-              <Separator orientation="vertical" className="h-6" />
+              <Separator orientation="vertical" className="h-6 hidden sm:block" />
               <h1 className="text-gray-900 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Dashboard</h1>
             </div>
 
-            <div className="flex items-center gap-3">
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Popover open={notificationsOpen} onOpenChange={setNotificationsOpen}>
-                      <PopoverTrigger asChild>
-                        <Button variant="ghost" size="icon" className="relative hover:bg-blue-50 transition-all">
-                          <motion.div
-                            animate={{ scale: notificationsOpen ? 1.1 : 1 }}
-                            transition={{ duration: 0.2 }}
-                          >
-                            <Bell className="h-5 w-5" />
-                          </motion.div>
-                          <motion.span
-                            className="absolute top-1 right-1 h-2 w-2 bg-red-500 rounded-full"
-                            animate={{ scale: [1, 1.2, 1] }}
-                            transition={{ duration: 2, repeat: Infinity }}
-                          ></motion.span>
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-80 p-0" align="end">
-                        <div className="p-4 border-b">
-                          <h4 className="text-sm">Notifications</h4>
-                          <p className="text-xs text-gray-500 mt-1">You have 3 unread notifications</p>
-                        </div>
-                        <ScrollArea className="h-80">
-                          <div className="p-2 space-y-2">
-                            {activities.slice(0, 5).map((activity) => (
-                              <motion.div
-                                key={activity.id}
-                                whileHover={{ backgroundColor: 'rgba(59, 130, 246, 0.05)' }}
-                                className="p-3 rounded-lg cursor-pointer transition-colors"
-                              >
-                                <div className="flex gap-3">
-                                  <div className="flex-shrink-0 mt-1">
-                                    {getActivityIcon(activity.icon)}
-                                  </div>
-                                  <div className="flex-grow">
-                                    <p className="text-xs text-gray-900">{activity.title}</p>
-                                    <p className="text-xs text-gray-500 mt-0.5">{activity.description}</p>
-                                    <p className="text-xs text-gray-400 mt-1">{formatTime(activity.timestamp)}</p>
-                                  </div>
-                                </div>
-                              </motion.div>
-                            ))}
+            <div className="flex items-center gap-1 sm:gap-3">
+              <Popover open={notificationsOpen} onOpenChange={setNotificationsOpen}>
+                <PopoverTrigger asChild>
+                  <Button variant="ghost" size="icon" className="relative hover:bg-blue-50 transition-all h-8 w-8 sm:h-10 sm:w-10">
+                    <motion.div
+                      animate={{ scale: notificationsOpen ? 1.1 : 1 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <Bell className="h-4 w-4 sm:h-5 sm:w-5" />
+                    </motion.div>
+                    <motion.span
+                      className="absolute top-0.5 right-0.5 sm:top-1 sm:right-1 h-2 w-2 bg-red-500 rounded-full"
+                      animate={{ scale: [1, 1.2, 1] }}
+                      transition={{ duration: 2, repeat: Infinity }}
+                    ></motion.span>
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80 p-0" align="end">
+                  <div className="p-4 border-b">
+                    <h4 className="text-sm">Notifications</h4>
+                    <p className="text-xs text-gray-500 mt-1">You have 3 unread notifications</p>
+                  </div>
+                  <ScrollArea className="h-80">
+                    <div className="p-2 space-y-2">
+                      {activities.slice(0, 5).map((activity) => (
+                        <motion.div
+                          key={activity.id}
+                          whileHover={{ backgroundColor: 'rgba(59, 130, 246, 0.05)' }}
+                          className="p-3 rounded-lg cursor-pointer transition-colors"
+                        >
+                          <div className="flex gap-3">
+                            <div className="flex-shrink-0 mt-1">
+                              {getActivityIcon(activity.icon)}
+                            </div>
+                            <div className="flex-grow">
+                              <p className="text-xs text-gray-900">{activity.title}</p>
+                              <p className="text-xs text-gray-500 mt-0.5">{activity.description}</p>
+                              <p className="text-xs text-gray-400 mt-1">{formatTime(activity.timestamp)}</p>
+                            </div>
                           </div>
-                        </ScrollArea>
-                        <div className="p-2 border-t">
-                          <Button variant="ghost" className="w-full text-xs" size="sm">
-                            View All Notifications
-                          </Button>
-                        </div>
-                      </PopoverContent>
-                    </Popover>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Notifications</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+                        </motion.div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                  <div className="p-2 border-t">
+                    <Button 
+                      variant="ghost" 
+                      className="w-full text-xs" 
+                      size="sm"
+                      onClick={() => {
+                        setNotificationsOpen(false);
+                        setNotificationsDialogOpen(true);
+                      }}
+                    >
+                      View All Notifications
+                    </Button>
+                  </div>
+                </PopoverContent>
+              </Popover>
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="gap-2 hover:bg-blue-50 transition-colors">
-                    <Avatar className="h-8 w-8 ring-2 ring-blue-500/20">
+                  <Button variant="ghost" className="gap-1 sm:gap-2 hover:bg-blue-50 transition-colors h-8 sm:h-10 px-2 sm:px-4">
+                    <Avatar className="h-7 w-7 sm:h-8 sm:w-8 ring-2 ring-blue-500/20">
                       <AvatarFallback className="bg-gradient-to-br from-blue-600 to-purple-600 text-white">
                         {user.name?.charAt(0).toUpperCase()}
                       </AvatarFallback>
@@ -650,15 +663,19 @@ export function Dashboard({ onBack }: DashboardProps) {
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem className="gap-2">
+                  <DropdownMenuItem className="gap-2" onClick={() => setViewProfileOpen(true)}>
+                    <Eye className="h-4 w-4" />
+                    View Profile
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="gap-2" onClick={() => setActiveTab('settings')}>
                     <User className="h-4 w-4" />
                     Profile Settings
                   </DropdownMenuItem>
-                  <DropdownMenuItem className="gap-2">
+                  <DropdownMenuItem className="gap-2" onClick={() => setActiveTab('settings')}>
                     <Settings className="h-4 w-4" />
                     Account Settings
                   </DropdownMenuItem>
-                  <DropdownMenuItem className="gap-2">
+                  <DropdownMenuItem className="gap-2" onClick={() => setActiveTab('skills')}>
                     <Trophy className="h-4 w-4" />
                     Achievements
                   </DropdownMenuItem>
@@ -675,59 +692,79 @@ export function Dashboard({ onBack }: DashboardProps) {
       </div>
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="bg-white/80 backdrop-blur-xl border shadow-sm">
-            <TabsTrigger value="overview" className="gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-purple-600 data-[state=active]:text-white">
-              <BarChart3 className="h-4 w-4" />
-              Overview
-            </TabsTrigger>
-            <TabsTrigger value="projects" className="gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-purple-600 data-[state=active]:text-white">
-              <Briefcase className="h-4 w-4" />
-              Projects
-            </TabsTrigger>
-            <TabsTrigger value="performance" className="gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-purple-600 data-[state=active]:text-white">
-              <TrendingUp className="h-4 w-4" />
-              Performance
-            </TabsTrigger>
-            <TabsTrigger value="skills" className="gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-purple-600 data-[state=active]:text-white">
-              <Brain className="h-4 w-4" />
-              Skills
-            </TabsTrigger>
-            <TabsTrigger value="leaderboard" className="gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-purple-600 data-[state=active]:text-white">
-              <Trophy className="h-4 w-4" />
-              Leaderboard
-            </TabsTrigger>
-            <TabsTrigger value="tasks" className="gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-purple-600 data-[state=active]:text-white">
-              <Briefcase className="h-4 w-4" />
-              My Tasks
-            </TabsTrigger>
-            <TabsTrigger value="settings" className="gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-purple-600 data-[state=active]:text-white">
-              <Settings className="h-4 w-4" />
-              Settings
-            </TabsTrigger>
-          </TabsList>
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4 sm:space-y-6">
+          <ScrollArea className="w-full whitespace-nowrap">
+            <TabsList className="bg-white/80 backdrop-blur-xl border shadow-sm inline-flex w-max">
+              <TabsTrigger value="overview" className="gap-1 sm:gap-2 text-xs sm:text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-purple-600 data-[state=active]:text-white">
+                <BarChart3 className="h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">Overview</span>
+              </TabsTrigger>
+              <TabsTrigger value="active-projects" className="gap-1 sm:gap-2 text-xs sm:text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-600 data-[state=active]:to-blue-600 data-[state=active]:text-white">
+                <PlayCircle className="h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">Active Work</span>
+              </TabsTrigger>
+              <TabsTrigger value="projects" className="gap-1 sm:gap-2 text-xs sm:text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-purple-600 data-[state=active]:text-white">
+                <Briefcase className="h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">Projects</span>
+              </TabsTrigger>
+              <TabsTrigger value="performance" className="gap-1 sm:gap-2 text-xs sm:text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-purple-600 data-[state=active]:text-white">
+                <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">Performance</span>
+              </TabsTrigger>
+              <TabsTrigger value="skills" className="gap-1 sm:gap-2 text-xs sm:text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-purple-600 data-[state=active]:text-white">
+                <Brain className="h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">Skills</span>
+              </TabsTrigger>
+              <TabsTrigger value="leaderboard" className="gap-1 sm:gap-2 text-xs sm:text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-purple-600 data-[state=active]:text-white">
+                <Trophy className="h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">Leaderboard</span>
+              </TabsTrigger>
+              <TabsTrigger value="tasks" className="gap-1 sm:gap-2 text-xs sm:text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-purple-600 data-[state=active]:text-white">
+                <Briefcase className="h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">My Tasks</span>
+              </TabsTrigger>
+              <TabsTrigger value="issues" className="gap-1 sm:gap-2 text-xs sm:text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-purple-600 data-[state=active]:text-white relative">
+                <AlertCircle className="h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">Issues</span>
+                {user && getUnresolvedIssuesCount(user.id) > 0 && (
+                  <Badge className="ml-1 h-4 w-4 sm:h-5 px-0.5 sm:px-1.5 bg-red-500 text-white text-xs flex items-center justify-center">
+                    {getUnresolvedIssuesCount(user.id)}
+                  </Badge>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="security" className="gap-1 sm:gap-2 text-xs sm:text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-purple-600 data-[state=active]:text-white">
+                <Shield className="h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">Security</span>
+              </TabsTrigger>
+              <TabsTrigger value="settings" className="gap-1 sm:gap-2 text-xs sm:text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-purple-600 data-[state=active]:text-white">
+                <Settings className="h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">
+              Settings</span>
+              </TabsTrigger>
+            </TabsList>
+          </ScrollArea>
 
           {/* Overview Tab */}
-          <TabsContent value="overview" className="space-y-6">
+          <TabsContent value="overview" className="space-y-4 sm:space-y-6">
             {/* Hero Section with Gradient and Glass Morphism */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6 }}
-              className="relative bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 rounded-2xl p-8 text-white overflow-hidden shadow-2xl"
+              className="relative bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 rounded-xl sm:rounded-2xl p-4 sm:p-8 text-white overflow-hidden shadow-2xl"
             >
               <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48cGF0dGVybiBpZD0iZ3JpZCIgd2lkdGg9IjQwIiBoZWlnaHQ9IjQwIiBwYXR0ZXJuVW5pdHM9InVzZXJTcGFjZU9uVXNlIj48cGF0aCBkPSJNIDQwIDAgTCAwIDAgMCA0MCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLW9wYWNpdHk9IjAuMSIgc3Ryb2tlLXdpZHRoPSIxIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI2dyaWQpIi8+PC9zdmc+')] opacity-20"></div>
-              <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl"></div>
-              <div className="absolute bottom-0 left-0 w-96 h-96 bg-white/10 rounded-full blur-3xl"></div>
+              <div className="absolute top-0 right-0 w-48 h-48 sm:w-96 sm:h-96 bg-white/10 rounded-full blur-3xl"></div>
+              <div className="absolute bottom-0 left-0 w-48 h-48 sm:w-96 sm:h-96 bg-white/10 rounded-full blur-3xl"></div>
               
-              <div className="relative z-10 flex items-center justify-between">
-                <div className="space-y-2">
+              <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="space-y-2 flex-1">
                   <motion.h2
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ duration: 0.6, delay: 0.2 }}
-                    className="text-3xl"
+                    className="text-xl sm:text-3xl"
                   >
                     Welcome back, {user.name}! 👋
                   </motion.h2>
@@ -735,7 +772,7 @@ export function Dashboard({ onBack }: DashboardProps) {
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ duration: 0.6, delay: 0.3 }}
-                    className="text-blue-100"
+                    className="text-blue-100 text-sm sm:text-base"
                   >
                     You have {activeProjects} active projects and {applications.filter(a => a.status === 'pending').length} pending applications.
                   </motion.p>
@@ -743,15 +780,15 @@ export function Dashboard({ onBack }: DashboardProps) {
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.6, delay: 0.4 }}
-                    className="flex gap-2 mt-4"
+                    className="flex flex-wrap gap-2 mt-4"
                   >
-                    <Button onClick={onBack} variant="secondary" className="gap-2 bg-white/20 hover:bg-white/30 text-white border-white/30 backdrop-blur-xl">
-                      <Rocket className="h-4 w-4" />
-                      New Opportunities
+                    <Button onClick={onBack} variant="secondary" className="gap-1 sm:gap-2 text-xs sm:text-sm bg-white/20 hover:bg-white/30 text-white border-white/30 backdrop-blur-xl">
+                      <Rocket className="h-3 w-3 sm:h-4 sm:w-4" />
+                      <span className="hidden sm:inline">New</span> Opportunities
                     </Button>
-                    <Button variant="secondary" className="gap-2 bg-white/20 hover:bg-white/30 text-white border-white/30 backdrop-blur-xl">
-                      <Share2 className="h-4 w-4" />
-                      Invite Friends
+                    <Button onClick={() => setInviteFriendsOpen(true)} variant="secondary" className="gap-1 sm:gap-2 text-xs sm:text-sm bg-white/20 hover:bg-white/30 text-white border-white/30 backdrop-blur-xl">
+                      <Share2 className="h-3 w-3 sm:h-4 sm:w-4" />
+                      Invite <span className="hidden sm:inline">Friends</span>
                     </Button>
                   </motion.div>
                 </div>
@@ -760,25 +797,25 @@ export function Dashboard({ onBack }: DashboardProps) {
                   initial={{ opacity: 0, scale: 0.8 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ duration: 0.6, delay: 0.3 }}
-                  className="text-right bg-white/10 backdrop-blur-xl rounded-2xl p-6 border border-white/20"
+                  className="text-center sm:text-right bg-white/10 backdrop-blur-xl rounded-xl sm:rounded-2xl p-4 sm:p-6 border border-white/20 w-full sm:w-auto"
                 >
-                  <div className="flex items-center gap-3 justify-end mb-2">
+                  <div className="flex items-center gap-2 sm:gap-3 justify-center sm:justify-end mb-2">
                     <motion.div
                       animate={{ rotate: [0, 10, -10, 0] }}
                       transition={{ duration: 2, repeat: Infinity }}
                     >
-                      <Flame className="h-8 w-8 text-orange-400" />
+                      <Flame className="h-6 w-6 sm:h-8 sm:w-8 text-orange-400" />
                     </motion.div>
-                    <span className="text-5xl">{currentStreak}</span>
+                    <span className="text-3xl sm:text-5xl">{currentStreak}</span>
                   </div>
-                  <p className="text-sm text-blue-100">Day Streak 🔥</p>
+                  <p className="text-xs sm:text-sm text-blue-100">Day Streak 🔥</p>
                   <p className="text-xs text-blue-200 mt-1">Best: {longestStreak} days</p>
                 </motion.div>
               </div>
             </motion.div>
 
             {/* Stats Grid with Animated Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -786,21 +823,21 @@ export function Dashboard({ onBack }: DashboardProps) {
                 whileHover={{ y: -5, transition: { duration: 0.2 } }}
               >
                 <Card className="hover:shadow-2xl transition-all cursor-pointer bg-gradient-to-br from-white to-green-50/50 border-green-100">
-                  <CardHeader className="flex flex-row items-center justify-between pb-2">
-                    <CardTitle className="text-sm text-gray-600">Total Earnings</CardTitle>
+                  <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+                    <CardTitle className="text-xs sm:text-sm text-gray-600">Total Earnings</CardTitle>
                     <motion.div
                       whileHover={{ rotate: 360 }}
                       transition={{ duration: 0.6 }}
-                      className="h-12 w-12 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-lg"
+                      className="h-10 w-10 sm:h-12 sm:w-12 rounded-lg sm:rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-lg"
                     >
-                      <DollarSign className="h-6 w-6 text-white" />
+                      <DollarSign className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
                     </motion.div>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-3xl text-gray-900">${animatedStats.earnings.toLocaleString()}</div>
+                    <div className="text-2xl sm:text-3xl text-gray-900">${animatedStats.earnings.toLocaleString()}</div>
                     <div className="flex items-center gap-1 mt-2">
-                      <ArrowUpRight className="h-4 w-4 text-green-600" />
-                      <span className="text-sm text-green-600">+{earningsGrowth}%</span>
+                      <ArrowUpRight className="h-3 w-3 sm:h-4 sm:w-4 text-green-600" />
+                      <span className="text-xs sm:text-sm text-green-600">+{earningsGrowth}%</span>
                       <span className="text-xs text-gray-500">vs last month</span>
                     </div>
                   </CardContent>
@@ -814,19 +851,19 @@ export function Dashboard({ onBack }: DashboardProps) {
                 whileHover={{ y: -5, transition: { duration: 0.2 } }}
               >
                 <Card className="hover:shadow-2xl transition-all cursor-pointer bg-gradient-to-br from-white to-blue-50/50 border-blue-100">
-                  <CardHeader className="flex flex-row items-center justify-between pb-2">
-                    <CardTitle className="text-sm text-gray-600">Total Tasks</CardTitle>
+                  <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+                    <CardTitle className="text-xs sm:text-sm text-gray-600">Total Tasks</CardTitle>
                     <motion.div
                       whileHover={{ rotate: 360 }}
                       transition={{ duration: 0.6 }}
-                      className="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-600 flex items-center justify-center shadow-lg"
+                      className="h-10 w-10 sm:h-12 sm:w-12 rounded-lg sm:rounded-xl bg-gradient-to-br from-blue-500 to-cyan-600 flex items-center justify-center shadow-lg"
                     >
-                      <CheckCircle2 className="h-6 w-6 text-white" />
+                      <CheckCircle2 className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
                     </motion.div>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-3xl text-gray-900">{animatedStats.tasks}</div>
-                    <p className="text-sm text-gray-600 mt-2">
+                    <div className="text-2xl sm:text-3xl text-gray-900">{animatedStats.tasks}</div>
+                    <p className="text-xs sm:text-sm text-gray-600 mt-2">
                       Across {projects.length} projects
                     </p>
                   </CardContent>
@@ -840,19 +877,19 @@ export function Dashboard({ onBack }: DashboardProps) {
                 whileHover={{ y: -5, transition: { duration: 0.2 } }}
               >
                 <Card className="hover:shadow-2xl transition-all cursor-pointer bg-gradient-to-br from-white to-purple-50/50 border-purple-100">
-                  <CardHeader className="flex flex-row items-center justify-between pb-2">
-                    <CardTitle className="text-sm text-gray-600">Success Rate</CardTitle>
+                  <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+                    <CardTitle className="text-xs sm:text-sm text-gray-600">Success Rate</CardTitle>
                     <motion.div
                       whileHover={{ rotate: 360 }}
                       transition={{ duration: 0.6 }}
-                      className="h-12 w-12 rounded-xl bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center shadow-lg"
+                      className="h-10 w-10 sm:h-12 sm:w-12 rounded-lg sm:rounded-xl bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center shadow-lg"
                     >
-                      <TrendingUp className="h-6 w-6 text-white" />
+                      <TrendingUp className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
                     </motion.div>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-3xl text-gray-900">{animatedStats.rate}%</div>
-                    <p className="text-sm text-gray-600 mt-2">
+                    <div className="text-2xl sm:text-3xl text-gray-900">{animatedStats.rate}%</div>
+                    <p className="text-xs sm:text-sm text-gray-600 mt-2">
                       Above platform average
                     </p>
                   </CardContent>
@@ -866,19 +903,19 @@ export function Dashboard({ onBack }: DashboardProps) {
                 whileHover={{ y: -5, transition: { duration: 0.2 } }}
               >
                 <Card className="hover:shadow-2xl transition-all cursor-pointer bg-gradient-to-br from-white to-yellow-50/50 border-yellow-100">
-                  <CardHeader className="flex flex-row items-center justify-between pb-2">
-                    <CardTitle className="text-sm text-gray-600">Achievements</CardTitle>
+                  <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+                    <CardTitle className="text-xs sm:text-sm text-gray-600">Achievements</CardTitle>
                     <motion.div
                       whileHover={{ rotate: 360 }}
                       transition={{ duration: 0.6 }}
-                      className="h-12 w-12 rounded-xl bg-gradient-to-br from-yellow-500 to-orange-600 flex items-center justify-center shadow-lg"
+                      className="h-10 w-10 sm:h-12 sm:w-12 rounded-lg sm:rounded-xl bg-gradient-to-br from-yellow-500 to-orange-600 flex items-center justify-center shadow-lg"
                     >
-                      <Trophy className="h-6 w-6 text-white" />
+                      <Trophy className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
                     </motion.div>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-3xl text-gray-900">12</div>
-                    <p className="text-sm text-gray-600 mt-2">
+                    <div className="text-2xl sm:text-3xl text-gray-900">12</div>
+                    <p className="text-xs sm:text-sm text-gray-600 mt-2">
                       3 earned this month
                     </p>
                   </CardContent>
@@ -887,7 +924,7 @@ export function Dashboard({ onBack }: DashboardProps) {
             </div>
 
             {/* Charts and Activity Row */}
-            <div className="grid lg:grid-cols-3 gap-6">
+            <div className="grid lg:grid-cols-3 gap-3 sm:gap-6">
               {/* Earnings Chart - Takes 2 columns */}
               <motion.div
                 initial={{ opacity: 0, x: -20 }}
@@ -896,17 +933,18 @@ export function Dashboard({ onBack }: DashboardProps) {
                 className="lg:col-span-2"
               >
                 <Card className="shadow-xl hover:shadow-2xl transition-shadow bg-white/80 backdrop-blur-xl border-gray-200/50">
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
+                  <CardHeader className="p-4 sm:p-6">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                       <div>
-                        <CardTitle>Earnings & Performance Trend</CardTitle>
-                        <CardDescription>Your growth over the last 6 months</CardDescription>
+                        <CardTitle className="text-base sm:text-lg">Earnings & Performance Trend</CardTitle>
+                        <CardDescription className="text-xs sm:text-sm">Your growth over the last 6 months</CardDescription>
                       </div>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="outline" size="sm" className="gap-2">
-                            <CalendarIcon className="h-4 w-4" />
-                            Last 6 Months
+                          <Button variant="outline" size="sm" className="gap-1 sm:gap-2 text-xs sm:text-sm">
+                            <CalendarIcon className="h-3 w-3 sm:h-4 sm:w-4" />
+                            <span className="hidden sm:inline">Last 6 Months</span>
+                            <span className="sm:hidden">6M</span>
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent>
@@ -918,8 +956,8 @@ export function Dashboard({ onBack }: DashboardProps) {
                       </DropdownMenu>
                     </div>
                   </CardHeader>
-                  <CardContent>
-                    <ResponsiveContainer width="100%" height={300}>
+                  <CardContent className="p-2 sm:p-6">
+                    <ResponsiveContainer width="100%" height={250} className="sm:h-[300px]">
                       <AreaChart data={earningsData}>
                         <defs>
                           <linearGradient id="colorEarnings" x1="0" y1="0" x2="0" y2="1">
@@ -953,15 +991,15 @@ export function Dashboard({ onBack }: DashboardProps) {
                 transition={{ duration: 0.5, delay: 0.5 }}
               >
                 <Card className="shadow-xl hover:shadow-2xl transition-shadow bg-white/80 backdrop-blur-xl border-gray-200/50">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Activity className="h-5 w-5" />
+                  <CardHeader className="p-4 sm:p-6">
+                    <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                      <Activity className="h-4 w-4 sm:h-5 sm:w-5" />
                       Live Activity
                     </CardTitle>
-                    <CardDescription>Real-time updates</CardDescription>
+                    <CardDescription className="text-xs sm:text-sm">Real-time updates</CardDescription>
                   </CardHeader>
-                  <CardContent>
-                    <ScrollArea className="h-[300px] pr-4">
+                  <CardContent className="p-4 sm:p-6">
+                    <ScrollArea className="h-[250px] sm:h-[300px] pr-2 sm:pr-4">
                       <div className="space-y-3">
                         <AnimatePresence>
                           {activities.map((activity, index) => (
@@ -1002,14 +1040,14 @@ export function Dashboard({ onBack }: DashboardProps) {
             </div>
 
             {/* Active Projects and Milestones */}
-            <div className="grid lg:grid-cols-3 gap-6">
+            <div className="grid lg:grid-cols-3 gap-3 sm:gap-6">
               {/* Active Projects - 2 columns */}
-              <div className="lg:col-span-2 space-y-4">
+              <div className="lg:col-span-2 space-y-3 sm:space-y-4">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-xl text-gray-900">Active Projects</h3>
-                  <Button variant="outline" size="sm" className="gap-2">
-                    <Filter className="h-4 w-4" />
-                    Filter
+                  <h3 className="text-lg sm:text-xl text-gray-900">Active Projects</h3>
+                  <Button variant="outline" size="sm" className="gap-1 sm:gap-2 text-xs sm:text-sm">
+                    <Filter className="h-3 w-3 sm:h-4 sm:w-4" />
+                    <span className="hidden sm:inline">Filter</span>
                   </Button>
                 </div>
                 
@@ -1026,20 +1064,20 @@ export function Dashboard({ onBack }: DashboardProps) {
                       <Dialog>
                         <DialogTrigger asChild>
                           <Card className="cursor-pointer hover:shadow-2xl transition-all bg-white/80 backdrop-blur-xl border-gray-200/50 group">
-                            <CardContent className="p-6">
+                            <CardContent className="p-4 sm:p-6">
                               <div className="flex items-start justify-between mb-4">
                                 <div className="flex-grow">
-                                  <div className="flex items-center gap-2 mb-2">
+                                  <div className="flex items-center gap-2 mb-2 flex-wrap">
                                     {getProjectStatusIcon(project.status)}
-                                    <h3 className="text-lg text-gray-900 group-hover:text-blue-600 transition-colors">
+                                    <h3 className="text-base sm:text-lg text-gray-900 group-hover:text-blue-600 transition-colors">
                                       {project.title}
                                     </h3>
-                                    <Badge className="bg-gradient-to-r from-blue-600 to-purple-600 text-white border-0">
+                                    <Badge className="bg-gradient-to-r from-blue-600 to-purple-600 text-white border-0 text-xs">
                                       ${project.hourlyRate}/hr
                                     </Badge>
                                   </div>
-                                  <p className="text-sm text-gray-600 mb-3">{project.description}</p>
-                                  <div className="flex flex-wrap items-center gap-3 text-sm">
+                                  <p className="text-xs sm:text-sm text-gray-600 mb-3">{project.description}</p>
+                                  <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs sm:text-sm">
                                     <Badge variant="outline" className="gap-1">
                                       <Code className="h-3 w-3" />
                                       {project.category}
@@ -1171,17 +1209,17 @@ export function Dashboard({ onBack }: DashboardProps) {
               </div>
 
               {/* Milestones and Quick Actions - 1 column */}
-              <div className="space-y-6">
+              <div className="space-y-3 sm:space-y-6">
                 {/* Milestones */}
                 <Card className="shadow-xl bg-white/80 backdrop-blur-xl border-gray-200/50">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Target className="h-5 w-5 text-blue-600" />
+                  <CardHeader className="p-4 sm:p-6">
+                    <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                      <Target className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
                       Milestones
                     </CardTitle>
-                    <CardDescription>Track your progress</CardDescription>
+                    <CardDescription className="text-xs sm:text-sm">Track your progress</CardDescription>
                   </CardHeader>
-                  <CardContent className="space-y-4">
+                  <CardContent className="space-y-3 sm:space-y-4 p-4 sm:p-6">
                     {milestones.map((milestone, index) => (
                       <motion.div
                         key={milestone.id}
@@ -1189,6 +1227,10 @@ export function Dashboard({ onBack }: DashboardProps) {
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ duration: 0.3, delay: index * 0.1 }}
                         whileHover={{ scale: 1.02 }}
+                        onClick={() => {
+                          setSelectedMilestone(milestone);
+                          setMilestoneDialogOpen(true);
+                        }}
                         className="p-4 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50/50 transition-all cursor-pointer"
                       >
                         <div className="flex items-start justify-between mb-2">
@@ -1221,13 +1263,13 @@ export function Dashboard({ onBack }: DashboardProps) {
 
                 {/* Quick Actions */}
                 <Card className="shadow-xl bg-gradient-to-br from-blue-600 to-purple-600 text-white border-0">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Zap className="h-5 w-5" />
+                  <CardHeader className="p-4 sm:p-6">
+                    <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                      <Zap className="h-4 w-4 sm:h-5 sm:w-5" />
                       Quick Actions
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-2">
+                  <CardContent className="space-y-2 p-4 sm:p-6">
                     <Button
                       onClick={onBack}
                       variant="secondary"
@@ -1237,6 +1279,7 @@ export function Dashboard({ onBack }: DashboardProps) {
                       Browse Opportunities
                     </Button>
                     <Button
+                      onClick={() => setShowReportDialog(true)}
                       variant="secondary"
                       className="w-full justify-start gap-2 bg-white/20 hover:bg-white/30 text-white border-white/30 backdrop-blur-xl"
                     >
@@ -1244,6 +1287,7 @@ export function Dashboard({ onBack }: DashboardProps) {
                       Download Report
                     </Button>
                     <Button
+                      onClick={() => setInviteFriendsOpen(true)}
                       variant="secondary"
                       className="w-full justify-start gap-2 bg-white/20 hover:bg-white/30 text-white border-white/30 backdrop-blur-xl"
                     >
@@ -1251,6 +1295,9 @@ export function Dashboard({ onBack }: DashboardProps) {
                       Refer & Earn
                     </Button>
                     <Button
+                      onClick={() => {
+                        toast.success('Rewards claimed!', { description: 'Check your account for new rewards' });
+                      }}
                       variant="secondary"
                       className="w-full justify-start gap-2 bg-white/20 hover:bg-white/30 text-white border-white/30 backdrop-blur-xl"
                     >
@@ -1264,22 +1311,22 @@ export function Dashboard({ onBack }: DashboardProps) {
           </TabsContent>
 
           {/* Projects Tab */}
-          <TabsContent value="projects" className="space-y-6">
-            <div className="flex items-center justify-between">
+          <TabsContent value="projects" className="space-y-4 sm:space-y-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div>
-                <h2 className="text-2xl text-gray-900">My Projects</h2>
-                <p className="text-gray-600">Manage and track all your projects</p>
+                <h2 className="text-xl sm:text-2xl text-gray-900">My Projects</h2>
+                <p className="text-sm sm:text-base text-gray-600">Manage and track all your projects</p>
               </div>
-              <div className="flex gap-2">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <Input placeholder="Search projects..." className="pl-10 w-64 bg-white/80 backdrop-blur-xl" />
+              <div className="flex gap-2 w-full sm:w-auto">
+                <div className="relative flex-1 sm:flex-initial">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-3 w-3 sm:h-4 sm:w-4 text-gray-400" />
+                  <Input placeholder="Search..." className="pl-9 sm:pl-10 w-full sm:w-64 bg-white/80 backdrop-blur-xl text-sm" />
                 </div>
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button variant="outline" className="gap-2">
-                      <Filter className="h-4 w-4" />
-                      Filter
+                    <Button variant="outline" className="gap-1 sm:gap-2 text-xs sm:text-sm">
+                      <Filter className="h-3 w-3 sm:h-4 sm:w-4" />
+                      <span className="hidden sm:inline">Filter</span>
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-80">
@@ -1320,7 +1367,7 @@ export function Dashboard({ onBack }: DashboardProps) {
               </div>
             </div>
 
-            <div className="grid gap-6">
+            <div className="grid gap-3 sm:gap-6">
               {projects.map((project, index) => (
                 <motion.div
                   key={project.id}
@@ -1330,18 +1377,18 @@ export function Dashboard({ onBack }: DashboardProps) {
                   whileHover={{ y: -5 }}
                 >
                   <Card className="hover:shadow-2xl transition-all bg-white/80 backdrop-blur-xl border-gray-200/50">
-                    <CardContent className="p-6">
+                    <CardContent className="p-4 sm:p-6">
                       <div className="flex items-start justify-between mb-4">
                         <div className="flex-grow">
-                          <div className="flex items-center gap-3 mb-2">
+                          <div className="flex items-center gap-2 sm:gap-3 mb-2 flex-wrap">
                             {getProjectStatusIcon(project.status)}
-                            <h3 className="text-xl text-gray-900">{project.title}</h3>
-                            <Badge className={`${getStatusColor(project.status)} border`}>
+                            <h3 className="text-base sm:text-xl text-gray-900">{project.title}</h3>
+                            <Badge className={`${getStatusColor(project.status)} border text-xs`}>
                               {project.status.charAt(0).toUpperCase() + project.status.slice(1)}
                             </Badge>
                           </div>
-                          <p className="text-gray-600 mb-4">{project.description}</p>
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                          <p className="text-sm sm:text-base text-gray-600 mb-4">{project.description}</p>
+                          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
                             <div className="flex items-center gap-2 text-sm">
                               <div className="h-10 w-10 rounded-lg bg-green-100 flex items-center justify-center">
                                 <DollarSign className="h-5 w-5 text-green-600" />
@@ -1436,14 +1483,14 @@ export function Dashboard({ onBack }: DashboardProps) {
           </TabsContent>
 
           {/* Performance Tab */}
-          <TabsContent value="performance" className="space-y-6">
+          <TabsContent value="performance" className="space-y-4 sm:space-y-6">
             <div>
-              <h2 className="text-2xl text-gray-900">Performance Analytics</h2>
-              <p className="text-gray-600">Detailed insights into your work quality and productivity</p>
+              <h2 className="text-xl sm:text-2xl text-gray-900">Performance Analytics</h2>
+              <p className="text-sm sm:text-base text-gray-600">Detailed insights into your work quality and productivity</p>
             </div>
 
             {/* Performance Overview Cards */}
-            <div className="grid md:grid-cols-3 gap-6">
+            <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-6">
               <motion.div
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -1732,8 +1779,8 @@ export function Dashboard({ onBack }: DashboardProps) {
                   ].map((badge, index) => (
                     <TooltipProvider key={badge.name}>
                       <Tooltip>
-                        <TooltipTrigger>
-                          <motion.div
+                        <TooltipTrigger asChild>
+                          <motion.button
                             initial={{ opacity: 0, scale: 0.8 }}
                             animate={{ opacity: 1, scale: 1 }}
                             transition={{ duration: 0.3, delay: index * 0.05 }}
@@ -1754,7 +1801,7 @@ export function Dashboard({ onBack }: DashboardProps) {
                               <badge.icon className="h-7 w-7 text-white" />
                             </div>
                             <p className="text-xs text-center text-gray-900">{badge.name}</p>
-                          </motion.div>
+                          </motion.button>
                         </TooltipTrigger>
                         <TooltipContent>
                           <p>{badge.unlocked ? 'Unlocked!' : 'Locked - Keep working to unlock'}</p>
@@ -2013,48 +2060,179 @@ export function Dashboard({ onBack }: DashboardProps) {
               </Card>
             </div>
           </TabsContent>
+
+          {/* Projects Tab */}
+          <TabsContent value="projects" className="space-y-6">
+            <div>
+              <h2 className="text-2xl text-gray-900 mb-2">My Projects</h2>
+              <p className="text-gray-600 mb-6">View and manage your active and completed projects</p>
+            </div>
+
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {projects.map((project, index) => (
+                <motion.div
+                  key={project.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                  whileHover={{ y: -5 }}
+                  className="cursor-pointer"
+                  onClick={() => {
+                    setSelectedProject(project);
+                    setProjectDetailsOpen(true);
+                  }}
+                >
+                  <Card className="h-full hover:shadow-xl transition-all border-l-4 border-l-blue-500">
+                    <CardHeader>
+                      <div className="flex items-start justify-between mb-2">
+                        <CardTitle className="text-lg">{project.title}</CardTitle>
+                        <Badge className={
+                          project.status === 'active' ? 'bg-green-100 text-green-800 border-green-300' :
+                          project.status === 'completed' ? 'bg-blue-100 text-blue-800 border-blue-300' :
+                          'bg-yellow-100 text-yellow-800 border-yellow-300'
+                        }>
+                          {project.status}
+                        </Badge>
+                      </div>
+                      <CardDescription className="line-clamp-2">
+                        {project.description}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        {/* Progress */}
+                        <div>
+                          <div className="flex justify-between mb-2">
+                            <span className="text-sm text-gray-600">Progress</span>
+                            <span className="text-sm text-gray-900">{project.progress}%</span>
+                          </div>
+                          <Progress value={project.progress} />
+                        </div>
+
+                        {/* Stats */}
+                        <div className="grid grid-cols-2 gap-3 text-sm">
+                          <div>
+                            <p className="text-gray-600">Tasks</p>
+                            <p className="text-gray-900">{project.tasksCompleted}/{project.totalTasks}</p>
+                          </div>
+                          <div>
+                            <p className="text-gray-600">Quality</p>
+                            <p className="text-green-600">{project.quality}%</p>
+                          </div>
+                          <div>
+                            <p className="text-gray-600">Earnings</p>
+                            <p className="text-green-600">${project.earnings.toFixed(0)}</p>
+                          </div>
+                          <div>
+                            <p className="text-gray-600">Time</p>
+                            <p className="text-gray-900">{project.timeSpent}</p>
+                          </div>
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="flex gap-2 pt-2">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="flex-1 gap-2"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedProject(project);
+                              setProjectDetailsOpen(true);
+                            }}
+                          >
+                            <Eye className="h-4 w-4" />
+                            View Details
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              ))}
+            </div>
+
+            {/* Quick Actions Card */}
+            <Card className="bg-gradient-to-br from-blue-50 to-purple-50 border-blue-200">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Sparkles className="h-5 w-5 text-blue-600" />
+                  Quick Actions
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="grid md:grid-cols-3 gap-4">
+                <Button
+                  variant="outline"
+                  className="justify-start gap-2"
+                  onClick={() => setActiveTab('tasks')}
+                >
+                  <Briefcase className="h-4 w-4" />
+                  View All Tasks
+                </Button>
+                <Button
+                  variant="outline"
+                  className="justify-start gap-2"
+                  onClick={() => setActiveTab('settings')}
+                >
+                  <DollarSign className="h-4 w-4" />
+                  Payment Settings
+                </Button>
+                <Button
+                  variant="outline"
+                  className="justify-start gap-2"
+                  onClick={() => setNotificationsDialogOpen(true)}
+                >
+                  <Bell className="h-4 w-4" />
+                  Notifications
+                </Button>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Active Projects Tab */}
+          <TabsContent value="active-projects" className="space-y-6">
+            <ActiveProjects />
+          </TabsContent>
+
           {/* My Tasks Tab */}
           <TabsContent value="tasks" className="space-y-6">
             <MyTasks />
           </TabsContent>
 
+          {/* My Issues Tab */}
+          <TabsContent value="issues" className="space-y-6">
+            <MyIssues />
+          </TabsContent>
+
+          {/* Security & Sessions Tab */}
+          <TabsContent value="security" className="space-y-6">
+            <SecuritySessions />
+          </TabsContent>
+
           {/* Settings Tab */}
           <TabsContent value="settings" className="space-y-6">
             <div>
-              <h2 className="text-gray-900 mb-2">Account Settings</h2>
-              <p className="text-gray-600 mb-6">Manage your payment preferences and account details</p>
+              <h2 className="text-2xl text-gray-900 mb-2">Settings</h2>
+              <p className="text-gray-600 mb-6">Manage your profile, preferences, and account settings</p>
             </div>
 
+            <ProfileSettings />
+            
             <PaymentSettings />
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Account Information</CardTitle>
-                <CardDescription>
-                  Your account details
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <Label>Email</Label>
-                  <p className="text-gray-900">{user?.email}</p>
-                </div>
-                <div>
-                  <Label>Name</Label>
-                  <p className="text-gray-900">{user?.user_metadata?.name || 'Not set'}</p>
-                </div>
-                <div>
-                  <Label>Member Since</Label>
-                  <p className="text-gray-900">
-                    {user?.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A'}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
           </TabsContent>
 
         </Tabs>
       </div>
+
+      {/* Dialogs */}
+      <ViewProfileDialog open={viewProfileOpen} onOpenChange={setViewProfileOpen} />
+      <InviteFriendsDialog open={inviteFriendsOpen} onOpenChange={setInviteFriendsOpen} />
+      <NotificationsDialog open={notificationsDialogOpen} onOpenChange={setNotificationsDialogOpen} />
+      <ProjectDetailsDialog 
+        open={projectDetailsOpen} 
+        onOpenChange={setProjectDetailsOpen} 
+        project={selectedProject}
+      />
     </div>
   );
 }
