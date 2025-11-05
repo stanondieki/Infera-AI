@@ -20,8 +20,9 @@ import { CourseDialog } from './dashboard/CourseDialog';
 import { ChallengeDialog } from './dashboard/ChallengeDialog';
 import { ProjectDetailsDialog } from './dashboard/ProjectDetailsDialog';
 import { Progress } from './ui/progress';
-import { Avatar, AvatarFallback } from './ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Separator } from './ui/separator';
+import { useProfileImage } from '../utils/profileImage';
 import { ScrollArea } from './ui/scroll-area';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { Calendar } from './ui/calender';
@@ -171,6 +172,7 @@ interface DashboardProps {
 
 export function Dashboard({ onBack }: DashboardProps) {
   const { user, accessToken, signOut } = useAuth();
+  const profileImage = useProfileImage();
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
@@ -645,6 +647,7 @@ export function Dashboard({ onBack }: DashboardProps) {
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="gap-1 sm:gap-2 hover:bg-blue-50 transition-colors h-8 sm:h-10 px-2 sm:px-4">
                     <Avatar className="h-7 w-7 sm:h-8 sm:w-8 ring-2 ring-blue-500/20">
+                      {profileImage && <AvatarImage src={profileImage} alt={user.name || 'User'} />}
                       <AvatarFallback className="bg-gradient-to-br from-blue-600 to-purple-600 text-white">
                         {user.name?.charAt(0).toUpperCase()}
                       </AvatarFallback>
