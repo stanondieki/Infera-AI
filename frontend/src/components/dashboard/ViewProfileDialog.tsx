@@ -1,5 +1,5 @@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../ui/dialog';
-import { Avatar, AvatarFallback } from '../ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import { Separator } from '../ui/separator';
@@ -28,6 +28,7 @@ import {
 import { useAuth } from '../../utils/auth';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
+import { useProfileImage } from '../../utils/profileImage';
 
 interface ViewProfileDialogProps {
   open: boolean;
@@ -36,6 +37,7 @@ interface ViewProfileDialogProps {
 
 export function ViewProfileDialog({ open, onOpenChange }: ViewProfileDialogProps) {
   const { user } = useAuth();
+  const profileImage = useProfileImage();
 
   const handleShareProfile = () => {
     const profileUrl = `https://inferaai.com/profile/${user?.id || 'user123'}`;
@@ -87,9 +89,9 @@ export function ViewProfileDialog({ open, onOpenChange }: ViewProfileDialogProps
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] p-0">
-        <ScrollArea className="max-h-[90vh]">
-          <div className="p-6">
+      <DialogContent className="max-w-3xl max-h-[90vh] w-full sm:max-w-[95vw] sm:h-[95vh] md:max-w-3xl md:max-h-[90vh] p-0">
+        <ScrollArea className="h-full max-h-[90vh]">
+          <div className="p-4 sm:p-6">
             <DialogHeader>
               <DialogTitle>Profile Overview</DialogTitle>
               <DialogDescription>View your complete profile information and statistics</DialogDescription>
@@ -100,68 +102,71 @@ export function ViewProfileDialog({ open, onOpenChange }: ViewProfileDialogProps
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4 }}
-              className="mt-6 p-6 rounded-xl bg-gradient-to-br from-blue-50 to-purple-50 border border-blue-200"
+              className="mt-4 sm:mt-6 p-4 sm:p-6 rounded-xl bg-gradient-to-br from-blue-50 to-purple-50 border border-blue-200"
             >
-              <div className="flex items-start gap-6">
-                <Avatar className="h-24 w-24 ring-4 ring-blue-500/20 shadow-lg">
+              <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6">
+                <Avatar className="h-20 w-20 sm:h-24 sm:w-24 ring-4 ring-blue-500/20 shadow-lg shrink-0">
+                  {profileImage && <AvatarImage src={profileImage} alt={user?.name || 'User'} />}
                   <AvatarFallback className="bg-gradient-to-br from-blue-600 to-purple-600 text-white text-2xl">
                     {user?.name?.charAt(0).toUpperCase() || 'U'}
                   </AvatarFallback>
                 </Avatar>
 
-                <div className="flex-grow">
-                  <h2 className="text-2xl text-gray-900">{user?.name}</h2>
-                  <p className="text-gray-600">AI Training Specialist</p>
-                  <div className="flex items-center gap-2 mt-2">
-                    <Badge className="bg-gradient-to-r from-purple-600 to-pink-600 text-white">
+                <div className="flex-grow text-center sm:text-left w-full">
+                  <h2 className="text-xl sm:text-2xl text-gray-900">{user?.name}</h2>
+                  <p className="text-sm sm:text-base text-gray-600">AI Training Specialist</p>
+                  <div className="flex items-center justify-center sm:justify-start gap-2 mt-2 flex-wrap">
+                    <Badge className="bg-gradient-to-r from-purple-600 to-pink-600 text-white text-xs">
                       Premium Member
                     </Badge>
-                    <Badge variant="outline" className="gap-1">
+                    <Badge variant="outline" className="gap-1 text-xs">
                       <Shield className="h-3 w-3" />
                       Verified
                     </Badge>
                   </div>
                   
-                  <div className="flex gap-2 mt-4">
-                    <Button size="sm" variant="outline" className="gap-2" onClick={handleShareProfile}>
+                  <div className="flex flex-col sm:flex-row gap-2 mt-4">
+                    <Button size="sm" variant="outline" className="gap-2 w-full sm:w-auto" onClick={handleShareProfile}>
                       <Share2 className="h-4 w-4" />
-                      Share Profile
+                      <span className="hidden sm:inline">Share Profile</span>
+                      <span className="sm:hidden">Share</span>
                     </Button>
-                    <Button size="sm" variant="outline" className="gap-2" onClick={handleDownloadResume}>
+                    <Button size="sm" variant="outline" className="gap-2 w-full sm:w-auto" onClick={handleDownloadResume}>
                       <Download className="h-4 w-4" />
-                      Download Resume
+                      <span className="hidden sm:inline">Download Resume</span>
+                      <span className="sm:hidden">Download</span>
                     </Button>
                   </div>
                 </div>
               </div>
 
               {/* Stats Grid */}
-              <div className="grid grid-cols-4 gap-4 mt-6 pt-6 border-t border-gray-200">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-gray-200">
                 <div className="text-center">
                   <div className="flex items-center justify-center gap-1 text-green-600 mb-1">
-                    <DollarSign className="h-5 w-5" />
-                    <span className="text-2xl text-gray-900">12.4K</span>
+                    <DollarSign className="h-4 w-4 sm:h-5 sm:w-5" />
+                    <span className="text-xl sm:text-2xl text-gray-900">12.4K</span>
                   </div>
                   <p className="text-xs text-gray-600">Total Earnings</p>
                 </div>
                 <div className="text-center">
                   <div className="flex items-center justify-center gap-1 mb-1">
-                    <CheckCircle2 className="h-5 w-5 text-blue-600" />
-                    <span className="text-2xl text-gray-900">740</span>
+                    <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
+                    <span className="text-xl sm:text-2xl text-gray-900">740</span>
                   </div>
                   <p className="text-xs text-gray-600">Tasks Done</p>
                 </div>
                 <div className="text-center">
                   <div className="flex items-center justify-center gap-1 mb-1">
-                    <Star className="h-5 w-5 text-yellow-600" />
-                    <span className="text-2xl text-gray-900">98.5%</span>
+                    <Star className="h-4 w-4 sm:h-5 sm:w-5 text-yellow-600" />
+                    <span className="text-xl sm:text-2xl text-gray-900">98.5%</span>
                   </div>
                   <p className="text-xs text-gray-600">Success Rate</p>
                 </div>
                 <div className="text-center">
                   <div className="flex items-center justify-center gap-1 mb-1">
-                    <Trophy className="h-5 w-5 text-purple-600" />
-                    <span className="text-2xl text-gray-900">#3</span>
+                    <Trophy className="h-4 w-4 sm:h-5 sm:w-5 text-purple-600" />
+                    <span className="text-xl sm:text-2xl text-gray-900">#3</span>
                   </div>
                   <p className="text-xs text-gray-600">Leaderboard</p>
                 </div>
@@ -173,10 +178,10 @@ export function ViewProfileDialog({ open, onOpenChange }: ViewProfileDialogProps
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: 0.1 }}
-              className="mt-6 space-y-4"
+              className="mt-4 sm:mt-6 space-y-3 sm:space-y-4"
             >
-              <h3 className="text-lg text-gray-900">Contact Information</h3>
-              <div className="grid md:grid-cols-2 gap-4">
+              <h3 className="text-base sm:text-lg text-gray-900">Contact Information</h3>
+              <div className="grid sm:grid-cols-2 gap-3 sm:gap-4">
                 <div className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 border border-gray-200">
                   <Mail className="h-5 w-5 text-blue-600" />
                   <div>
@@ -222,7 +227,7 @@ export function ViewProfileDialog({ open, onOpenChange }: ViewProfileDialogProps
               </div>
             </motion.div>
 
-            <Separator className="my-6" />
+            <Separator className="my-4 sm:my-6" />
 
             {/* Bio */}
             <motion.div
@@ -230,7 +235,7 @@ export function ViewProfileDialog({ open, onOpenChange }: ViewProfileDialogProps
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: 0.2 }}
             >
-              <h3 className="text-lg text-gray-900 mb-3">About</h3>
+              <h3 className="text-base sm:text-lg text-gray-900 mb-3">About</h3>
               <p className="text-sm text-gray-600 leading-relaxed">
                 Passionate AI contributor working on cutting-edge projects. Specialized in AI training,
                 data annotation, and quality assurance with over 2 years of experience. Dedicated to
@@ -238,7 +243,7 @@ export function ViewProfileDialog({ open, onOpenChange }: ViewProfileDialogProps
               </p>
             </motion.div>
 
-            <Separator className="my-6" />
+            <Separator className="my-4 sm:my-6" />
 
             {/* Skills */}
             <motion.div
@@ -246,8 +251,8 @@ export function ViewProfileDialog({ open, onOpenChange }: ViewProfileDialogProps
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: 0.3 }}
             >
-              <h3 className="text-lg text-gray-900 mb-4">Skills & Expertise</h3>
-              <div className="grid md:grid-cols-2 gap-4">
+              <h3 className="text-base sm:text-lg text-gray-900 mb-3 sm:mb-4">Skills & Expertise</h3>
+              <div className="grid sm:grid-cols-2 gap-3 sm:gap-4">
                 {skills.map((skill) => (
                   <div key={skill.name} className="p-4 rounded-lg border border-gray-200 bg-gray-50">
                     <div className="flex items-center justify-between mb-2">
@@ -263,7 +268,7 @@ export function ViewProfileDialog({ open, onOpenChange }: ViewProfileDialogProps
               </div>
             </motion.div>
 
-            <Separator className="my-6" />
+            <Separator className="my-4 sm:my-6" />
 
             {/* Achievements */}
             <motion.div
@@ -271,8 +276,8 @@ export function ViewProfileDialog({ open, onOpenChange }: ViewProfileDialogProps
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: 0.4 }}
             >
-              <h3 className="text-lg text-gray-900 mb-4">Achievements</h3>
-              <div className="grid grid-cols-3 md:grid-cols-6 gap-4">
+              <h3 className="text-base sm:text-lg text-gray-900 mb-3 sm:mb-4">Achievements</h3>
+              <div className="grid grid-cols-3 sm:grid-cols-6 gap-3 sm:gap-4">
                 {achievements.map((badge) => (
                   <div
                     key={badge.name}
@@ -289,7 +294,7 @@ export function ViewProfileDialog({ open, onOpenChange }: ViewProfileDialogProps
               </div>
             </motion.div>
 
-            <Separator className="my-6" />
+            <Separator className="my-4 sm:my-6" />
 
             {/* Recent Projects */}
             <motion.div
@@ -297,7 +302,7 @@ export function ViewProfileDialog({ open, onOpenChange }: ViewProfileDialogProps
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: 0.5 }}
             >
-              <h3 className="text-lg text-gray-900 mb-4">Recent Projects</h3>
+              <h3 className="text-base sm:text-lg text-gray-900 mb-3 sm:mb-4">Recent Projects</h3>
               <div className="space-y-3">
                 {recentProjects.map((project) => (
                   <div

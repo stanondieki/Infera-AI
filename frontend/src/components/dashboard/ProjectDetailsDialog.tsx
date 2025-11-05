@@ -149,7 +149,7 @@ ${reportData.project},${reportData.category},${reportData.progress},${reportData
     try {
       const issue = createIssue({
         user_id: user.id,
-        user_name: user.name,
+        user_name: user.name || `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Unknown User',
         project_id: project.id,
         project_title: project.title,
         type: issueForm.type,

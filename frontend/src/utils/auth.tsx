@@ -4,10 +4,24 @@ import { API_CONFIG, API_ENDPOINTS, apiClient, buildApiUrl } from './api';
 interface User {
   id: string;
   email: string;
-  name: string;
+  name?: string;
+  first_name?: string;
+  last_name?: string;
   role?: string;
   joinedDate?: string;
+  created_at?: string;
   applications?: any[];
+  phone?: string;
+  location?: string;
+  bio?: string;
+  jobTitle?: string;
+  company?: string;
+  website?: string;
+  timezone?: string;
+  language?: string;
+  hourly_rate?: number;
+  total_earned?: number;
+  tasks_completed?: number;
 }
 
 interface AuthContextType {
