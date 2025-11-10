@@ -202,4 +202,78 @@ router.get('/stats/overview', authenticateToken, requireAdmin, async (req: AuthR
   }
 });
 
+// Debug endpoint to list users (development only)
+router.get('/debug', async (req: Request, res: Response) => {
+  try {
+    if (process.env.NODE_ENV === 'production') {
+      return res.status(404).json({ message: 'Not found' });
+    }
+    
+    const users = await User.find({})
+      .select('name email role isActive isVerified joinedDate')
+      .sort({ joinedDate: -1 });
+
+    res.json({
+      success: true,
+      count: users.length,
+      users
+    });
+  } catch (error) {
+    console.error('Debug users error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
+// Create a test user with known password (development only)
+router.post('/debug/test-user', async (req: Request, res: Response) => {
+  try {
+    if (process.env.NODE_ENV === 'production') {
+      return res.status(404).json({ message: 'Not found' });
+    }
+    
+    // Check if test user already exists
+    const existingUser = await User.findOne({ email: 'test@inferaai.com' });
+    if (existingUser) {
+      return res.json({
+        success: true,
+        message: 'Test user already exists',
+        credentials: {
+          email: 'test@inferaai.com',
+          password: 'Test123!'
+        }
+      });
+    }
+
+    // Create test user
+    const testUser = new User({
+      name: 'Test User',
+      email: 'test@inferaai.com',
+      password: 'Test123!',
+      role: 'user',
+      isActive: true,
+      isVerified: true
+    });
+
+    await testUser.save();
+
+    res.json({
+      success: true,
+      message: 'Test user created successfully',
+      credentials: {
+        email: 'test@inferaai.com',
+        password: 'Test123!'
+      }
+    });
+  } catch (error) {
+    console.error('Create test user error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
 export default router;

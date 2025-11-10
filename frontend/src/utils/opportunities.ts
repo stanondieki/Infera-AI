@@ -125,6 +125,27 @@ export async function getOpportunities(category?: string, featured?: boolean): P
     
     const response = await apiClient.get(endpoint);
     
+    // If backend returns empty opportunities, use fallback data
+    if (!response.opportunities || response.opportunities.length === 0) {
+      console.log('Backend returned no opportunities, using fallback data');
+      
+      // Filter fallback data based on parameters
+      let filtered = fallbackOpportunities;
+      
+      if (featured) {
+        filtered = filtered.filter(opp => opp.featured);
+      }
+      
+      if (category && category !== 'All') {
+        filtered = filtered.filter(opp => opp.category === category);
+      }
+      
+      return {
+        opportunities: filtered,
+        total: filtered.length
+      };
+    }
+    
     return {
       opportunities: response.opportunities || [],
       total: response.total || 0

@@ -4,6 +4,7 @@ import { Application, IApplication, User } from '../models';
 import { validateApplication } from '../middleware/validation';
 import { applicationLimiter, apiLimiter } from '../middleware/rateLimiter';
 import { authenticateToken, requireAdmin, AuthRequest } from '../middleware/auth';
+import { emailService } from '../services/emailService';
 
 const router = express.Router();
 
@@ -29,9 +30,39 @@ router.post('/submit', applicationLimiter, validateApplication, async (req: Requ
     const application = new Application(applicationData);
     await application.save();
 
+    // Try to create user account and send welcome email
+    let userCreated = false;
+    let userPassword = '';
+    
+    try {
+      // Generate a temporary password if not provided
+      userPassword = applicationData.password || Math.random().toString(36).slice(-8) + 'A1!';
+      
+      // Create user account
+      const newUser = new User({
+        name: `${applicationData.firstName} ${applicationData.lastName}`,
+        email: applicationData.email,
+        password: userPassword,
+        role: 'user',
+        isVerified: true,
+        isActive: true
+      });
+      
+      await newUser.save();
+      userCreated = true;
+      
+      // Send welcome email
+      await emailService.sendWelcomeEmail(application, userPassword);
+      
+      console.log(`✅ User account created for: ${applicationData.email}`);
+    } catch (userError: any) {
+      console.log(`⚠️ User account creation failed for ${applicationData.email}:`, userError.message);
+    }
+
     res.status(201).json({
       success: true,
       message: 'Application submitted successfully',
+      userCreated,
       application: {
         id: application._id,
         email: application.email,
@@ -194,6 +225,13 @@ router.put('/:id/status', authenticateToken, requireAdmin, async (req: AuthReque
 
     await application.save();
 
+    // Send status update email
+    try {
+      await emailService.sendApplicationStatusUpdate(application, status, reviewNotes);
+    } catch (emailError) {
+      console.log('⚠️ Failed to send status update email:', emailError);
+    }
+
     // If accepted, create user account
     if (status === 'accepted' && !application.userId) {
       try {
@@ -206,10 +244,9 @@ router.put('/:id/status', authenticateToken, requireAdmin, async (req: AuthReque
           password: tempPassword,
           role: 'user',
           skills: application.skills,
-          languages: application.languages,
           location: `${application.city}, ${application.country}`,
           timezone: application.timezone,
-          bio: application.motivation,
+          bio: application.bio || application.motivation,
           isVerified: true,
           isActive: true
         });

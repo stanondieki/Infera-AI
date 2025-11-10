@@ -1,25 +1,63 @@
-import { apiClient, API_ENDPOINTS } from './api';
+import { apiClient, API_ENDPOINTS, buildApiUrl } from './api';
 
 export interface ApplicationFormData {
+  // Personal Information
   firstName: string;
   lastName: string;
   email: string;
   phone: string;
   country: string;
+  city: string;
+  timezone: string;
+  
+  // Professional Background
   expertise: string;
   experience: string;
   education: string;
   currentRole: string;
+  company: string;
+  industry: string;
+  salary: string;
+  
+  // Skills & Preferences
   skills: string[];
+  primarySkill: string;
+  learningGoals: string[];
+  projectTypes: string[];
+  
+  // Availability & Commitment
   availability: string;
   hoursPerWeek: string;
+  startDate: string;
+  timeCommitment: string;
+  workingHours: string;
+  weekendAvailability: boolean;
+  
+  // Profile & Portfolio
   bio: string;
+  motivation: string;
   linkedIn: string;
   portfolio: string;
+  github: string;
+  resume: string;
+  
+  // Preferences & Goals
+  earningGoals: string;
+  communicationStyle: string;
+  mentorshipInterest: boolean;
+  collaborationPreference: string;
+  
+  // Account Setup
+  password: string;
+  confirmPassword: string;
+  
+  // Agreement
   agreeToTerms: boolean;
+  agreeToNewsletter: boolean;
+  agreeToDataProcessing: boolean;
 }
 
-export interface Application extends ApplicationFormData {
+export interface Application extends Omit<ApplicationFormData, 'password' | 'confirmPassword'> {
   id: string;
   status: 'pending' | 'reviewing' | 'accepted' | 'rejected';
   submittedDate: string;
@@ -28,178 +66,49 @@ export interface Application extends ApplicationFormData {
   notes?: string;
 }
 
-const APPLICATIONS_STORAGE_KEY = 'inferaai_admin_applications';
-
-function getInitialApplications(): Application[] {
-  return [
-    {
-      id: '1',
-      firstName: 'Alex',
-      lastName: 'Thompson',
-      email: 'alex.thompson@example.com',
-      phone: '+1 (555) 123-4567',
-      country: 'United States',
-      expertise: 'Data Science',
-      experience: '5+ years',
-      education: "Master's Degree",
-      currentRole: 'Senior Data Scientist',
-      skills: ['Python', 'Machine Learning', 'Data Analysis', 'SQL'],
-      availability: 'Part-time',
-      hoursPerWeek: '15-20',
-      bio: 'Experienced data scientist with a strong background in machine learning and AI. Passionate about training AI models and improving their accuracy through quality data annotation and validation.',
-      linkedIn: 'https://linkedin.com/in/alexthompson',
-      portfolio: 'https://alexthompson.dev',
-      agreeToTerms: true,
-      status: 'pending',
-      submittedDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-    },
-    {
-      id: '2',
-      firstName: 'Maria',
-      lastName: 'Garcia',
-      email: 'maria.garcia@example.com',
-      phone: '+1 (555) 234-5678',
-      country: 'Spain',
-      expertise: 'Translation',
-      experience: '3-5 years',
-      education: "Bachelor's Degree",
-      currentRole: 'Professional Translator',
-      skills: ['Spanish', 'English', 'French', 'Translation', 'Localization'],
-      availability: 'Full-time',
-      hoursPerWeek: '30+',
-      bio: 'Native Spanish speaker with extensive experience in technical and creative translation. Fluent in multiple languages with a keen eye for cultural nuances and context.',
-      linkedIn: 'https://linkedin.com/in/mariagarcia',
-      portfolio: '',
-      agreeToTerms: true,
-      status: 'accepted',
-      submittedDate: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
-      reviewedDate: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
-      reviewedBy: 'Admin User',
-      notes: 'Excellent qualifications and experience. Approved for translation projects.',
-    },
-    {
-      id: '3',
-      firstName: 'James',
-      lastName: 'Wilson',
-      email: 'james.wilson@example.com',
-      phone: '+44 20 1234 5678',
-      country: 'United Kingdom',
-      expertise: 'Software Engineering',
-      experience: '5+ years',
-      education: "Bachelor's Degree",
-      currentRole: 'Full Stack Developer',
-      skills: ['JavaScript', 'TypeScript', 'React', 'Node.js', 'Code Review'],
-      availability: 'Part-time',
-      hoursPerWeek: '10-15',
-      bio: 'Full stack developer with expertise in modern web technologies. Interested in helping improve AI code generation through thorough code review and quality assessment.',
-      linkedIn: 'https://linkedin.com/in/jameswilson',
-      portfolio: 'https://github.com/jameswilson',
-      agreeToTerms: true,
-      status: 'reviewing',
-      submittedDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-      reviewedDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-      reviewedBy: 'Admin User',
-    },
-    {
-      id: '4',
-      firstName: 'Priya',
-      lastName: 'Sharma',
-      email: 'priya.sharma@example.com',
-      phone: '+91 98765 43210',
-      country: 'India',
-      expertise: 'Content Writing',
-      experience: '3-5 years',
-      education: "Master's Degree",
-      currentRole: 'Content Strategist',
-      skills: ['Creative Writing', 'Content Strategy', 'SEO', 'Editing'],
-      availability: 'Part-time',
-      hoursPerWeek: '20-25',
-      bio: 'Creative content writer and strategist with a passion for storytelling. Experienced in creating engaging content across various formats and industries.',
-      linkedIn: 'https://linkedin.com/in/priyasharma',
-      portfolio: 'https://priyawrites.com',
-      agreeToTerms: true,
-      status: 'pending',
-      submittedDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-    },
-    {
-      id: '5',
-      firstName: 'Robert',
-      lastName: 'Kim',
-      email: 'robert.kim@example.com',
-      phone: '+1 (555) 345-6789',
-      country: 'South Korea',
-      expertise: 'AI/ML',
-      experience: '5+ years',
-      education: 'PhD',
-      currentRole: 'AI Research Scientist',
-      skills: ['Python', 'TensorFlow', 'PyTorch', 'Deep Learning', 'NLP'],
-      availability: 'Part-time',
-      hoursPerWeek: '10-15',
-      bio: 'AI researcher specializing in natural language processing and deep learning. Published multiple papers on LLM training and optimization.',
-      linkedIn: 'https://linkedin.com/in/robertkim',
-      portfolio: 'https://scholar.google.com/robertkim',
-      agreeToTerms: true,
-      status: 'accepted',
-      submittedDate: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString(),
-      reviewedDate: new Date(Date.now() - 18 * 24 * 60 * 60 * 1000).toISOString(),
-      reviewedBy: 'Admin User',
-      notes: 'Highly qualified candidate. Perfect fit for advanced AI training tasks.',
-    },
-  ];
-}
-
-function loadApplications(): Application[] {
-  try {
-    const stored = localStorage.getItem(APPLICATIONS_STORAGE_KEY);
-    if (stored) {
-      return JSON.parse(stored);
-    }
-  } catch (error) {
-    console.error('Error loading applications from storage:', error);
-  }
-  return getInitialApplications();
-}
-
-function saveApplications(applications: Application[]): void {
-  try {
-    localStorage.setItem(APPLICATIONS_STORAGE_KEY, JSON.stringify(applications));
-  } catch (error) {
-    console.error('Error saving applications to storage:', error);
-  }
-}
-
 export async function submitApplication(formData: ApplicationFormData) {
   try {
-    const response = await apiClient.post(API_ENDPOINTS.APPLICATIONS.SUBMIT, formData);
-    return response;
+    console.log('🚀 Starting application submission...', { email: formData.email });
+    
+    // Prepare application data (exclude password fields)
+    const { password, confirmPassword, ...applicationData } = formData;
+    
+    // First submit the application
+    console.log('📝 Submitting application to backend...');
+    const response = await apiClient.post(buildApiUrl(API_ENDPOINTS.APPLICATIONS.SUBMIT), applicationData);
+    console.log('✅ Application submitted successfully:', response);
+    
+    // Create user account after successful application submission
+    try {
+      console.log('👤 Creating user account...');
+      
+      // Create user account with user's chosen password
+      const userResponse = await apiClient.post(buildApiUrl(API_ENDPOINTS.AUTH.REGISTER), {
+        email: formData.email,
+        password: formData.password,
+        name: `${formData.firstName} ${formData.lastName}`
+      });
+      
+      console.log('✅ User account created successfully:', userResponse);
+      
+      return {
+        ...response,
+        userCreated: true,
+        message: 'Application submitted and account created successfully! You can now sign in with your chosen password.'
+      };
+    } catch (userError: any) {
+      console.log('⚠️ Account creation failed, but application was submitted:', userError.message);
+      return {
+        ...response,
+        userCreated: false,
+        message: 'Application submitted successfully! You can create an account separately using the sign-in dialog.'
+      };
+    }
   } catch (error: any) {
-    console.log('Backend API error:', error.message);
-    console.log('Falling back to local storage');
+    console.error('❌ Application submission error:', error);
+    console.error('Error details:', error.response?.data);
+    throw new Error(error.response?.data?.message || 'Failed to submit application. Please try again.');
   }
-
-  // Fallback to local storage
-  const applications = loadApplications();
-
-  // Check if email already exists
-  if (applications.some(app => app.email === formData.email)) {
-    throw new Error('An application with this email address has already been submitted');
-  }
-
-  const newApplication: Application = {
-    ...formData,
-    id: `app_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-    status: 'pending',
-    submittedDate: new Date().toISOString(),
-  };
-
-  applications.push(newApplication);
-  saveApplications(applications);
-
-  return {
-    message: 'Application submitted successfully',
-    applicationId: newApplication.id,
-    status: 'pending',
-  };
 }
 
 export async function getApplications(status?: string, accessToken?: string) {
@@ -208,64 +117,45 @@ export async function getApplications(status?: string, accessToken?: string) {
       ? `${API_ENDPOINTS.APPLICATIONS.LIST}?status=${status}`
       : API_ENDPOINTS.APPLICATIONS.LIST;
     
-    const response = await apiClient.get(endpoint, accessToken);
+    const response = await apiClient.get(buildApiUrl(endpoint), accessToken);
     
     return {
-      applications: response.applications || [],
-      total: response.total || 0
+      applications: response.data?.applications || [],
+      total: response.data?.total || 0,
+      success: true
     };
   } catch (error: any) {
-    console.log('Backend API error:', error.message);
-    console.log('Falling back to local storage');
+    console.error('Error fetching applications:', error);
+    throw new Error(error.response?.data?.message || 'Failed to fetch applications');
   }
-
-  // Fallback to local storage
-  const applications = loadApplications();
-  const filtered = status && status !== 'all' 
-    ? applications.filter(app => app.status === status)
-    : applications;
-
-  return {
-    applications: filtered,
-    total: filtered.length
-  };
 }
 
 export async function updateApplicationStatus(
-  applicationId: string,
-  status: 'pending' | 'reviewing' | 'accepted' | 'rejected',
-  notes?: string,
+  applicationId: string, 
+  status: string, 
+  notes?: string, 
   accessToken?: string
-): Promise<{ application: Application }> {
+) {
   try {
     const response = await apiClient.put(
-      API_ENDPOINTS.APPLICATIONS.UPDATE_STATUS(applicationId),
+      buildApiUrl(API_ENDPOINTS.APPLICATIONS.UPDATE_STATUS(applicationId)),
       { status, notes },
       accessToken
     );
     
-    return { application: response.application };
+    return response;
   } catch (error: any) {
-    console.log('Backend API error:', error.message);
-    console.log('Falling back to local storage');
+    console.error('Error updating application status:', error);
+    throw new Error(error.response?.data?.message || 'Failed to update application status');
   }
+}
 
-  // Fallback to local storage
-  const applications = loadApplications();
-  const appIndex = applications.findIndex(app => app.id === applicationId);
-
-  if (appIndex === -1) {
-    throw new Error('Application not found');
+export async function getApplicationStats(accessToken?: string) {
+  try {
+    const response = await apiClient.get(buildApiUrl(API_ENDPOINTS.APPLICATIONS.STATS), accessToken);
+    return response.data;
+  } catch (error: any) {
+    console.error('Error fetching application stats:', error);
+    throw new Error(error.response?.data?.message || 'Failed to fetch application statistics');
   }
-
-  applications[appIndex] = {
-    ...applications[appIndex],
-    status,
-    notes: notes || applications[appIndex].notes,
-    reviewedDate: new Date().toISOString(),
-    reviewedBy: 'Admin User',
-  };
-
-  saveApplications(applications);
-  return { application: applications[appIndex] };
 }

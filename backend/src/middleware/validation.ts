@@ -84,71 +84,59 @@ export const validateApplication = [
   body('phone')
     .trim()
     .notEmpty()
-    .withMessage('Phone number is required')
-    .isMobilePhone('any')
-    .withMessage('Please provide a valid phone number'),
-  
-  body('dateOfBirth')
-    .isISO8601()
-    .withMessage('Please provide a valid date of birth')
-    .custom((value) => {
-      const age = new Date().getFullYear() - new Date(value).getFullYear();
-      if (age < 18) {
-        throw new Error('You must be at least 18 years old');
-      }
-      return true;
-    }),
+    .withMessage('Phone number is required'),
   
   body('country')
     .trim()
     .notEmpty()
     .withMessage('Country is required'),
   
-  body('city')
+  body('expertise')
     .trim()
     .notEmpty()
-    .withMessage('City is required'),
-  
-  body('timezone')
-    .trim()
-    .notEmpty()
-    .withMessage('Timezone is required'),
+    .withMessage('Expertise is required'),
   
   body('experience')
-    .isIn(['beginner', 'intermediate', 'advanced', 'expert'])
-    .withMessage('Please select a valid experience level'),
+    .trim()
+    .notEmpty()
+    .withMessage('Experience is required'),
+  
+  body('education')
+    .trim()
+    .notEmpty()
+    .withMessage('Education is required'),
+  
+  body('currentRole')
+    .trim()
+    .notEmpty()
+    .withMessage('Current role is required'),
   
   body('skills')
     .isArray({ min: 1 })
     .withMessage('At least one skill is required'),
   
-  body('languages')
-    .isArray({ min: 1 })
-    .withMessage('At least one language is required'),
-  
   body('availability')
-    .isInt({ min: 1, max: 168 })
-    .withMessage('Availability must be between 1 and 168 hours per week'),
-  
-  body('motivation')
     .trim()
-    .isLength({ min: 50, max: 1000 })
-    .withMessage('Motivation must be between 50 and 1000 characters'),
+    .notEmpty()
+    .withMessage('Availability is required'),
   
-  body('preferredCategories')
-    .isArray({ min: 1 })
-    .withMessage('At least one preferred category is required'),
+  body('hoursPerWeek')
+    .trim()
+    .notEmpty()
+    .withMessage('Hours per week is required'),
   
-  body('expectedHourlyRate.min')
-    .isFloat({ min: 5 })
-    .withMessage('Minimum expected hourly rate must be at least $5'),
+  body('bio')
+    .trim()
+    .notEmpty()
+    .withMessage('Bio is required')
+    .isLength({ min: 10, max: 1000 })
+    .withMessage('Bio must be between 10 and 1000 characters'),
   
-  body('expectedHourlyRate.max')
-    .isFloat({ min: 5 })
-    .withMessage('Maximum expected hourly rate must be at least $5')
-    .custom((value, { req }) => {
-      if (value < req.body.expectedHourlyRate.min) {
-        throw new Error('Maximum hourly rate cannot be less than minimum hourly rate');
+  body('agreeToTerms')
+    .isBoolean()
+    .custom((value) => {
+      if (!value) {
+        throw new Error('You must agree to the terms and conditions');
       }
       return true;
     }),

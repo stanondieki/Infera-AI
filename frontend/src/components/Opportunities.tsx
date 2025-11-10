@@ -20,10 +20,10 @@ export function Opportunities({ onApplyClick }: OpportunitiesProps) {
 
   const fetchFeaturedOpportunities = async () => {
     try {
-      const result = await getOpportunities(undefined, true); // Get featured opportunities
-      setFeaturedOpportunities(result.opportunities.slice(0, 3)); // Take only first 3 for featured section
+      const result = await getOpportunities(); // Get all opportunities (not just featured)
+      setFeaturedOpportunities(result.opportunities.slice(0, 3)); // Take only first 3 for home page section
     } catch (error) {
-      console.error('Error fetching featured opportunities:', error);
+      console.error('Error fetching opportunities:', error);
     } finally {
       setLoading(false);
     }

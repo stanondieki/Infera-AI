@@ -8,7 +8,7 @@ import { Checkbox } from "./ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
 import { Slider } from "./ui/slider";
 import { Switch } from "./ui/switch";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import React from "react";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
@@ -51,6 +51,23 @@ import {
   Cloud,
   Building,
   X,
+  Eye,
+  EyeOff,
+  Loader2,
+  TrendingDown,
+  Search,
+  MapPin as LocationIcon,
+  Wifi,
+  WifiOff,
+  Lightbulb,
+  BarChart3,
+  Users,
+  Timer,
+  CheckCircle2,
+  AlertTriangle,
+  Info,
+  Sparkle,
+  RefreshCw,
 } from "lucide-react";
 import { Progress } from "./ui/progress";
 import { Badge } from "./ui/badge";
@@ -63,6 +80,21 @@ interface ApplyDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSwitchToSignIn?: () => void;
+}
+
+interface FormValidation {
+  [key: string]: {
+    isValid: boolean;
+    error: string;
+    suggestions?: string[];
+  };
+}
+
+interface LiveMarketData {
+  averageHourlyRate: number;
+  demandLevel: 'low' | 'medium' | 'high' | 'very-high';
+  popularSkills: string[];
+  jobOpenings: number;
 }
 
 interface FormData {
@@ -116,6 +148,10 @@ interface FormData {
   agreeToTerms: boolean;
   agreeToNewsletter: boolean;
   agreeToDataProcessing: boolean;
+  
+  // Account Setup
+  password: string;
+  confirmPassword: string;
 }
 
 export function ApplyDialog({ open, onOpenChange, onSwitchToSignIn }: ApplyDialogProps) {
@@ -171,6 +207,10 @@ export function ApplyDialog({ open, onOpenChange, onSwitchToSignIn }: ApplyDialo
     agreeToTerms: false,
     agreeToNewsletter: false,
     agreeToDataProcessing: false,
+    
+    // Account Setup
+    password: "",
+    confirmPassword: "",
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -178,7 +218,24 @@ export function ApplyDialog({ open, onOpenChange, onSwitchToSignIn }: ApplyDialo
   const [autoSaveStatus, setAutoSaveStatus] = useState<'saved' | 'saving' | 'error' | null>(null);
   const [estimatedEarnings, setEstimatedEarnings] = useState<number>(0);
   
-  const totalSteps = 5;
+  // Enhanced state for live features
+  const [liveValidation, setLiveValidation] = useState<FormValidation>({});
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [suggestions, setSuggestions] = useState<{ [key: string]: string[] }>({});
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [profileStrength, setProfileStrength] = useState(0);
+  const [marketData, setMarketData] = useState<LiveMarketData | null>(null);
+  const [completionTime, setCompletionTime] = useState<number>(0);
+  const [startTime] = useState(Date.now());
+  const [locationDetected, setLocationDetected] = useState(false);
+  const [skillDemand, setSkillDemand] = useState<{ [skill: string]: number }>({});
+  
+  // Refs
+  const formRef = useRef<HTMLFormElement>(null);
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  
+  const totalSteps = 6;
   const progress = (currentStep / totalSteps) * 100;
 
   const steps = [
@@ -218,7 +275,29 @@ export function ApplyDialog({ open, onOpenChange, onSwitchToSignIn }: ApplyDialo
     ]
   };
 
-  const allSkills = Object.values(skillCategories).flat();
+  // Smart suggestions database
+  const companySuggestions = [
+    "Google", "Microsoft", "Amazon", "Apple", "Meta", "Netflix", "OpenAI", "Anthropic",
+    "Tesla", "NVIDIA", "Intel", "IBM", "Oracle", "Salesforce", "Adobe", "Uber", "Airbnb",
+    "Spotify", "Twitter", "LinkedIn", "GitHub", "Stripe", "Shopify", "Square", "PayPal"
+  ];
+
+  const roleSuggestions = [
+    "Data Scientist", "Machine Learning Engineer", "AI Researcher", "Software Engineer",
+    "Data Engineer", "DevOps Engineer", "Product Manager", "Research Scientist",
+    "ML Infrastructure Engineer", "Computer Vision Engineer", "NLP Engineer", 
+    "AI Product Manager", "Data Analyst", "Full Stack Developer", "Backend Developer",
+    "Frontend Developer", "Mobile Developer", "Cloud Architect", "MLOps Engineer"
+  ];
+
+  const citySuggestions = [
+    "San Francisco", "New York", "London", "Berlin", "Toronto", "Seattle", "Austin",
+    "Los Angeles", "Boston", "Chicago", "Amsterdam", "Paris", "Tokyo", "Singapore",
+    "Sydney", "Vancouver", "Tel Aviv", "Zurich", "Stockholm", "Copenhagen"
+  ];
+
+  // Memoize allSkills to prevent infinite re-renders
+  const allSkills = useMemo(() => Object.values(skillCategories).flat(), []);
 
   const countries = [
     "United States", "United Kingdom", "Canada", "Australia", "Germany",
@@ -252,6 +331,239 @@ export function ApplyDialog({ open, onOpenChange, onSwitchToSignIn }: ApplyDialo
     "Leadership Skills", "Business Strategy", "Technical Writing",
     "Public Speaking", "Team Management", "Cross-functional Collaboration"
   ];
+
+  // Live validation functions
+  const validateField = useCallback((fieldName: string, value: any): { isValid: boolean; error: string; suggestions?: string[] } => {
+    switch (fieldName) {
+      case 'email':
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!value) return { isValid: false, error: 'Email is required' };
+        if (!emailRegex.test(value)) return { isValid: false, error: 'Please enter a valid email' };
+        return { isValid: true, error: '' };
+      
+      case 'firstName':
+      case 'lastName':
+        if (!value?.trim()) return { isValid: false, error: `${fieldName === 'firstName' ? 'First' : 'Last'} name is required` };
+        if (value.length < 2) return { isValid: false, error: 'Name must be at least 2 characters' };
+        if (!/^[a-zA-Z\s'-]+$/.test(value)) return { isValid: false, error: 'Name contains invalid characters' };
+        return { isValid: true, error: '' };
+      
+      case 'phone':
+        if (!value) return { isValid: false, error: 'Phone number is required' };
+        const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
+        if (!phoneRegex.test(value.replace(/[\s\-\(\)]/g, ''))) {
+          return { isValid: false, error: 'Please enter a valid phone number' };
+        }
+        return { isValid: true, error: '' };
+      
+      case 'company':
+        if (!value) return { isValid: true, error: '' }; // Optional field
+        const matchingCompanies = companySuggestions.filter(c => 
+          c.toLowerCase().includes(value.toLowerCase())
+        ).slice(0, 5);
+        return { isValid: true, error: '', suggestions: matchingCompanies };
+      
+      case 'currentRole':
+        if (!value?.trim()) return { isValid: false, error: 'Current role is required' };
+        const matchingRoles = roleSuggestions.filter(r => 
+          r.toLowerCase().includes(value.toLowerCase())
+        ).slice(0, 5);
+        return { isValid: true, error: '', suggestions: matchingRoles };
+      
+      case 'city':
+        if (!value?.trim()) return { isValid: false, error: 'City is required' };
+        const matchingCities = citySuggestions.filter(c => 
+          c.toLowerCase().includes(value.toLowerCase())
+        ).slice(0, 5);
+        return { isValid: true, error: '', suggestions: matchingCities };
+      
+      case 'bio':
+        if (!value?.trim()) return { isValid: false, error: 'Bio is required' };
+        if (value.length < 100) return { isValid: false, error: `Bio must be at least 100 characters (${value.length}/100)` };
+        if (value.length > 500) return { isValid: false, error: `Bio is too long (${value.length}/500)` };
+        return { isValid: true, error: '' };
+      
+      case 'motivation':
+        if (!value?.trim()) return { isValid: false, error: 'Motivation is required' };
+        if (value.length < 50) return { isValid: false, error: `Motivation must be at least 50 characters (${value.length}/50)` };
+        if (value.length > 300) return { isValid: false, error: `Motivation is too long (${value.length}/300)` };
+        return { isValid: true, error: '' };
+      
+      case 'password':
+        if (!value) return { isValid: false, error: 'Password is required' };
+        if (value.length < 8) return { isValid: false, error: 'Password must be at least 8 characters' };
+        if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(value)) {
+          return { isValid: false, error: 'Password must contain uppercase, lowercase, and number' };
+        }
+        return { isValid: true, error: '' };
+      
+      default:
+        return { isValid: true, error: '' };
+    }
+  }, []);
+
+  // Debounced field validation
+  const debouncedValidation = useCallback((fieldName: string, value: any) => {
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    
+    debounceTimerRef.current = setTimeout(() => {
+      const validation = validateField(fieldName, value);
+      setLiveValidation(prev => ({
+        ...prev,
+        [fieldName]: validation
+      }));
+      
+      if (validation.suggestions) {
+        setSuggestions(prev => ({
+          ...prev,
+          [fieldName]: validation.suggestions || []
+        }));
+      }
+    }, 300);
+  }, [validateField]);
+
+  // Calculate profile strength
+  const calculateProfileStrength = useMemo(() => {
+    let score = 0;
+    const weights = {
+      personalInfo: 20, // firstName, lastName, email, phone, country, city
+      professional: 25, // expertise, experience, education, currentRole, industry
+      skills: 20, // skills array, primarySkill
+      availability: 15, // availability, hoursPerWeek, startDate
+      portfolio: 10, // bio, motivation, linkedIn, portfolio, github
+      agreement: 10 // terms agreement
+    };
+
+    // Personal info (20 points)
+    const personalFields = [formData.firstName, formData.lastName, formData.email, formData.phone, formData.country, formData.city];
+    const personalComplete = personalFields.filter(field => field?.trim()).length;
+    score += (personalComplete / personalFields.length) * weights.personalInfo;
+
+    // Professional (25 points)
+    const professionalFields = [formData.expertise, formData.experience, formData.education, formData.currentRole, formData.industry];
+    const professionalComplete = professionalFields.filter(field => field?.trim()).length;
+    score += (professionalComplete / professionalFields.length) * weights.professional;
+
+    // Skills (20 points)
+    if (formData.skills?.length > 0) score += weights.skills * 0.7;
+    if (formData.primarySkill) score += weights.skills * 0.3;
+
+    // Availability (15 points)
+    const availabilityFields = [formData.availability, formData.hoursPerWeek, formData.startDate];
+    const availabilityComplete = availabilityFields.filter(field => field?.trim()).length;
+    score += (availabilityComplete / availabilityFields.length) * weights.availability;
+
+    // Portfolio (10 points)
+    let portfolioScore = 0;
+    if (formData.bio?.length >= 100) portfolioScore += 0.4;
+    if (formData.motivation?.length >= 50) portfolioScore += 0.3;
+    if (formData.linkedIn) portfolioScore += 0.1;
+    if (formData.portfolio) portfolioScore += 0.1;
+    if (formData.github) portfolioScore += 0.1;
+    score += portfolioScore * weights.portfolio;
+
+    // Agreement (10 points)
+    if (formData.agreeToTerms && formData.agreeToDataProcessing) score += weights.agreement;
+
+    return Math.round(score);
+  }, [formData]);
+
+  // Update profile strength
+  useEffect(() => {
+    setProfileStrength(calculateProfileStrength);
+  }, [calculateProfileStrength]);
+
+  // Mock market data - in real app, fetch from API
+  useEffect(() => {
+    const fetchMarketData = async () => {
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      const mockData: LiveMarketData = {
+        averageHourlyRate: 45 + Math.random() * 20,
+        demandLevel: ['medium', 'high', 'very-high'][Math.floor(Math.random() * 3)] as 'medium' | 'high' | 'very-high',
+        popularSkills: ['Python', 'Machine Learning', 'React', 'Node.js', 'AWS'],
+        jobOpenings: 1200 + Math.floor(Math.random() * 500)
+      };
+      
+      setMarketData(mockData);
+    };
+
+    // Only fetch once when component mounts and we're online
+    if (isOnline && !marketData) {
+      fetchMarketData();
+    }
+  }, [isOnline, marketData]);
+
+  // Skill demand simulation - run once on mount
+  useEffect(() => {
+    const demand: { [skill: string]: number } = {};
+    allSkills.forEach(skill => {
+      demand[skill] = Math.random() * 100;
+    });
+    setSkillDemand(demand);
+  }, []); // Empty dependency array to run only once
+
+  // Online status monitoring
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  // Auto-detect location
+  useEffect(() => {
+    if (open && !locationDetected && !formData.city && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          try {
+            // In a real app, use a geolocation API
+            const response = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${position.coords.latitude}&longitude=${position.coords.longitude}&localityLanguage=en`);
+            const data = await response.json();
+            
+            setFormData(prev => ({
+              ...prev,
+              city: data.city || data.locality,
+              country: data.countryName
+            }));
+            
+            setLocationDetected(true);
+            toast.success("📍 Location detected and filled automatically!", { duration: 3000 });
+          } catch (error) {
+            console.log('Location detection failed:', error);
+          }
+        },
+        (error) => {
+          console.log('Geolocation denied:', error);
+        }
+      );
+    }
+  }, [open, locationDetected, formData.city]);
+
+  // Completion time tracking
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCompletionTime(Date.now() - startTime);
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [startTime]);
+
+  // Cleanup debounce timer on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, []);
 
   // Calculate estimated earnings based on skills and experience
   useEffect(() => {
@@ -298,7 +610,7 @@ export function ApplyDialog({ open, onOpenChange, onSwitchToSignIn }: ApplyDialo
 
       return () => clearTimeout(timer);
     }
-  }, [formData, currentStep, open, totalSteps]);
+  }, [formData, currentStep, open]);
 
   // Load draft on open with better UX
   useEffect(() => {
@@ -405,6 +717,20 @@ export function ApplyDialog({ open, onOpenChange, onSwitchToSignIn }: ApplyDialo
         if (!formData.agreeToTerms) errors.push("You must agree to the terms and conditions");
         if (!formData.agreeToDataProcessing) errors.push("You must agree to data processing");
         break;
+        
+      case 6: // Account Setup
+        if (!formData.password?.trim()) errors.push("Password is required");
+        else {
+          if (formData.password.length < 6) errors.push("Password must be at least 6 characters");
+          // More lenient - require at least one letter and one number
+          if (!/[a-zA-Z]/.test(formData.password)) errors.push("Password must contain at least one letter");
+          if (!/\d/.test(formData.password)) errors.push("Password must contain at least one number");
+        }
+        if (!formData.confirmPassword?.trim()) errors.push("Password confirmation is required");
+        else if (formData.password !== formData.confirmPassword) {
+          errors.push("Passwords do not match");
+        }
+        break;
     }
     
     return errors;
@@ -448,9 +774,19 @@ export function ApplyDialog({ open, onOpenChange, onSwitchToSignIn }: ApplyDialo
     setIsSubmitting(true);
     
     try {
+      console.log('🚀 Starting application submission from dialog...', { currentStep, formData: { email: formData.email, firstName: formData.firstName } });
+      
       const response = await submitApplication(formData);
+      
+      console.log('✅ Application submission response:', response);
+      
       setIsSubmitting(false);
-      toast.success("🎉 Application submitted successfully! Check your email for confirmation.", { duration: 5000 });
+      
+      if (response.userCreated) {
+        toast.success("🎉 Application submitted and account created! Check your email for login instructions.", { duration: 7000 });
+      } else {
+        toast.success("🎉 Application submitted successfully! You can create an account using the sign-in dialog.", { duration: 5000 });
+      }
       
       // Clear draft from localStorage
       localStorage.removeItem('inferaAI_draft_application');
@@ -510,10 +846,16 @@ export function ApplyDialog({ open, onOpenChange, onSwitchToSignIn }: ApplyDialo
           agreeToTerms: false,
           agreeToNewsletter: false,
           agreeToDataProcessing: false,
+          
+          // Account Setup
+          password: "",
+          confirmPassword: "",
         });
         setValidationErrors([]);
       }, 500);
     } catch (error: any) {
+      console.error('❌ Application submission failed:', error);
+      console.error('Error details:', error.response?.data);
       setIsSubmitting(false);
       toast.error(error.message || "❌ Failed to submit application. Please try again.", { duration: 5000 });
     }
@@ -552,7 +894,7 @@ export function ApplyDialog({ open, onOpenChange, onSwitchToSignIn }: ApplyDialo
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[700px] w-[95vw] p-0 gap-0 max-h-[90vh] flex flex-col bg-white">
+      <DialogContent className="sm:max-w-[700px] w-[95vw] p-0 gap-0 max-h-[85vh] h-[85vh] flex flex-col bg-white">
         <DialogHeader className="sr-only">
           <DialogTitle>Apply to Infera AI</DialogTitle>
           <DialogDescription>
@@ -564,36 +906,46 @@ export function ApplyDialog({ open, onOpenChange, onSwitchToSignIn }: ApplyDialo
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.3 }}
-          className="flex flex-col h-full max-h-[90vh]"
+          className="flex flex-col h-full"
         >
           {/* Header */}
-          <div className="relative bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 p-6 text-white flex-shrink-0">
+          <div className="relative bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 p-3 text-white flex-shrink-0">
             <div className="relative z-10">
-              <div className="flex justify-center mb-3">
+              <div className="flex justify-center mb-1">
                 <Logo variant="white" size="sm" animated={false} />
               </div>
-              <div className="text-center mb-4">
-                <h2 className="text-2xl font-bold mb-2">Join Infera AI</h2>
-                <p className="text-blue-100 text-sm mb-2">
+              <div className="text-center mb-2">
+                <h2 className="text-lg font-bold mb-0.5">Join Infera AI</h2>
+                <p className="text-blue-100 text-xs mb-1">
                   Start your journey as an AI expert and earn while you learn
                 </p>
                 
                 {/* Progress Indicator */}
-                <div className="bg-white/20 rounded-full h-2 mb-3">
+                <div className="bg-white/20 rounded-full h-1.5 mb-2">
                   <motion.div
-                    className="bg-white rounded-full h-2"
+                    className="bg-white rounded-full h-1.5"
                     initial={{ width: 0 }}
                     animate={{ width: `${progress}%` }}
                     transition={{ duration: 0.3 }}
                   />
                 </div>
                 
-                <div className="flex justify-between text-xs text-blue-100 mb-1">
-                  <span>Step {currentStep} of {totalSteps}</span>
-                  <div className="flex items-center gap-2">
+                <div className="flex justify-between text-xs text-blue-100 mb-3">
+                  <div className="flex items-center gap-3">
+                    <span>Step {currentStep} of {totalSteps}</span>
+                    <div className="flex items-center gap-1">
+                      {isOnline ? (
+                        <Wifi className="h-3 w-3 text-green-300" />
+                      ) : (
+                        <WifiOff className="h-3 w-3 text-red-300" />
+                      )}
+                      <span className="text-xs">{isOnline ? 'Online' : 'Offline'}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
                     {autoSaveStatus === 'saving' && (
                       <div className="flex items-center gap-1">
-                        <Save className="h-3 w-3 animate-pulse" />
+                        <Loader2 className="h-3 w-3 animate-spin" />
                         <span>Saving...</span>
                       </div>
                     )}
@@ -611,40 +963,74 @@ export function ApplyDialog({ open, onOpenChange, onSwitchToSignIn }: ApplyDialo
                     )}
                     {estimatedEarnings > 0 && (
                       <div className="flex items-center gap-1">
-                        <DollarSign className="h-3 w-3" />
+                        <TrendingUp className="h-3 w-3" />
                         <span>${estimatedEarnings.toFixed(0)}/mo</span>
                       </div>
+                    )}
+                    <div className="flex items-center gap-1">
+                      <Timer className="h-3 w-3" />
+                      <span>{Math.floor(completionTime / 60000)}:{((completionTime % 60000) / 1000).toFixed(0).padStart(2, '0')}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Profile Strength Meter */}
+                <div className="bg-white/20 rounded-lg p-1.5 mb-1.5">
+                  <div className="flex items-center justify-between mb-0.5">
+                    <span className="text-xs font-medium">Profile Strength</span>
+                    <span className="text-xs font-bold">{profileStrength}%</span>
+                  </div>
+                  <div className="bg-white/20 rounded-full h-1 mb-0.5">
+                    <motion.div
+                      className={`rounded-full h-1 transition-all duration-500 ${
+                        profileStrength < 30 ? 'bg-red-400' : 
+                        profileStrength < 70 ? 'bg-yellow-400' : 
+                        'bg-green-400'
+                      }`}
+                      initial={{ width: 0 }}
+                      animate={{ width: `${profileStrength}%` }}
+                    />
+                  </div>
+                  <div className="flex justify-between text-xs text-blue-100">
+                    <span>
+                      {profileStrength < 30 ? '🌱 Getting Started' : 
+                       profileStrength < 70 ? '📈 Good Progress' : 
+                       '⭐ Excellent Profile'}
+                    </span>
+                    {marketData && (
+                      <span className="flex items-center gap-1">
+                        <BarChart3 className="h-2 w-2" />
+                        Market: {marketData.demandLevel === 'very-high' ? '🔥' : marketData.demandLevel === 'high' ? '📈' : '📊'} {marketData.demandLevel}
+                      </span>
                     )}
                   </div>
                 </div>
               </div>
 
-              {/* Validation Errors */}
+                {/* Validation Errors */}
               {validationErrors.length > 0 && (
-                <div className="bg-red-500/20 border border-red-400 rounded-lg p-3 mb-3">
-                  <div className="flex items-center gap-2 mb-1">
-                    <AlertCircle className="h-4 w-4 text-red-200" />
-                    <span className="text-sm font-medium text-red-100">Please fix the following:</span>
+                <div className="bg-red-500/20 border border-red-400 rounded-md p-2 mb-2">
+                  <div className="flex items-center gap-1 mb-0.5">
+                    <AlertCircle className="h-3 w-3 text-red-200" />
+                    <span className="text-xs font-medium text-red-100">Please fix the following:</span>
                   </div>
-                  <ul className="list-disc list-inside text-red-100 space-y-0.5 text-sm">
+                  <ul className="list-disc list-inside text-red-100 space-y-0 text-xs">
                     {validationErrors.map((error, index) => (
                       <li key={index}>{error}</li>
                     ))}
                   </ul>
                 </div>
-              )}
-
-              {/* Step Navigation */}
+              )}              {/* Step Navigation */}
               <div className="flex justify-between">
                 {steps.map((step) => (
                   <div
                     key={step.number}
-                    className={`flex flex-col items-center gap-1 transition-all ${
+                    className={`flex flex-col items-center gap-0 transition-all ${
                       step.number <= currentStep ? "opacity-100" : "opacity-40"
                     }`}
                   >
                     <div
-                      className={`h-8 w-8 rounded-full flex items-center justify-center border-2 transition-all ${
+                      className={`h-5 w-5 rounded-full flex items-center justify-center border-2 transition-all ${
                         step.number === currentStep
                           ? "bg-white text-blue-600 border-white scale-110"
                           : step.number < currentStep
@@ -653,12 +1039,12 @@ export function ApplyDialog({ open, onOpenChange, onSwitchToSignIn }: ApplyDialo
                     }`}
                     >
                       {step.number < currentStep ? (
-                        <CheckCircle className="h-4 w-4" />
+                        <CheckCircle className="h-2.5 w-2.5" />
                       ) : (
-                        <step.icon className="h-4 w-4" />
+                        <step.icon className="h-2.5 w-2.5" />
                       )}
                     </div>
-                    <span className="text-xs text-center">{step.title}</span>
+                    <span className="text-xs text-center leading-tight mt-0.5">{step.title}</span>
                   </div>
                 ))}
               </div>
@@ -666,8 +1052,8 @@ export function ApplyDialog({ open, onOpenChange, onSwitchToSignIn }: ApplyDialo
           </div>
 
           {/* Form Content */}
-          <div className="flex-1 overflow-y-auto bg-gray-50">
-            <form onSubmit={handleSubmit} className="p-6">
+          <div className="flex-1 overflow-y-auto bg-gray-50 min-h-0">
+            <form onSubmit={handleSubmit} className="p-3 pb-4">
               <AnimatePresence mode="wait">
                 <motion.div
                   key={currentStep}
@@ -675,20 +1061,20 @@ export function ApplyDialog({ open, onOpenChange, onSwitchToSignIn }: ApplyDialo
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -20 }}
                   transition={{ duration: 0.3 }}
-                  className="space-y-6"
+                  className="space-y-4"
                 >
                   {/* Step 1: Personal Information */}
                   {currentStep === 1 && (
-                    <div className="space-y-6">
+                    <div className="space-y-4">
                       <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
-                        <CardContent className="p-6">
-                          <h3 className="text-xl font-bold text-gray-900 mb-3 flex items-center gap-3">
-                            <div className="h-10 w-10 bg-blue-600 rounded-full flex items-center justify-center">
-                              <User className="h-5 w-5 text-white" />
+                        <CardContent className="p-4">
+                          <h3 className="text-lg font-bold text-gray-900 mb-2 flex items-center gap-2">
+                            <div className="h-8 w-8 bg-blue-600 rounded-full flex items-center justify-center">
+                              <User className="h-4 w-4 text-white" />
                             </div>
                             Personal Information
                           </h3>
-                          <p className="text-gray-600 mb-4">Let's get to know you better. Your information helps us match you with the perfect opportunities.</p>
+                          <p className="text-gray-600 mb-3 text-sm">Let's get to know you better. Your information helps us match you with the perfect opportunities.</p>
                           
                           <div className="flex items-center gap-2 text-sm text-blue-700 bg-blue-100 p-3 rounded-lg">
                             <Shield className="h-4 w-4" />
@@ -700,27 +1086,77 @@ export function ApplyDialog({ open, onOpenChange, onSwitchToSignIn }: ApplyDialo
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                         <div className="space-y-2">
                           <Label htmlFor="firstName" className="text-sm font-semibold text-gray-700">First Name *</Label>
-                          <Input
-                            id="firstName"
-                            placeholder="Enter your first name"
-                            value={formData.firstName}
-                            onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                            className="h-12 pl-4 border-2 focus:border-blue-500 transition-colors bg-white"
-                            autoComplete="given-name"
-                            autoFocus
-                          />
+                          <div className="relative">
+                            <Input
+                              id="firstName"
+                              placeholder="Enter your first name"
+                              value={formData.firstName}
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                setFormData({ ...formData, firstName: value });
+                                debouncedValidation('firstName', value);
+                              }}
+                              className={`h-10 pl-4 pr-10 border-2 transition-all bg-white ${
+                                liveValidation.firstName ? 
+                                  liveValidation.firstName.isValid ? 'border-green-500' : 'border-red-500' : 
+                                  'border-gray-300 focus:border-blue-500'
+                              }`}
+                              autoComplete="given-name"
+                              autoFocus
+                            />
+                            {liveValidation.firstName && (
+                              <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                                {liveValidation.firstName.isValid ? (
+                                  <CheckCircle2 className="h-5 w-5 text-green-500" />
+                                ) : (
+                                  <AlertTriangle className="h-5 w-5 text-red-500" />
+                                )}
+                              </div>
+                            )}
+                          </div>
+                          {liveValidation.firstName && !liveValidation.firstName.isValid && (
+                            <p className="text-xs text-red-600 flex items-center gap-1">
+                              <AlertTriangle className="h-3 w-3" />
+                              {liveValidation.firstName.error}
+                            </p>
+                          )}
                         </div>
                         
                         <div className="space-y-2">
                           <Label htmlFor="lastName" className="text-sm font-semibold text-gray-700">Last Name *</Label>
-                          <Input
-                            id="lastName"
-                            placeholder="Enter your last name"
-                            value={formData.lastName}
-                            onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                            className="h-12 pl-4 border-2 focus:border-blue-500 transition-colors bg-white"
-                            autoComplete="family-name"
-                          />
+                          <div className="relative">
+                            <Input
+                              id="lastName"
+                              placeholder="Enter your last name"
+                              value={formData.lastName}
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                setFormData({ ...formData, lastName: value });
+                                debouncedValidation('lastName', value);
+                              }}
+                              className={`h-10 pl-4 pr-10 border-2 transition-all bg-white ${
+                                liveValidation.lastName ? 
+                                  liveValidation.lastName.isValid ? 'border-green-500' : 'border-red-500' : 
+                                  'border-gray-300 focus:border-blue-500'
+                              }`}
+                              autoComplete="family-name"
+                            />
+                            {liveValidation.lastName && (
+                              <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                                {liveValidation.lastName.isValid ? (
+                                  <CheckCircle2 className="h-5 w-5 text-green-500" />
+                                ) : (
+                                  <AlertTriangle className="h-5 w-5 text-red-500" />
+                                )}
+                              </div>
+                            )}
+                          </div>
+                          {liveValidation.lastName && !liveValidation.lastName.isValid && (
+                            <p className="text-xs text-red-600 flex items-center gap-1">
+                              <AlertTriangle className="h-3 w-3" />
+                              {liveValidation.lastName.error}
+                            </p>
+                          )}
                         </div>
                       </div>
 
@@ -733,12 +1169,36 @@ export function ApplyDialog({ open, onOpenChange, onSwitchToSignIn }: ApplyDialo
                             type="email"
                             placeholder="your.email@example.com"
                             value={formData.email}
-                            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                            className="pl-12 h-12 border-2 focus:border-blue-500 transition-colors bg-white"
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              setFormData({ ...formData, email: value });
+                              debouncedValidation('email', value);
+                            }}
+                            className={`pl-12 pr-10 h-10 border-2 transition-all bg-white ${
+                              liveValidation.email ? 
+                                liveValidation.email.isValid ? 'border-green-500' : 'border-red-500' : 
+                                'border-gray-300 focus:border-blue-500'
+                            }`}
                             autoComplete="email"
                           />
+                          {liveValidation.email && (
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                              {liveValidation.email.isValid ? (
+                                <CheckCircle2 className="h-5 w-5 text-green-500" />
+                              ) : (
+                                <AlertTriangle className="h-5 w-5 text-red-500" />
+                              )}
+                            </div>
+                          )}
                         </div>
-                        <p className="text-xs text-gray-500">We'll send important updates to this email</p>
+                        {liveValidation.email && !liveValidation.email.isValid ? (
+                          <p className="text-xs text-red-600 flex items-center gap-1">
+                            <AlertTriangle className="h-3 w-3" />
+                            {liveValidation.email.error}
+                          </p>
+                        ) : (
+                          <p className="text-xs text-gray-500">We'll send important updates to this email</p>
+                        )}
                       </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
@@ -752,7 +1212,7 @@ export function ApplyDialog({ open, onOpenChange, onSwitchToSignIn }: ApplyDialo
                               placeholder="+1 (555) 123-4567"
                               value={formData.phone}
                               onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                              className="pl-12 h-12 border-2 focus:border-blue-500 transition-colors bg-white"
+                              className="pl-12 h-10 border-2 focus:border-blue-500 transition-colors bg-white"
                               autoComplete="tel"
                             />
                           </div>
@@ -764,7 +1224,7 @@ export function ApplyDialog({ open, onOpenChange, onSwitchToSignIn }: ApplyDialo
                             value={formData.country}
                             onValueChange={(value) => setFormData({ ...formData, country: value })}
                           >
-                            <SelectTrigger className="h-12 border-2 focus:border-blue-500 bg-white">
+                            <SelectTrigger className="h-10 border-2 focus:border-blue-500 bg-white">
                               <SelectValue placeholder="Select your country" />
                             </SelectTrigger>
                             <SelectContent className="max-h-64 overflow-y-auto bg-white border-2">
@@ -779,17 +1239,64 @@ export function ApplyDialog({ open, onOpenChange, onSwitchToSignIn }: ApplyDialo
                       </div>
 
                       <div className="space-y-2">
-                        <Label htmlFor="city" className="text-sm font-semibold text-gray-700">City *</Label>
+                        <Label htmlFor="city" className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                          City *
+                          {locationDetected && (
+                            <Badge variant="secondary" className="text-xs bg-green-100 text-green-800">
+                              Auto-detected
+                            </Badge>
+                          )}
+                        </Label>
                         <div className="relative">
-                          <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                          <LocationIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                           <Input
                             id="city"
                             placeholder="Enter your city"
                             value={formData.city}
-                            onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                            className="pl-12 h-12 border-2 focus:border-blue-500 transition-colors bg-white"
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              setFormData({ ...formData, city: value });
+                              debouncedValidation('city', value);
+                            }}
+                            className={`pl-12 pr-10 h-10 border-2 transition-all bg-white ${
+                              liveValidation.city ? 
+                                liveValidation.city.isValid ? 'border-green-500' : 'border-red-500' : 
+                                'border-gray-300 focus:border-blue-500'
+                            }`}
                           />
+                          {liveValidation.city && (
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                              {liveValidation.city.isValid ? (
+                                <CheckCircle2 className="h-5 w-5 text-green-500" />
+                              ) : (
+                                <AlertTriangle className="h-5 w-5 text-red-500" />
+                              )}
+                            </div>
+                          )}
                         </div>
+                        {suggestions.city && suggestions.city.length > 0 && (
+                          <div className="bg-white border border-blue-200 rounded-lg shadow-lg max-h-32 overflow-y-auto">
+                            {suggestions.city.map((city, index) => (
+                              <div
+                                key={index}
+                                className="px-3 py-2 hover:bg-blue-50 cursor-pointer text-sm"
+                                onClick={() => {
+                                  setFormData({ ...formData, city });
+                                  setSuggestions(prev => ({ ...prev, city: [] }));
+                                }}
+                              >
+                                <LocationIcon className="h-3 w-3 inline mr-2 text-blue-500" />
+                                {city}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {liveValidation.city && !liveValidation.city.isValid && (
+                          <p className="text-xs text-red-600 flex items-center gap-1">
+                            <AlertTriangle className="h-3 w-3" />
+                            {liveValidation.city.error}
+                          </p>
+                        )}
                       </div>
                       
                       <Card className="bg-gradient-to-r from-green-50 to-emerald-50 border-green-200">
@@ -815,27 +1322,27 @@ export function ApplyDialog({ open, onOpenChange, onSwitchToSignIn }: ApplyDialo
 
                   {/* Step 2: Professional Background */}
                   {currentStep === 2 && (
-                    <div className="space-y-6">
+                    <div className="space-y-4">
                       <Card className="bg-gradient-to-r from-purple-50 to-indigo-50 border-purple-200">
-                        <CardContent className="p-6">
-                          <h3 className="text-xl font-bold text-gray-900 mb-3 flex items-center gap-3">
-                            <div className="h-10 w-10 bg-purple-600 rounded-full flex items-center justify-center">
-                              <Briefcase className="h-5 w-5 text-white" />
+                        <CardContent className="p-4">
+                          <h3 className="text-lg font-bold text-gray-900 mb-2 flex items-center gap-2">
+                            <div className="h-8 w-8 bg-purple-600 rounded-full flex items-center justify-center">
+                              <Briefcase className="h-4 w-4 text-white" />
                             </div>
                             Professional Background
                           </h3>
-                          <p className="text-gray-600 mb-4">Tell us about your professional experience and expertise in AI.</p>
+                          <p className="text-gray-600 mb-3 text-sm">Tell us about your professional experience and expertise in AI.</p>
                         </CardContent>
                       </Card>
 
-                      <div className="space-y-6">
+                      <div className="space-y-4">
                         <div className="space-y-2">
                           <Label htmlFor="expertise" className="text-sm font-semibold text-gray-700">Primary Area of Expertise *</Label>
                           <Select
                             value={formData.expertise}
                             onValueChange={(value) => setFormData({ ...formData, expertise: value })}
                           >
-                            <SelectTrigger className="h-12 border-2 focus:border-purple-500 bg-white">
+                            <SelectTrigger className="h-10 border-2 focus:border-purple-500 bg-white">
                               <SelectValue placeholder="Select your area of expertise" />
                             </SelectTrigger>
                             <SelectContent className="bg-white border-2">
@@ -860,7 +1367,7 @@ export function ApplyDialog({ open, onOpenChange, onSwitchToSignIn }: ApplyDialo
                               value={formData.experience}
                               onValueChange={(value) => setFormData({ ...formData, experience: value })}
                             >
-                              <SelectTrigger className="h-12 border-2 focus:border-purple-500 bg-white">
+                              <SelectTrigger className="h-10 border-2 focus:border-purple-500 bg-white">
                                 <SelectValue placeholder="Select experience" />
                               </SelectTrigger>
                               <SelectContent className="bg-white border-2">
@@ -879,7 +1386,7 @@ export function ApplyDialog({ open, onOpenChange, onSwitchToSignIn }: ApplyDialo
                               value={formData.education}
                               onValueChange={(value) => setFormData({ ...formData, education: value })}
                             >
-                              <SelectTrigger className="h-12 border-2 focus:border-purple-500 bg-white">
+                              <SelectTrigger className="h-10 border-2 focus:border-purple-500 bg-white">
                                 <SelectValue placeholder="Select education" />
                               </SelectTrigger>
                               <SelectContent className="bg-white border-2">
@@ -904,22 +1411,85 @@ export function ApplyDialog({ open, onOpenChange, onSwitchToSignIn }: ApplyDialo
                               id="currentRole"
                               placeholder="e.g., Senior Data Scientist at TechCorp"
                               value={formData.currentRole}
-                              onChange={(e) => setFormData({ ...formData, currentRole: e.target.value })}
-                              className="pl-12 h-12 border-2 focus:border-purple-500 transition-colors bg-white"
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                setFormData({ ...formData, currentRole: value });
+                                debouncedValidation('currentRole', value);
+                              }}
+                              className={`pl-12 pr-10 h-10 border-2 transition-all bg-white ${
+                                liveValidation.currentRole ? 
+                                  liveValidation.currentRole.isValid ? 'border-green-500' : 'border-red-500' : 
+                                  'border-gray-300 focus:border-purple-500'
+                              }`}
                             />
+                            {liveValidation.currentRole && (
+                              <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                                {liveValidation.currentRole.isValid ? (
+                                  <CheckCircle2 className="h-5 w-5 text-green-500" />
+                                ) : (
+                                  <AlertTriangle className="h-5 w-5 text-red-500" />
+                                )}
+                              </div>
+                            )}
                           </div>
+                          {suggestions.currentRole && suggestions.currentRole.length > 0 && (
+                            <div className="bg-white border border-purple-200 rounded-lg shadow-lg max-h-32 overflow-y-auto">
+                              {suggestions.currentRole.map((role, index) => (
+                                <div
+                                  key={index}
+                                  className="px-3 py-2 hover:bg-purple-50 cursor-pointer text-sm"
+                                  onClick={() => {
+                                    setFormData({ ...formData, currentRole: role });
+                                    setSuggestions(prev => ({ ...prev, currentRole: [] }));
+                                  }}
+                                >
+                                  <Lightbulb className="h-3 w-3 inline mr-2 text-purple-500" />
+                                  {role}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {liveValidation.currentRole && !liveValidation.currentRole.isValid && (
+                            <p className="text-xs text-red-600 flex items-center gap-1">
+                              <AlertTriangle className="h-3 w-3" />
+                              {liveValidation.currentRole.error}
+                            </p>
+                          )}
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                           <div className="space-y-2">
                             <Label htmlFor="company" className="text-sm font-semibold text-gray-700">Company/Organization</Label>
-                            <Input
-                              id="company"
-                              placeholder="e.g., Google, Microsoft, Freelance"
-                              value={formData.company}
-                              onChange={(e) => setFormData({ ...formData, company: e.target.value })}
-                              className="h-12 border-2 focus:border-purple-500 transition-colors bg-white"
-                            />
+                            <div className="relative">
+                              <Input
+                                id="company"
+                                placeholder="e.g., Google, Microsoft, Freelance"
+                                value={formData.company}
+                                onChange={(e) => {
+                                  const value = e.target.value;
+                                  setFormData({ ...formData, company: value });
+                                  debouncedValidation('company', value);
+                                }}
+                                className="h-10 border-2 focus:border-purple-500 transition-colors bg-white"
+                              />
+                            </div>
+                            {suggestions.company && suggestions.company.length > 0 && (
+                              <div className="bg-white border border-purple-200 rounded-lg shadow-lg max-h-32 overflow-y-auto">
+                                {suggestions.company.map((company, index) => (
+                                  <div
+                                    key={index}
+                                    className="px-3 py-2 hover:bg-purple-50 cursor-pointer text-sm"
+                                    onClick={() => {
+                                      setFormData({ ...formData, company });
+                                      setSuggestions(prev => ({ ...prev, company: [] }));
+                                    }}
+                                  >
+                                    <Building className="h-3 w-3 inline mr-2 text-purple-500" />
+                                    {company}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                           </div>
 
                           <div className="space-y-2">
@@ -928,7 +1498,7 @@ export function ApplyDialog({ open, onOpenChange, onSwitchToSignIn }: ApplyDialo
                               value={formData.industry}
                               onValueChange={(value) => setFormData({ ...formData, industry: value })}
                             >
-                              <SelectTrigger className="h-12 border-2 focus:border-purple-500 bg-white">
+                              <SelectTrigger className="h-10 border-2 focus:border-purple-500 bg-white">
                                 <SelectValue placeholder="Select industry" />
                               </SelectTrigger>
                               <SelectContent className="bg-white border-2 max-h-48 overflow-y-auto">
@@ -947,16 +1517,16 @@ export function ApplyDialog({ open, onOpenChange, onSwitchToSignIn }: ApplyDialo
 
                   {/* Step 3: Skills & Goals */}
                   {currentStep === 3 && (
-                    <div className="space-y-6">
+                    <div className="space-y-4">
                       <Card className="bg-gradient-to-r from-green-50 to-teal-50 border-green-200">
-                        <CardContent className="p-6">
-                          <h3 className="text-xl font-bold text-gray-900 mb-3 flex items-center gap-3">
-                            <div className="h-10 w-10 bg-green-600 rounded-full flex items-center justify-center">
-                              <Brain className="h-5 w-5 text-white" />
+                        <CardContent className="p-4">
+                          <h3 className="text-lg font-bold text-gray-900 mb-2 flex items-center gap-2">
+                            <div className="h-8 w-8 bg-green-600 rounded-full flex items-center justify-center">
+                              <Brain className="h-4 w-4 text-white" />
                             </div>
                             Skills & Learning Goals
                           </h3>
-                          <p className="text-gray-600 mb-4">Select your technical skills and what you'd like to learn while working with us.</p>
+                          <p className="text-gray-600 mb-3 text-sm">Select your technical skills and what you'd like to learn while working with us.</p>
                         </CardContent>
                       </Card>
 
@@ -974,19 +1544,42 @@ export function ApplyDialog({ open, onOpenChange, onSwitchToSignIn }: ApplyDialo
                             {Object.entries(skillCategories).map(([category, skills]) => (
                               <TabsContent key={category} value={category} className="mt-4">
                                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                                  {skills.map((skill) => (
-                                    <div
-                                      key={skill}
-                                      onClick={() => toggleSkill(skill)}
-                                      className={`cursor-pointer p-3 rounded-lg border-2 transition-all text-center text-sm font-medium ${
-                                        formData.skills?.includes(skill)
-                                          ? "bg-green-600 text-white border-green-600 shadow-md transform scale-105"
-                                          : "bg-white text-gray-700 border-gray-200 hover:border-green-300 hover:shadow-sm"
-                                      }`}
-                                    >
-                                      {skill}
-                                    </div>
-                                  ))}
+                                  {skills.map((skill) => {
+                                    const demand = skillDemand[skill] || 0;
+                                    const isHighDemand = demand > 70;
+                                    const isMediumDemand = demand > 40;
+                                    
+                                    return (
+                                      <div
+                                        key={skill}
+                                        onClick={() => toggleSkill(skill)}
+                                        className={`cursor-pointer p-3 rounded-lg border-2 transition-all text-center text-sm font-medium relative ${
+                                          formData.skills?.includes(skill)
+                                            ? "bg-green-600 text-white border-green-600 shadow-md transform scale-105"
+                                            : "bg-white text-gray-700 border-gray-200 hover:border-green-300 hover:shadow-sm"
+                                        }`}
+                                      >
+                                        <div className="flex items-center justify-between">
+                                          <span className="flex-1">{skill}</span>
+                                          {isHighDemand && (
+                                            <div className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-xs">
+                                              🔥
+                                            </div>
+                                          )}
+                                          {isMediumDemand && !isHighDemand && (
+                                            <div className="absolute -top-1 -right-1 bg-orange-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-xs">
+                                              📈
+                                            </div>
+                                          )}
+                                        </div>
+                                        {isOnline && (
+                                          <div className="mt-1 text-xs opacity-70">
+                                            Demand: {demand.toFixed(0)}%
+                                          </div>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
                                 </div>
                               </TabsContent>
                             ))}
@@ -1022,7 +1615,7 @@ export function ApplyDialog({ open, onOpenChange, onSwitchToSignIn }: ApplyDialo
                             value={formData.primarySkill}
                             onValueChange={(value) => setFormData({ ...formData, primarySkill: value })}
                           >
-                            <SelectTrigger className="h-12 border-2 focus:border-green-500 bg-white">
+                            <SelectTrigger className="h-10 border-2 focus:border-green-500 bg-white">
                               <SelectValue placeholder="Select your strongest skill" />
                             </SelectTrigger>
                             <SelectContent className="bg-white border-2 max-h-48 overflow-y-auto">
@@ -1078,25 +1671,72 @@ export function ApplyDialog({ open, onOpenChange, onSwitchToSignIn }: ApplyDialo
 
                   {/* Step 4: Availability */}
                   {currentStep === 4 && (
-                    <div className="space-y-6">
+                    <div className="space-y-4">
                       <Card className="bg-gradient-to-r from-orange-50 to-red-50 border-orange-200">
-                        <CardContent className="p-6">
-                          <h3 className="text-xl font-bold text-gray-900 mb-3 flex items-center gap-3">
-                            <div className="h-10 w-10 bg-orange-600 rounded-full flex items-center justify-center">
-                              <Calendar className="h-5 w-5 text-white" />
+                        <CardContent className="p-4">
+                          <h3 className="text-lg font-bold text-gray-900 mb-2 flex items-center gap-2">
+                            <div className="h-8 w-8 bg-orange-600 rounded-full flex items-center justify-center">
+                              <Calendar className="h-4 w-4 text-white" />
                             </div>
                             Availability & Commitment
                           </h3>
-                          <p className="text-gray-600 mb-4">Let us know when you're available and how much time you can commit.</p>
+                          <p className="text-gray-600 mb-3 text-sm">Let us know when you're available and how much time you can commit.</p>
                           
                           {estimatedEarnings > 0 && (
-                            <div className="bg-green-100 border border-green-300 p-4 rounded-lg">
-                              <div className="flex items-center gap-2 text-green-800">
-                                <DollarSign className="h-5 w-5" />
-                                <span className="font-semibold">Estimated Monthly Earnings: ${estimatedEarnings.toFixed(0)}</span>
+                            <motion.div 
+                              initial={{ opacity: 0, y: 20 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              className="bg-gradient-to-r from-green-100 to-emerald-100 border border-green-300 p-4 rounded-lg"
+                            >
+                              <div className="flex items-center justify-between mb-3">
+                                <div className="flex items-center gap-2 text-green-800">
+                                  <DollarSign className="h-5 w-5" />
+                                  <span className="font-semibold">Estimated Monthly Earnings</span>
+                                </div>
+                                <motion.span 
+                                  key={estimatedEarnings}
+                                  initial={{ scale: 1.2, color: '#22c55e' }}
+                                  animate={{ scale: 1, color: '#166534' }}
+                                  className="text-2xl font-bold text-green-800"
+                                >
+                                  ${estimatedEarnings.toFixed(0)}
+                                </motion.span>
                               </div>
-                              <p className="text-sm text-green-600 mt-1">Based on your skills and available hours</p>
-                            </div>
+                              
+                              <div className="grid grid-cols-2 gap-4 text-sm">
+                                <div className="text-green-600">
+                                  <div className="flex justify-between">
+                                    <span>Base rate:</span>
+                                    <span>$25/hr</span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span>Experience bonus:</span>
+                                    <span>+{((formData.experience === '0-1' ? 0 : formData.experience === '2-3' ? 20 : formData.experience === '4-5' ? 50 : formData.experience === '6-10' ? 80 : 120))}%</span>
+                                  </div>
+                                </div>
+                                <div className="text-green-600">
+                                  <div className="flex justify-between">
+                                    <span>Skills bonus:</span>
+                                    <span>+${((formData.skills?.length || 0) * 2)}/hr</span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span>Hours/week:</span>
+                                    <span>{formData.hoursPerWeek || '0'}</span>
+                                  </div>
+                                </div>
+                              </div>
+                              
+                              {marketData && (
+                                <div className="mt-3 pt-3 border-t border-green-200">
+                                  <p className="text-xs text-green-600 flex items-center gap-1">
+                                    <BarChart3 className="h-3 w-3" />
+                                    Market average: ${marketData.averageHourlyRate.toFixed(0)}/hr • 
+                                    {marketData.jobOpenings} open positions • 
+                                    Demand is {marketData.demandLevel}
+                                  </p>
+                                </div>
+                              )}
+                            </motion.div>
                           )}
                         </CardContent>
                       </Card>
@@ -1109,7 +1749,7 @@ export function ApplyDialog({ open, onOpenChange, onSwitchToSignIn }: ApplyDialo
                               value={formData.availability}
                               onValueChange={(value) => setFormData({ ...formData, availability: value })}
                             >
-                              <SelectTrigger className="h-12 border-2 focus:border-orange-500 bg-white">
+                              <SelectTrigger className="h-10 border-2 focus:border-orange-500 bg-white">
                                 <SelectValue placeholder="Select availability" />
                               </SelectTrigger>
                               <SelectContent className="bg-white border-2">
@@ -1128,7 +1768,7 @@ export function ApplyDialog({ open, onOpenChange, onSwitchToSignIn }: ApplyDialo
                               value={formData.hoursPerWeek}
                               onValueChange={(value) => setFormData({ ...formData, hoursPerWeek: value })}
                             >
-                              <SelectTrigger className="h-12 border-2 focus:border-orange-500 bg-white">
+                              <SelectTrigger className="h-10 border-2 focus:border-orange-500 bg-white">
                                 <SelectValue placeholder="Select hours" />
                               </SelectTrigger>
                               <SelectContent className="bg-white border-2">
@@ -1149,7 +1789,7 @@ export function ApplyDialog({ open, onOpenChange, onSwitchToSignIn }: ApplyDialo
                             type="date"
                             value={formData.startDate}
                             onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                            className="h-12 border-2 focus:border-orange-500 transition-colors bg-white"
+                            className="h-10 border-2 focus:border-orange-500 transition-colors bg-white"
                             min={new Date().toISOString().split('T')[0]}
                           />
                         </div>
@@ -1160,7 +1800,7 @@ export function ApplyDialog({ open, onOpenChange, onSwitchToSignIn }: ApplyDialo
                             value={formData.timeCommitment}
                             onValueChange={(value) => setFormData({ ...formData, timeCommitment: value })}
                           >
-                            <SelectTrigger className="h-12 border-2 focus:border-orange-500 bg-white">
+                            <SelectTrigger className="h-10 border-2 focus:border-orange-500 bg-white">
                               <SelectValue placeholder="Select commitment level" />
                             </SelectTrigger>
                             <SelectContent className="bg-white border-2">
@@ -1178,7 +1818,7 @@ export function ApplyDialog({ open, onOpenChange, onSwitchToSignIn }: ApplyDialo
                             value={formData.workingHours}
                             onValueChange={(value) => setFormData({ ...formData, workingHours: value })}
                           >
-                            <SelectTrigger className="h-12 border-2 focus:border-orange-500 bg-white">
+                            <SelectTrigger className="h-10 border-2 focus:border-orange-500 bg-white">
                               <SelectValue placeholder="Select working hours" />
                             </SelectTrigger>
                             <SelectContent className="bg-white border-2">
@@ -1207,16 +1847,16 @@ export function ApplyDialog({ open, onOpenChange, onSwitchToSignIn }: ApplyDialo
 
                   {/* Step 5: Final Details */}
                   {currentStep === 5 && (
-                    <div className="space-y-6">
+                    <div className="space-y-4">
                       <Card className="bg-gradient-to-r from-pink-50 to-purple-50 border-pink-200">
-                        <CardContent className="p-6">
-                          <h3 className="text-xl font-bold text-gray-900 mb-3 flex items-center gap-3">
-                            <div className="h-10 w-10 bg-pink-600 rounded-full flex items-center justify-center">
-                              <Rocket className="h-5 w-5 text-white" />
+                        <CardContent className="p-4">
+                          <h3 className="text-lg font-bold text-gray-900 mb-2 flex items-center gap-2">
+                            <div className="h-8 w-8 bg-pink-600 rounded-full flex items-center justify-center">
+                              <Rocket className="h-4 w-4 text-white" />
                             </div>
                             Final Details & Portfolio
                           </h3>
-                          <p className="text-gray-600 mb-4">Tell us more about yourself and share your work.</p>
+                          <p className="text-gray-600 mb-3 text-sm">Tell us more about yourself and share your work.</p>
                         </CardContent>
                       </Card>
 
@@ -1228,7 +1868,7 @@ export function ApplyDialog({ open, onOpenChange, onSwitchToSignIn }: ApplyDialo
                             placeholder="Tell us about yourself, your background, interests, and what makes you passionate about AI..."
                             value={formData.bio}
                             onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
-                            className="min-h-[120px] border-2 focus:border-pink-500 transition-colors bg-white resize-none"
+                            className="min-h-[80px] border-2 focus:border-pink-500 transition-colors bg-white resize-none"
                           />
                           <p className="text-xs text-gray-500">
                             {formData.bio?.length || 0}/100 characters minimum
@@ -1242,7 +1882,7 @@ export function ApplyDialog({ open, onOpenChange, onSwitchToSignIn }: ApplyDialo
                             placeholder="What motivates you to work with AI? What are your goals?"
                             value={formData.motivation}
                             onChange={(e) => setFormData({ ...formData, motivation: e.target.value })}
-                            className="min-h-[100px] border-2 focus:border-pink-500 transition-colors bg-white resize-none"
+                            className="min-h-[60px] border-2 focus:border-pink-500 transition-colors bg-white resize-none"
                           />
                           <p className="text-xs text-gray-500">
                             {formData.motivation?.length || 0}/50 characters minimum
@@ -1256,7 +1896,7 @@ export function ApplyDialog({ open, onOpenChange, onSwitchToSignIn }: ApplyDialo
                               value={formData.earningGoals}
                               onValueChange={(value) => setFormData({ ...formData, earningGoals: value })}
                             >
-                              <SelectTrigger className="h-12 border-2 focus:border-pink-500 bg-white">
+                              <SelectTrigger className="h-10 border-2 focus:border-pink-500 bg-white">
                                 <SelectValue placeholder="Select earning goal" />
                               </SelectTrigger>
                               <SelectContent className="bg-white border-2">
@@ -1275,7 +1915,7 @@ export function ApplyDialog({ open, onOpenChange, onSwitchToSignIn }: ApplyDialo
                               value={formData.communicationStyle}
                               onValueChange={(value) => setFormData({ ...formData, communicationStyle: value })}
                             >
-                              <SelectTrigger className="h-12 border-2 focus:border-pink-500 bg-white">
+                              <SelectTrigger className="h-10 border-2 focus:border-pink-500 bg-white">
                                 <SelectValue placeholder="Select style" />
                               </SelectTrigger>
                               <SelectContent className="bg-white border-2">
@@ -1298,7 +1938,7 @@ export function ApplyDialog({ open, onOpenChange, onSwitchToSignIn }: ApplyDialo
                                 placeholder="https://linkedin.com/in/yourprofile"
                                 value={formData.linkedIn}
                                 onChange={(e) => setFormData({ ...formData, linkedIn: e.target.value })}
-                                className="pl-12 h-12 border-2 focus:border-pink-500 transition-colors bg-white"
+                                className="pl-12 h-10 border-2 focus:border-pink-500 transition-colors bg-white"
                               />
                             </div>
                           </div>
@@ -1312,7 +1952,7 @@ export function ApplyDialog({ open, onOpenChange, onSwitchToSignIn }: ApplyDialo
                                 placeholder="https://github.com/yourusername"
                                 value={formData.github}
                                 onChange={(e) => setFormData({ ...formData, github: e.target.value })}
-                                className="pl-12 h-12 border-2 focus:border-pink-500 transition-colors bg-white"
+                                className="pl-12 h-10 border-2 focus:border-pink-500 transition-colors bg-white"
                               />
                             </div>
                           </div>
@@ -1327,7 +1967,7 @@ export function ApplyDialog({ open, onOpenChange, onSwitchToSignIn }: ApplyDialo
                               placeholder="https://yourportfolio.com"
                               value={formData.portfolio}
                               onChange={(e) => setFormData({ ...formData, portfolio: e.target.value })}
-                              className="pl-12 h-12 border-2 focus:border-pink-500 transition-colors bg-white"
+                              className="pl-12 h-10 border-2 focus:border-pink-500 transition-colors bg-white"
                             />
                           </div>
                         </div>
@@ -1407,6 +2047,168 @@ export function ApplyDialog({ open, onOpenChange, onSwitchToSignIn }: ApplyDialo
                     </div>
                   )}
 
+                  {/* Step 6: Account Setup */}
+                  {currentStep === 6 && (
+                    <div className="space-y-4">
+                      <Card className="bg-gradient-to-r from-green-50 to-emerald-50 border-green-200">
+                        <CardContent className="p-4">
+                          <h3 className="text-lg font-bold text-gray-900 mb-2 flex items-center gap-2">
+                            <div className="h-8 w-8 bg-green-600 rounded-full flex items-center justify-center">
+                              <Shield className="h-4 w-4 text-white" />
+                            </div>
+                            Account Setup
+                          </h3>
+                          <p className="text-gray-600 mb-3 text-sm">Create your secure account to access the platform.</p>
+                        </CardContent>
+                      </Card>
+
+                      <div className="space-y-6">
+                        <div className="space-y-2">
+                          <Label htmlFor="password" className="text-sm font-semibold text-gray-700">Password *</Label>
+                          <div className="relative">
+                            <Shield className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                            <Input
+                              id="password"
+                              type={showPassword ? "text" : "password"}
+                              placeholder="Create a strong password"
+                              value={formData.password}
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                setFormData({ ...formData, password: value });
+                                debouncedValidation('password', value);
+                              }}
+                              className={`pl-12 pr-20 h-10 border-2 transition-all bg-white ${
+                                liveValidation.password ? 
+                                  liveValidation.password.isValid ? 'border-green-500' : 'border-red-500' : 
+                                  'border-gray-300 focus:border-green-500'
+                              }`}
+                            />
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                              {liveValidation.password && (
+                                liveValidation.password.isValid ? (
+                                  <CheckCircle2 className="h-4 w-4 text-green-500" />
+                                ) : (
+                                  <AlertTriangle className="h-4 w-4 text-red-500" />
+                                )
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => setShowPassword(!showPassword)}
+                                className="text-gray-400 hover:text-gray-600"
+                              >
+                                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                              </button>
+                            </div>
+                          </div>
+                          <div className="text-xs space-y-1">
+                            <p className="text-gray-600 font-medium">Password requirements:</p>
+                            <ul className="space-y-1 ml-2">
+                              <li className={`flex items-center gap-2 ${formData.password.length >= 8 ? 'text-green-600' : 'text-gray-500'}`}>
+                                {formData.password.length >= 8 ? <CheckCircle2 className="h-3 w-3" /> : <div className="h-3 w-3 border border-gray-300 rounded-full" />}
+                                At least 8 characters ({formData.password.length}/8)
+                              </li>
+                              <li className={`flex items-center gap-2 ${/[a-zA-Z]/.test(formData.password) ? 'text-green-600' : 'text-gray-500'}`}>
+                                {/[a-zA-Z]/.test(formData.password) ? <CheckCircle2 className="h-3 w-3" /> : <div className="h-3 w-3 border border-gray-300 rounded-full" />}
+                                At least one letter
+                              </li>
+                              <li className={`flex items-center gap-2 ${/\d/.test(formData.password) ? 'text-green-600' : 'text-gray-500'}`}>
+                                {/\d/.test(formData.password) ? <CheckCircle2 className="h-3 w-3" /> : <div className="h-3 w-3 border border-gray-300 rounded-full" />}
+                                At least one number
+                              </li>
+                              <li className={`flex items-center gap-2 ${/[A-Z]/.test(formData.password) ? 'text-green-600' : 'text-gray-500'}`}>
+                                {/[A-Z]/.test(formData.password) ? <CheckCircle2 className="h-3 w-3" /> : <div className="h-3 w-3 border border-gray-300 rounded-full" />}
+                                At least one uppercase letter
+                              </li>
+                            </ul>
+                          </div>
+                          {liveValidation.password && !liveValidation.password.isValid && (
+                            <p className="text-xs text-red-600 flex items-center gap-1">
+                              <AlertTriangle className="h-3 w-3" />
+                              {liveValidation.password.error}
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="confirmPassword" className="text-sm font-semibold text-gray-700">Confirm Password *</Label>
+                          <div className="relative">
+                            <Shield className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                            <Input
+                              id="confirmPassword"
+                              type={showConfirmPassword ? "text" : "password"}
+                              placeholder="Confirm your password"
+                              value={formData.confirmPassword}
+                              onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                              className={`pl-12 pr-20 h-10 border-2 transition-all bg-white ${
+                                formData.confirmPassword ? 
+                                  formData.password === formData.confirmPassword && formData.password.length > 0 ? 
+                                    'border-green-500' : 'border-red-500' : 
+                                  'border-gray-300 focus:border-green-500'
+                              }`}
+                            />
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                              {formData.confirmPassword && (
+                                formData.password === formData.confirmPassword && formData.password.length > 0 ? (
+                                  <CheckCircle2 className="h-4 w-4 text-green-500" />
+                                ) : (
+                                  <AlertTriangle className="h-4 w-4 text-red-500" />
+                                )
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                className="text-gray-400 hover:text-gray-600"
+                              >
+                                {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                              </button>
+                            </div>
+                          </div>
+                          {formData.confirmPassword && formData.password !== formData.confirmPassword && (
+                            <motion.p 
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                              className="text-xs text-red-600 flex items-center gap-1"
+                            >
+                              <AlertTriangle className="h-3 w-3" />
+                              Passwords do not match
+                            </motion.p>
+                          )}
+                          {formData.confirmPassword && formData.password === formData.confirmPassword && formData.password.length > 0 && (
+                            <motion.p 
+                              initial={{ opacity: 0, scale: 0.9 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              className="text-xs text-green-600 flex items-center gap-1"
+                            >
+                              <CheckCircle2 className="h-3 w-3" />
+                              Passwords match perfectly!
+                            </motion.p>
+                          )}
+                        </div>
+
+                        <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+                          <CardContent className="p-4">
+                            <div className="flex items-start gap-3">
+                              <div className="h-8 w-8 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+                                <Shield className="h-4 w-4 text-white" />
+                              </div>
+                              <div>
+                                <h4 className="font-semibold text-gray-900 mb-1">Secure Account Creation</h4>
+                                <p className="text-sm text-gray-600 mb-2">
+                                  Your account will be created immediately after successful application submission.
+                                </p>
+                                <ul className="text-sm text-gray-600 space-y-1">
+                                  <li>• Instant access to your dashboard</li>
+                                  <li>• Secure password encryption</li>
+                                  <li>• Email notifications for new opportunities</li>
+                                </ul>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Add steps 3, 4, and 5 here - continuing in next part due to length */}
                 </motion.div>
               </AnimatePresence>
@@ -1414,45 +2216,114 @@ export function ApplyDialog({ open, onOpenChange, onSwitchToSignIn }: ApplyDialo
           </div>
 
           {/* Footer Navigation */}
-          <div className="border-t bg-white p-4 flex justify-between items-center">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleBack}
-              disabled={currentStep === 1}
-              className="flex items-center gap-2"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Back
-            </Button>
-
-            <div className="text-xs text-gray-500 text-center">
-              Ctrl+← → to navigate • Ctrl+Enter to continue
-            </div>
-
-            {currentStep < totalSteps ? (
-              <Button
-                type="button"
-                onClick={handleNext}
-                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700"
-              >
-                Next
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            ) : (
-              <Button
-                type="submit"
-                disabled={isSubmitting}
-                className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
-              >
-                {isSubmitting ? (
-                  <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
-                ) : (
-                  <Rocket className="h-4 w-4" />
-                )}
-                {isSubmitting ? "Submitting..." : "Submit Application"}
-              </Button>
+          <div className="border-t bg-gradient-to-r from-gray-50 to-white p-2 flex-shrink-0">
+            {/* Live Tips Bar - Only show on larger screens */}
+            {isOnline && (
+              <div className="bg-blue-50 border border-blue-200 rounded-md p-1 mb-1 hidden sm:block">
+                <div className="flex items-center gap-1">
+                  <Lightbulb className="h-3 w-3 text-blue-600" />
+                  <div className="text-xs text-blue-700">
+                    {currentStep === 1 && "💡 Tip: Use your real information for faster verification"}
+                    {currentStep === 2 && "🚀 Tip: Select skills in high demand (marked with 🔥) to boost earnings"}
+                    {currentStep === 3 && "⭐ Tip: Adding more skills increases your project match rate by 40%"}
+                    {currentStep === 4 && "💰 Tip: Higher weekly availability = More earning opportunities"}
+                    {currentStep === 5 && "📈 Tip: Complete portfolio links increase acceptance rate by 60%"}
+                    {currentStep === 6 && "🔐 Tip: Strong passwords protect your earnings and personal data"}
+                  </div>
+                </div>
+              </div>
             )}
+            
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleBack}
+                  disabled={currentStep === 1}
+                  className="flex items-center gap-2 hover:bg-gray-100"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  Back
+                </Button>
+                
+                {/* Quick Stats */}
+                <div className="hidden sm:flex items-center gap-3 text-xs text-gray-500">
+                  <div className="flex items-center gap-1">
+                    <Users className="h-3 w-3" />
+                    <span>{profileStrength}% complete</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Timer className="h-3 w-3" />
+                    <span>{Math.floor(completionTime / 60000)}m</span>
+                  </div>
+                  {estimatedEarnings > 0 && (
+                    <div className="flex items-center gap-1 text-green-600">
+                      <DollarSign className="h-3 w-3" />
+                      <span>${estimatedEarnings.toFixed(0)}/mo</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="text-xs text-gray-500 text-center">
+                <div className="flex items-center gap-3">
+                  <span className="hidden sm:inline">Ctrl+← → navigate • Ctrl+Enter continue</span>
+                  <div className="flex items-center gap-1">
+                    {isOnline ? (
+                      <>
+                        <Wifi className="h-3 w-3 text-green-500" />
+                        <span className="text-green-600">Live</span>
+                      </>
+                    ) : (
+                      <>
+                        <WifiOff className="h-3 w-3 text-red-500" />
+                        <span className="text-red-600">Offline</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {currentStep < totalSteps ? (
+                  <>
+                    {currentStep > 1 && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setCurrentStep(totalSteps)}
+                        className="text-xs text-gray-600 hover:text-blue-600"
+                      >
+                        Skip to end
+                      </Button>
+                    )}
+                    <Button
+                      type="button"
+                      onClick={handleNext}
+                      className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6"
+                    >
+                      Next
+                      <ArrowRight className="h-4 w-4" />
+                    </Button>
+                  </>
+                ) : (
+                  <Button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-8"
+                  >
+                    {isSubmitting ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Rocket className="h-4 w-4" />
+                    )}
+                    {isSubmitting ? "Submitting..." : "Submit Application"}
+                  </Button>
+                )}
+              </div>
+            </div>
           </div>
         </motion.div>
       </DialogContent>

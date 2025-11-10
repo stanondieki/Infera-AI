@@ -277,12 +277,144 @@ const ApplicationSchema = new Schema<IApplication>({
 }, {
   timestamps: true
 });
+    required: [true, 'Date of birth is required']
+  },
+  
+  // Location
+  country: {
+    type: String,
+    required: [true, 'Country is required'],
+    trim: true
+  },
+  city: {
+    type: String,
+    required: [true, 'City is required'],
+    trim: true
+  },
+  timezone: {
+    type: String,
+    required: [true, 'Timezone is required'],
+    trim: true
+  },
+  
+  // Professional Information
+  experience: {
+    type: String,
+    enum: ['beginner', 'intermediate', 'advanced', 'expert'],
+    required: [true, 'Experience level is required']
+  },
+  skills: [{
+    type: String,
+    trim: true,
+    required: true
+  }],
+  languages: [{
+    type: String,
+    trim: true,
+    required: true
+  }],
+  availability: {
+    type: Number,
+    required: [true, 'Availability is required'],
+    min: [1, 'Availability must be at least 1 hour per week'],
+    max: [168, 'Availability cannot exceed 168 hours per week']
+  },
+  motivation: {
+    type: String,
+    required: [true, 'Motivation is required'],
+    minlength: [50, 'Motivation must be at least 50 characters'],
+    maxlength: [1000, 'Motivation cannot be more than 1000 characters']
+  },
+  
+  // Work Preferences
+  preferredCategories: [{
+    type: String,
+    enum: [
+      'AI/ML',
+      'Software Engineering',
+      'Data Science',
+      'Writing & Education',
+      'Creative',
+      'Languages',
+      'Quality Assurance',
+      'Research'
+    ]
+  }],
+  expectedHourlyRate: {
+    min: {
+      type: Number,
+      required: [true, 'Minimum expected hourly rate is required'],
+      min: [5, 'Minimum hourly rate must be at least $5']
+    },
+    max: {
+      type: Number,
+      required: [true, 'Maximum expected hourly rate is required'],
+      min: [5, 'Maximum hourly rate must be at least $5']
+    }
+  },
+  
+  // Portfolio/Links
+  portfolio: {
+    type: String,
+    trim: true
+  },
+  github: {
+    type: String,
+    trim: true
+  },
+  linkedin: {
+    type: String,
+    trim: true
+  },
+  resume: {
+    type: String,
+    trim: true
+  },
+  
+  // Application Status
+  status: {
+    type: String,
+    enum: ['pending', 'reviewing', 'accepted', 'rejected'],
+    default: 'pending'
+  },
+  reviewedBy: {
+    type: Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  reviewedAt: Date,
+  reviewNotes: {
+    type: String,
+    maxlength: [500, 'Review notes cannot be more than 500 characters']
+  },
+  
+  // Associated user (if accepted)
+  userId: {
+    type: Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  
+  // Timestamps
+  submittedAt: {
+    type: Date,
+    default: Date.now
+  }
+}, {
+  timestamps: true
+});
 
-// Create indexes for better query performance
+// Indexes for faster queries
 ApplicationSchema.index({ email: 1 });
 ApplicationSchema.index({ status: 1 });
 ApplicationSchema.index({ submittedAt: -1 });
+ApplicationSchema.index({ reviewedAt: -1 });
 
-const Application = mongoose.model<IApplication>('Application', ApplicationSchema);
+// Validate hourly rate range
+ApplicationSchema.pre('save', function(next) {
+  if (this.expectedHourlyRate.min > this.expectedHourlyRate.max) {
+    next(new Error('Minimum hourly rate cannot be greater than maximum hourly rate'));
+  } else {
+    next();
+  }
+});
 
-export default Application;
+export default mongoose.model<IApplication>('Application', ApplicationSchema);

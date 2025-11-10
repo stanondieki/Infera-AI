@@ -311,4 +311,107 @@ router.get('/stats/overview', authenticateToken, requireAdmin, async (req: AuthR
   }
 });
 
+// Seed sample opportunities (for development)
+router.post('/seed', async (req: Request, res: Response) => {
+  try {
+    // Check if opportunities already exist
+    const existingCount = await Opportunity.countDocuments();
+    if (existingCount > 0) {
+      return res.json({
+        success: true,
+        message: `Database already has ${existingCount} opportunities`,
+        seeded: false
+      });
+    }
+
+    const sampleOpportunities = [
+      {
+        title: 'AI Data Trainer',
+        description: 'Train and fine-tune machine learning models for natural language processing tasks.',
+        category: 'Data Science',
+        skills: ['Machine Learning', 'Python', 'TensorFlow', 'NLP'],
+        hourlyRate: { min: 35, max: 60 },
+        timeCommitment: '20+ hrs/week',
+        location: 'Remote',
+        experienceLevel: 'intermediate',
+        status: 'active',
+        featured: true,
+        priority: 5,
+        publishedAt: new Date()
+      },
+      {
+        title: 'Computer Vision Specialist',
+        description: 'Develop and optimize computer vision algorithms for image recognition and processing.',
+        category: 'AI Engineering',
+        skills: ['Computer Vision', 'OpenCV', 'Deep Learning', 'Python'],
+        hourlyRate: { min: 45, max: 75 },
+        timeCommitment: '15-25 hrs/week',
+        location: 'Remote',
+        experienceLevel: 'senior',
+        status: 'active',
+        featured: true,
+        priority: 4,
+        publishedAt: new Date()
+      },
+      {
+        title: 'ML Model Validator',
+        description: 'Test and validate machine learning models for accuracy, bias, and performance.',
+        category: 'QA & Testing',
+        skills: ['Testing', 'ML Validation', 'Statistics', 'Python'],
+        hourlyRate: { min: 25, max: 45 },
+        timeCommitment: '10-20 hrs/week',
+        location: 'Remote',
+        experienceLevel: 'entry',
+        status: 'active',
+        featured: false,
+        priority: 3,
+        publishedAt: new Date()
+      },
+      {
+        title: 'Prompt Engineering Expert',
+        description: 'Design and optimize prompts for large language models and AI applications.',
+        category: 'AI Engineering',
+        skills: ['Prompt Engineering', 'LLMs', 'AI/ML', 'Content Creation'],
+        hourlyRate: { min: 40, max: 70 },
+        timeCommitment: '12-18 hrs/week',
+        location: 'Remote',
+        experienceLevel: 'intermediate',
+        status: 'active',
+        featured: true,
+        priority: 5,
+        publishedAt: new Date()
+      },
+      {
+        title: 'AI Content Moderator',
+        description: 'Review and moderate AI-generated content for quality and compliance.',
+        category: 'Content Moderation',
+        skills: ['Content Review', 'AI Systems', 'Quality Assurance'],
+        hourlyRate: { min: 18, max: 30 },
+        timeCommitment: '15-25 hrs/week',
+        location: 'Remote',
+        experienceLevel: 'entry',
+        status: 'active',
+        featured: false,
+        priority: 2,
+        publishedAt: new Date()
+      }
+    ];
+
+    const createdOpportunities = await Opportunity.insertMany(sampleOpportunities);
+    
+    res.json({
+      success: true,
+      message: `Successfully seeded ${createdOpportunities.length} opportunities`,
+      seeded: true,
+      opportunities: createdOpportunities
+    });
+  } catch (error) {
+    console.error('Seed opportunities error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
 export default router;

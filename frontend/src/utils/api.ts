@@ -80,6 +80,7 @@ export const buildApiUrl = (endpoint: string, params?: Record<string, string | n
 // HTTP client configuration
 export const apiClient = {
   get: async (url: string, token?: string) => {
+    const fullUrl = url.startsWith('http') ? url : `${API_CONFIG.BASE_URL}${url}`;
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
     };
@@ -88,7 +89,7 @@ export const apiClient = {
       headers.Authorization = `Bearer ${token}`;
     }
     
-    const response = await fetch(url, {
+    const response = await fetch(fullUrl, {
       method: 'GET',
       headers,
     });
@@ -101,6 +102,7 @@ export const apiClient = {
   },
   
   post: async (url: string, data?: any, token?: string) => {
+    const fullUrl = url.startsWith('http') ? url : `${API_CONFIG.BASE_URL}${url}`;
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
     };
@@ -109,20 +111,33 @@ export const apiClient = {
       headers.Authorization = `Bearer ${token}`;
     }
     
-    const response = await fetch(url, {
+    const response = await fetch(fullUrl, {
       method: 'POST',
       headers,
       body: data ? JSON.stringify(data) : undefined,
     });
     
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      let errorMessage = `HTTP error! status: ${response.status}`;
+      try {
+        const errorData = await response.json();
+        if (errorData.message) {
+          errorMessage = errorData.message;
+        }
+        if (errorData.errors && Array.isArray(errorData.errors)) {
+          errorMessage += '\nValidation errors: ' + errorData.errors.map((e: any) => e.msg).join(', ');
+        }
+      } catch (e) {
+        // If we can't parse the error response, use the default message
+      }
+      throw new Error(errorMessage);
     }
     
     return response.json();
   },
   
   put: async (url: string, data?: any, token?: string) => {
+    const fullUrl = url.startsWith('http') ? url : `${API_CONFIG.BASE_URL}${url}`;
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
     };
@@ -131,7 +146,7 @@ export const apiClient = {
       headers.Authorization = `Bearer ${token}`;
     }
     
-    const response = await fetch(url, {
+    const response = await fetch(fullUrl, {
       method: 'PUT',
       headers,
       body: data ? JSON.stringify(data) : undefined,
@@ -145,6 +160,7 @@ export const apiClient = {
   },
   
   delete: async (url: string, token?: string) => {
+    const fullUrl = url.startsWith('http') ? url : `${API_CONFIG.BASE_URL}${url}`;
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
     };
@@ -153,7 +169,7 @@ export const apiClient = {
       headers.Authorization = `Bearer ${token}`;
     }
     
-    const response = await fetch(url, {
+    const response = await fetch(fullUrl, {
       method: 'DELETE',
       headers,
     });
