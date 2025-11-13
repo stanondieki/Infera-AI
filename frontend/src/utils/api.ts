@@ -103,6 +103,9 @@ export const apiClient = {
   
   post: async (url: string, data?: any, token?: string) => {
     const fullUrl = url.startsWith('http') ? url : `${API_CONFIG.BASE_URL}${url}`;
+    console.log('📡 Making POST request to:', fullUrl);
+    console.log('📡 Request data:', { ...data, password: data?.password ? '***' : undefined });
+    
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
     };
@@ -117,10 +120,13 @@ export const apiClient = {
       body: data ? JSON.stringify(data) : undefined,
     });
     
+    console.log('📡 Response status:', response.status);
+    
     if (!response.ok) {
       let errorMessage = `HTTP error! status: ${response.status}`;
       try {
         const errorData = await response.json();
+        console.log('📡 Error response data:', errorData);
         if (errorData.message) {
           errorMessage = errorData.message;
         }
@@ -128,12 +134,14 @@ export const apiClient = {
           errorMessage += '\nValidation errors: ' + errorData.errors.map((e: any) => e.msg).join(', ');
         }
       } catch (e) {
-        // If we can't parse the error response, use the default message
+        console.log('📡 Could not parse error response');
       }
       throw new Error(errorMessage);
     }
     
-    return response.json();
+    const responseData = await response.json();
+    console.log('📡 Response data:', responseData);
+    return responseData;
   },
   
   put: async (url: string, data?: any, token?: string) => {

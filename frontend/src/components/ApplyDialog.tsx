@@ -767,10 +767,16 @@ export function ApplyDialog({ open, onOpenChange, onSwitchToSignIn }: ApplyDialo
       e.preventDefault();
     }
     
-    if (!validateStep(currentStep)) {
+    console.log('🔄 Submit button clicked!', { currentStep, totalSteps });
+    
+    // Always validate the final step before submission
+    if (!validateStep(6)) {
+      toast.error("Please fill in all required fields correctly", { duration: 3000 });
+      console.log('❌ Validation failed for step 6');
       return;
     }
-
+    
+    console.log('✅ Validation passed, starting submission...');
     setIsSubmitting(true);
     
     try {
@@ -2310,7 +2316,8 @@ export function ApplyDialog({ open, onOpenChange, onSwitchToSignIn }: ApplyDialo
                   </>
                 ) : (
                   <Button
-                    type="submit"
+                    type="button"
+                    onClick={handleSubmit}
                     disabled={isSubmitting}
                     className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-8"
                   >
