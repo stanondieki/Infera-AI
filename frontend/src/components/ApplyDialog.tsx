@@ -788,7 +788,15 @@ export function ApplyDialog({ open, onOpenChange, onSwitchToSignIn }: ApplyDialo
       
       setIsSubmitting(false);
       
-      if (response.userCreated) {
+      // Check if this is demo mode
+      const isDemoMode = response.message && response.message.includes('Demo Mode');
+      
+      if (isDemoMode) {
+        toast.success("🎭 Demo: Application submitted successfully! This is a demonstration - no real submission was made.", { 
+          duration: 8000,
+          description: "In production, this would connect to a real backend server."
+        });
+      } else if (response.userCreated) {
         toast.success("🎉 Application submitted and account created! Check your email for login instructions.", { duration: 7000 });
       } else {
         toast.success("🎉 Application submitted successfully! You can create an account using the sign-in dialog.", { duration: 5000 });

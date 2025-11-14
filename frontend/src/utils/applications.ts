@@ -78,7 +78,16 @@ export async function submitApplication(formData: ApplicationFormData) {
     const response = await apiClient.post(buildApiUrl(API_ENDPOINTS.APPLICATIONS.SUBMIT), applicationData);
     console.log('✅ Application submitted successfully:', response);
     
-    // Create user account after successful application submission
+    // If this is a mock response (demo mode), skip account creation
+    if (response.message && response.message.includes('Demo Mode')) {
+      return {
+        ...response,
+        userCreated: false,
+        message: response.message + ' - Account creation skipped in demo mode.'
+      };
+    }
+    
+    // Create user account after successful application submission (only in real backend)
     try {
       console.log('👤 Creating user account...');
       
