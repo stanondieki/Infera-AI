@@ -1,0 +1,20 @@
+# Azure App Service deployment configuration
+#
+# This file configures the build and runtime settings for Azure App Service
+
+# Build settings
+build:
+  # Install dependencies and build the project
+  commands:
+    - npm install
+    - npm run build
+
+# Runtime settings
+runtime:
+  # Use the compiled JavaScript files
+  startup_command: "node dist/index.js"
+  
+# Environment variables (will be set in Azure portal)
+app_settings:
+  NODE_ENV: "production"
+  PORT: "8080"
