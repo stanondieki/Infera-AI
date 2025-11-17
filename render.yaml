@@ -1,0 +1,27 @@
+# Render.com deployment configuration
+# This file enables automatic deployment to Render.com
+
+# Build configuration for Node.js service
+build:
+  # Install dependencies
+  - name: Install Dependencies
+    command: cd backend && npm ci
+  
+  # Build TypeScript
+  - name: Build Application  
+    command: cd backend && npm run build
+
+# Runtime configuration
+start:
+  command: cd backend && npm start
+
+# Environment variables (set in Render dashboard)
+environment:
+  - NODE_ENV=production
+  - PORT=$PORT  # Render sets this automatically
+
+# Health check
+health_check:
+  path: /health
+  interval: 30s
+  timeout: 10s
