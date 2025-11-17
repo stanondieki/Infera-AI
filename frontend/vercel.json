@@ -39,7 +39,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://your-backend-url.com/api/:path*"
+      "destination": "https://inferaai-hfh4hmd4frcee8e9.centralindia-01.azurewebsites.net/api/:path*"
     }
   ]
 }
