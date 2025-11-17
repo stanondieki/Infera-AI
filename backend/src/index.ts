@@ -4,6 +4,8 @@ import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 import { generalLimiter } from './middleware/rateLimiter';
 
+// Azure deployment - ready for production
+
 // Import routes
 import authRoutes from './routes/auth';
 import applicationRoutes from './routes/applications';
