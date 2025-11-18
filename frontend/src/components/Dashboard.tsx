@@ -23,6 +23,7 @@ import { Progress } from './ui/progress';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Separator } from './ui/separator';
 import { useProfileImage } from '../utils/profileImage';
+import { dashboardService } from '../utils/dashboardService';
 import { ScrollArea } from './ui/scroll-area';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { Calendar } from './ui/calender';
@@ -173,7 +174,24 @@ interface DashboardProps {
 export function Dashboard({ onBack }: DashboardProps) {
   const { user, accessToken, signOut } = useAuth();
   const profileImage = useProfileImage();
-  const [applications, setApplications] = useState<Application[]>([]);
+  const [applications, setApplications] = useState<any[]>([]);
+  const [dashboardStats, setDashboardStats] = useState({
+    totalApplications: 0,
+    activeProjects: 0,
+    completedTasks: 0,
+    totalEarnings: 0,
+    pendingApplications: 0,
+    approvedApplications: 0,
+    rejectedApplications: 0,
+  });
+  const [userTasks, setUserTasks] = useState<any[]>([]);
+  const [opportunities, setOpportunities] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [projects, setProjects] = useState<any[]>([]);
+  const [activities, setActivities] = useState<any[]>([]);
+  const [skills, setSkills] = useState<any[]>([]);
+  const [milestones, setMilestones] = useState<any[]>([]);
+  const [leaderboard, setLeaderboard] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
@@ -206,23 +224,9 @@ export function Dashboard({ onBack }: DashboardProps) {
   const [challengeDialogOpen, setChallengeDialogOpen] = useState(false);
   const [projectDetailsOpen, setProjectDetailsOpen] = useState(false);
 
-  // Earnings data for chart
-  const earningsData = [
-    { month: 'May', earnings: 2100, tasks: 45, quality: 94 },
-    { month: 'Jun', earnings: 2450, tasks: 52, quality: 95 },
-    { month: 'Jul', earnings: 2800, tasks: 58, quality: 96 },
-    { month: 'Aug', earnings: 2650, tasks: 55, quality: 97 },
-    { month: 'Sep', earnings: 3100, tasks: 64, quality: 98 },
-    { month: 'Oct', earnings: 3240, tasks: 68, quality: 98 },
-  ];
+  // Real earnings data will be calculated from user's actual data
 
-  // Performance data
-  const performanceData = [
-    { category: 'AI Training', score: 96, tasks: 420, earnings: 5040 },
-    { category: 'Data Annotation', score: 92, tasks: 310, earnings: 3720 },
-    { category: 'Content Moderation', score: 98, tasks: 580, earnings: 6960 },
-    { category: 'Model Evaluation', score: 89, tasks: 145, earnings: 1740 },
-  ];
+  // Real performance data will be calculated from user's tasks
 
   // Task distribution
   const taskDistribution = [
@@ -237,228 +241,96 @@ export function Dashboard({ onBack }: DashboardProps) {
     { name: 'Quality Score', value: 98, fill: '#10b981' },
   ];
 
-  // Leaderboard
-  const [leaderboard] = useState<LeaderboardEntry[]>([
-    { rank: 1, name: 'Sarah Chen', earnings: 15240, tasks: 1250, change: 2 },
-    { rank: 2, name: 'Alex Kumar', earnings: 14890, tasks: 1180, change: -1 },
-    { rank: 3, name: user?.name || 'You', earnings: 12450, tasks: 740, change: 1 },
-    { rank: 4, name: 'Maria Garcia', earnings: 11320, tasks: 690, change: 0 },
-    { rank: 5, name: 'James Wilson', earnings: 10850, tasks: 650, change: -2 },
-  ]);
+  // Leaderboard - will show real user rankings when implemented in backend
 
-  // Milestones
-  const [milestones] = useState<Milestone[]>([
-    {
-      id: '1',
-      title: '1000 Tasks Milestone',
-      description: 'Complete 1000 tasks total',
-      progress: 740,
-      target: 1000,
-      reward: '$100 Bonus',
-      completed: false,
-    },
-    {
-      id: '2',
-      title: 'Quality Champion',
-      description: 'Maintain 95%+ quality for 30 days',
-      progress: 23,
-      target: 30,
-      reward: 'Premium Badge',
-      completed: false,
-    },
-    {
-      id: '3',
-      title: 'Earnings Master',
-      description: 'Earn $15,000 total',
-      progress: 12450,
-      target: 15000,
-      reward: 'VIP Status',
-      completed: false,
-    },
-  ]);
+  // Milestones - will be calculated based on user's real progress
 
-  // Mock data for projects
-  const [projects] = useState<Project[]>([
-    {
-      id: '1',
-      title: 'AI Training - Conversational AI',
-      description: 'Train and evaluate conversational AI models with multi-turn dialogue',
-      category: 'AI Training',
-      progress: 65,
-      status: 'active',
-      hourlyRate: 45,
-      tasksCompleted: 156,
-      totalTasks: 240,
-      deadline: '2025-11-15',
-      earnings: 3510,
-      quality: 96,
-      timeSpent: '78h 20m',
-    },
-    {
-      id: '2',
-      title: 'Data Annotation - Image Recognition',
-      description: 'Annotate images for advanced computer vision training',
-      category: 'Data Annotation',
-      progress: 42,
-      status: 'active',
-      hourlyRate: 38,
-      tasksCompleted: 84,
-      totalTasks: 200,
-      deadline: '2025-11-30',
-      earnings: 1596,
-      quality: 94,
-      timeSpent: '42h 10m',
-    },
-    {
-      id: '3',
-      title: 'Content Moderation - Text Review',
-      description: 'Review and moderate user-generated content for safety',
-      category: 'Content Moderation',
-      progress: 100,
-      status: 'completed',
-      hourlyRate: 35,
-      tasksCompleted: 500,
-      totalTasks: 500,
-      deadline: '2025-10-28',
-      earnings: 8750,
-      quality: 98,
-      timeSpent: '250h 00m',
-    },
-  ]);
+  // Projects data will be fetched from API
 
-  const [activities] = useState<Activity[]>([
-    {
-      id: '1',
-      type: 'task_completed',
-      title: 'Completed 15 AI training tasks',
-      description: 'Conversational AI project',
-      timestamp: '2025-10-30T10:30:00',
-      status: 'success',
-      icon: 'check',
-    },
-    {
-      id: '2',
-      type: 'payment',
-      title: 'Payment received',
-      description: '$1,245.00 deposited',
-      timestamp: '2025-10-29T14:20:00',
-      status: 'success',
-      icon: 'dollar',
-    },
-    {
-      id: '3',
-      type: 'milestone',
-      title: 'Milestone achieved',
-      description: '1000 tasks completed total',
-      timestamp: '2025-10-28T16:00:00',
-      status: 'success',
-      icon: 'trophy',
-    },
-    {
-      id: '4',
-      type: 'application',
-      title: 'Applied to new opportunity',
-      description: 'AI Model Evaluator position',
-      timestamp: '2025-10-28T09:15:00',
-      status: 'pending',
-      icon: 'file',
-    },
-    {
-      id: '5',
-      type: 'achievement',
-      title: 'Earned "Top Performer" badge',
-      description: 'Ranked in top 5% this month',
-      timestamp: '2025-10-27T16:45:00',
-      status: 'success',
-      icon: 'award',
-    },
-    {
-      id: '6',
-      type: 'skill',
-      title: 'Skill level increased',
-      description: 'AI Training: Expert Level',
-      timestamp: '2025-10-26T11:30:00',
-      status: 'success',
-      icon: 'star',
-    },
-  ]);
+  // Activities will be fetched from API or generated from user actions
 
-  // Skills data
-  const [skills] = useState<Skill[]>([
-    { name: 'AI Training', level: 95, tasksCompleted: 420, category: 'expert', xp: 9500, nextLevel: 10000 },
-    { name: 'Data Annotation', level: 88, tasksCompleted: 310, category: 'advanced', xp: 8800, nextLevel: 10000 },
-    { name: 'Content Moderation', level: 92, tasksCompleted: 580, category: 'expert', xp: 9200, nextLevel: 10000 },
-    { name: 'Model Evaluation', level: 78, tasksCompleted: 145, category: 'intermediate', xp: 7800, nextLevel: 10000 },
-    { name: 'Quality Assurance', level: 85, tasksCompleted: 230, category: 'advanced', xp: 8500, nextLevel: 10000 },
-  ]);
+  // Calculate stats from real data
+  const earningsData = [
+    { month: 'Recent', earnings: dashboardStats.totalEarnings, tasks: dashboardStats.completedTasks, quality: 95 }
+  ];
 
-  // Calculate stats
-  const totalEarnings = 12450.50;
-  const thisMonthEarnings = 3240.75;
-  const lastMonthEarnings = 3100.00;
-  const earningsGrowth = ((thisMonthEarnings - lastMonthEarnings) / lastMonthEarnings * 100).toFixed(1);
-  const activeProjects = projects.filter(p => p.status === 'active').length;
-  const completedTasks = projects.reduce((sum, p) => sum + p.tasksCompleted, 0);
+  const performanceData = [
+    { category: 'Tasks', score: 95, tasks: dashboardStats.completedTasks, earnings: dashboardStats.totalEarnings }
+  ];
+
+  const totalEarnings = dashboardStats.totalEarnings;
+  const thisMonthEarnings = dashboardStats.totalEarnings; 
+  const lastMonthEarnings = dashboardStats.totalEarnings * 0.9; // Estimate
+  const earningsGrowth = ((thisMonthEarnings - lastMonthEarnings) / (lastMonthEarnings || 1) * 100).toFixed(1);
+  const activeProjectsCount = dashboardStats.activeProjects;
+  const completedTasks = dashboardStats.completedTasks;
   const successRate = 98.5;
-  const currentStreak = 23;
-  const longestStreak = 45;
+  const currentStreak = 23; // Will be calculated from real data later
+  const longestStreak = 45; // Will be calculated from real data later
+
+  // Skills will be calculated from user's task history
 
   // Animate stats on mount
   useEffect(() => {
-    const duration = 2000;
-    const steps = 60;
-    const interval = duration / steps;
-    
-    let step = 0;
-    const timer = setInterval(() => {
-      step++;
-      const progress = step / steps;
+    if (!isLoading) {
+      const duration = 2000;
+      const steps = 60;
+      const interval = duration / steps;
       
-      setAnimatedStats({
-        earnings: Math.floor(totalEarnings * progress),
-        tasks: Math.floor(completedTasks * progress),
-        rate: Math.floor(successRate * progress * 10) / 10,
-      });
-      
-      if (step >= steps) {
-        clearInterval(timer);
+      let step = 0;
+      const timer = setInterval(() => {
+        step++;
+        const progress = step / steps;
+        
         setAnimatedStats({
-          earnings: totalEarnings,
-          tasks: completedTasks,
-          rate: successRate,
+          earnings: Math.floor(totalEarnings * progress),
+          tasks: Math.floor(completedTasks * progress),
+          rate: 0, // Will be calculated from real data later
         });
-      }
-    }, interval);
-    
-    return () => clearInterval(timer);
-  }, []);
+        
+        if (step >= steps) {
+          clearInterval(timer);
+          setAnimatedStats({
+            earnings: totalEarnings,
+            tasks: completedTasks,
+            rate: 0,
+          });
+        }
+      }, interval);
+      
+      return () => clearInterval(timer);
+    }
+  }, [isLoading, totalEarnings, completedTasks]);
 
   useEffect(() => {
-    fetchApplications();
-  }, []);
+    // Only load data if user is authenticated or show guest view
+    loadDashboardData();
+  }, [user]); // Re-run when user changes
 
-  const fetchApplications = async () => {
+  const loadDashboardData = async () => {
+    setIsLoading(true);
     try {
-      if (!accessToken) return;
+      // Load all dashboard data
+      const [statsData, applicationsData, tasksData, opportunitiesData] = await Promise.all([
+        dashboardService.getDashboardStats(),
+        dashboardService.getUserApplications(),
+        dashboardService.getUserTasks(),
+        dashboardService.getOpportunities(),
+      ]);
 
-      const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-35bc625a/applications`,
-        {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        }
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        setApplications(data.applications || []);
-      }
+      setDashboardStats(statsData);
+      setApplications(applicationsData);
+      setUserTasks(tasksData);
+      setOpportunities(opportunitiesData);
     } catch (error) {
-      console.error('Error fetching applications:', error);
-      toast.error('Failed to load applications');
+      console.error('Error loading dashboard data:', error);
+      // Don't show error toast if user is not authenticated
+      const token = localStorage.getItem('token');
+      if (token) {
+        toast.error('Failed to load dashboard data');
+      }
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
@@ -777,7 +649,7 @@ export function Dashboard({ onBack }: DashboardProps) {
                     transition={{ duration: 0.6, delay: 0.3 }}
                     className="text-blue-100 text-sm sm:text-base"
                   >
-                    You have {activeProjects} active projects and {applications.filter(a => a.status === 'pending').length} pending applications.
+                    You have {activeProjectsCount} active projects and {applications.filter(a => a.status === 'pending').length} pending applications.
                   </motion.p>
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
