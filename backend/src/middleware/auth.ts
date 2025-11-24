@@ -61,22 +61,46 @@ export const authenticateToken = async (req: AuthRequest, res: Response, next: N
   }
 };
 
-export const requireAdmin = (req: AuthRequest, res: Response, next: NextFunction) => {
-  if (!req.user) {
+export const requireAdmin = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  // First authenticate the token
+  try {
+    const authHeader = req.headers.authorization;
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (!token) {
+      return res.status(401).json({ 
+        success: false, 
+        message: 'Access token required for admin access' 
+      });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret') as any;
+    const user = await User.findById(decoded.userId);
+
+    if (!user) {
+      return res.status(401).json({ 
+        success: false, 
+        message: 'Invalid token - user not found' 
+      });
+    }
+
+    req.user = user;
+
+    // Check if user is admin
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ 
+        success: false, 
+        message: 'Admin access required' 
+      });
+    }
+
+    next();
+  } catch (error) {
     return res.status(401).json({ 
       success: false, 
-      message: 'Authentication required' 
+      message: 'Invalid or expired token' 
     });
   }
-
-  if (req.user.role !== 'admin') {
-    return res.status(403).json({ 
-      success: false, 
-      message: 'Admin access required' 
-    });
-  }
-
-  next();
 };
 
 export const optionalAuth = async (req: AuthRequest, res: Response, next: NextFunction) => {

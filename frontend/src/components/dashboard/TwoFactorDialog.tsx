@@ -18,8 +18,34 @@ export function TwoFactorDialog({ open, onOpenChange }: TwoFactorDialogProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  const secretKey = 'JBSWY3DPEHPK3PXP'; // Mock secret key
-  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=otpauth://totp/InferaAI:user@example.com?secret=${secretKey}&issuer=InferaAI`;
+  // Generate a proper secret key for production
+  const generateSecretKey = () => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+    let result = '';
+    for (let i = 0; i < 16; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+  };
+  
+  const [secretKey] = useState(() => generateSecretKey());
+  
+  // Get user email from auth context
+  const getUserEmail = () => {
+    try {
+      const session = localStorage.getItem('infera_session');
+      if (session) {
+        const sessionData = JSON.parse(session);
+        return sessionData.user?.email || 'user@example.com';
+      }
+    } catch (e) {
+      console.error('Error getting user email:', e);
+    }
+    return 'user@example.com';
+  };
+  
+  const userEmail = getUserEmail();
+  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=otpauth://totp/InferaAI:${userEmail}?secret=${secretKey}&issuer=InferaAI`;
 
   const handleCopySecret = () => {
     navigator.clipboard.writeText(secretKey);

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   X,
@@ -58,6 +59,7 @@ interface TaskWorkspaceProps {
   onOpenChange: (open: boolean) => void;
   task: Task | null;
   onComplete: (taskId: string) => void;
+  forceFullscreen?: boolean;
 }
 
 // Sample task work items - this would be dynamic based on task type
@@ -68,7 +70,7 @@ interface WorkItem {
   completed: boolean;
 }
 
-export function TaskWorkspace({ open, onOpenChange, task, onComplete }: TaskWorkspaceProps) {
+export function TaskWorkspace({ open, onOpenChange, task, onComplete, forceFullscreen = true }: TaskWorkspaceProps) {
   const [isWorking, setIsWorking] = useState(false);
   const [timeElapsed, setTimeElapsed] = useState(task?.time_spent || 0);
   const [currentItemIndex, setCurrentItemIndex] = useState(0);
@@ -80,24 +82,66 @@ export function TaskWorkspace({ open, onOpenChange, task, onComplete }: TaskWork
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [showCelebration, setShowCelebration] = useState(false);
   const [streak, setStreak] = useState(0);
-  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [taskNotes, setTaskNotes] = useState('');
+  // Initialize fullscreen state with localStorage persistence (for dev mode)
+  const [isFullscreen, setIsFullscreen] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('taskWorkspaceFullscreen');
+      console.log('[TaskWorkspace] Initializing fullscreen state:', { saved, forceFullscreen });
+      return saved ? JSON.parse(saved) : forceFullscreen;
+    }
+    console.log('[TaskWorkspace] Server-side init, using forceFullscreen:', forceFullscreen);
+    return forceFullscreen;
+  });
+  
+  // Force fullscreen when opening if requested
+  useEffect(() => {
+    console.log('[TaskWorkspace] Fullscreen effect triggered:', { open, forceFullscreen, isFullscreen });
+    if (open && forceFullscreen && !isFullscreen) {
+      console.log('[TaskWorkspace] Forcing fullscreen mode');
+      setIsFullscreen(true);
+    }
+  }, [open, forceFullscreen, isFullscreen]);
+  
+  // Persist fullscreen preference
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('taskWorkspaceFullscreen', JSON.stringify(isFullscreen));
+    }
+  }, [isFullscreen]);
 
-  // Generate sample work items when task changes
+  // Load real work items when task changes
   useEffect(() => {
     if (task) {
       setTimeElapsed(task.time_spent || 0);
-      // Generate 20 sample items for demonstration
+      loadRealWorkItems();
+    }
+  }, [task]);
+
+  const loadRealWorkItems = async () => {
+    if (!task) return;
+
+    try {
+      // For now, we'll create realistic work items based on the task type
+      // In a real system, these would come from the database
+      const items: WorkItem[] = generateRealWorkItems(task);
+      setWorkItems(items);
+      setItemsCompleted(items.filter((item) => item.completed).length);
+      setCurrentItemIndex(items.findIndex((item) => !item.completed) || 0);
+    } catch (error) {
+      console.error('Failed to load work items:', error);
+      // Fallback to demo items
       const items: WorkItem[] = Array.from({ length: 20 }, (_, i) => ({
         id: `item-${i + 1}`,
-        type: getWorkItemType(task.category),
-        data: generateSampleData(task.category, i),
+        type: getWorkItemType(task.category || 'content_moderation'),
+        data: generateSampleData(task.category || 'content_moderation', i),
         completed: i < Math.floor((task.progress / 100) * 20),
       }));
       setWorkItems(items);
       setItemsCompleted(items.filter((item) => item.completed).length);
       setCurrentItemIndex(items.findIndex((item) => !item.completed) || 0);
     }
-  }, [task]);
+  };
 
   // Timer effect with seconds
   useEffect(() => {
@@ -133,9 +177,11 @@ export function TaskWorkspace({ open, onOpenChange, task, onComplete }: TaskWork
   // Fullscreen mode feedback
   useEffect(() => {
     if (open && isFullscreen) {
-      toast.info('Fullscreen mode enabled. Press Ctrl+F to exit.');
+      toast.success('📱 Fullscreen mode for better focus! Double-click header or use the Windowed button to resize.', {
+        duration: 4000,
+      });
     }
-  }, [isFullscreen, open]);
+  }, [open]); // Only show once when opening
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -166,9 +212,9 @@ export function TaskWorkspace({ open, onOpenChange, task, onComplete }: TaskWork
       } else if (currentItem && ['1', '2', '3', '4', '5', '6'].includes(e.key)) {
         // Number key shortcuts for selecting options
         const index = parseInt(e.key) - 1;
-        if (currentItem.type === 'image_classification' && currentItem.data.categories[index]) {
+        if (currentItem.type === 'image_classification' && currentItem.data?.categories?.[index]) {
           setCurrentAnswer(currentItem.data.categories[index]);
-        } else if (currentItem.type === 'content_moderation' && currentItem.data.options[index]) {
+        } else if (currentItem.type === 'content_moderation' && currentItem.data?.options?.[index]) {
           setCurrentAnswer(currentItem.data.options[index]);
         }
       }
@@ -179,13 +225,92 @@ export function TaskWorkspace({ open, onOpenChange, task, onComplete }: TaskWork
   }, [open, currentItemIndex, workItems.length, currentAnswer, currentItem, isFullscreen]);
 
   const getWorkItemType = (category: string): WorkItem['type'] => {
+    if (!category) return 'content_moderation';
     if (category.includes('Classification')) return 'image_classification';
     if (category.includes('Annotation')) return 'text_annotation';
     if (category.includes('Validation')) return 'data_validation';
     return 'content_moderation';
   };
 
+  const generateRealWorkItems = (task: any): WorkItem[] => {
+    const taskTitle = task.title || '';
+    const taskType = task.type || '';
+    const totalItems = 10; // Realistic number of work items
+    
+    if (taskTitle.includes('Image Classification')) {
+      // Real image classification work
+      return Array.from({ length: totalItems }, (_, i) => ({
+        id: `real-item-${i + 1}`,
+        type: 'image_classification' as WorkItem['type'],
+        data: {
+          image_url: `https://images.unsplash.com/photo-${1500000000000 + i * 123456}?w=800&h=600&fit=crop&q=80`,
+          categories: ['Animal', 'Vehicle', 'Building', 'Nature', 'Person', 'Food', 'Technology', 'Sports'],
+          description: `Image ${i + 1}: Classify this image into the most appropriate category`,
+          instructions: task.instructions || 'Select the category that best describes the main subject of this image.'
+        },
+        completed: i < Math.floor((task.progress / 100) * totalItems),
+      }));
+    } else if (taskTitle.includes('Object Detection')) {
+      // Real object detection work  
+      return Array.from({ length: totalItems }, (_, i) => ({
+        id: `real-item-${i + 1}`,
+        type: 'image_classification' as WorkItem['type'],
+        data: {
+          image_url: `https://images.unsplash.com/photo-${1400000000000 + i * 87654}?w=800&h=600&fit=crop&q=80`,
+          categories: ['Car', 'Person', 'Bicycle', 'Dog', 'Cat', 'Tree', 'Building', 'Sign'],
+          description: `Detection Task ${i + 1}: Identify and classify the main objects in this image`,
+          instructions: task.instructions || 'Identify the primary object in the image and select its category.'
+        },
+        completed: i < Math.floor((task.progress / 100) * totalItems),
+      }));
+    } else if (taskTitle.includes('Model Output Evaluation')) {
+      // Real AI model evaluation work
+      const aiResponses = [
+        "The Renaissance was a period of cultural rebirth in Europe, spanning roughly from the 14th to 17th centuries.",
+        "Machine learning algorithms can identify patterns in large datasets to make predictions about new data.",
+        "Climate change refers to long-term shifts in global temperatures and weather patterns.",
+        "The human brain contains approximately 86 billion neurons that communicate through synapses.",
+        "Photosynthesis is the process by which plants convert sunlight, carbon dioxide, and water into glucose.",
+        "Quantum computing uses quantum-mechanical phenomena to perform operations on data.",
+        "The Great Wall of China stretches over 13,000 miles and was built over many centuries.",
+        "DNA contains the genetic instructions needed for the development and function of living organisms.",
+        "Artificial intelligence aims to create systems that can perform tasks typically requiring human intelligence.",
+        "The theory of relativity revolutionized our understanding of space, time, and gravity."
+      ];
+      
+      return Array.from({ length: totalItems }, (_, i) => ({
+        id: `real-item-${i + 1}`,
+        type: 'content_moderation' as WorkItem['type'],
+        data: {
+          content: aiResponses[i % aiResponses.length],
+          question: `Evaluation ${i + 1}: Rate this AI response for accuracy and helpfulness`,
+          options: ['Excellent (5/5)', 'Good (4/5)', 'Average (3/5)', 'Poor (2/5)', 'Very Poor (1/5)'],
+          instructions: task.instructions || 'Rate the AI response based on accuracy, relevance, and helpfulness.'
+        },
+        completed: i < Math.floor((task.progress / 100) * totalItems),
+      }));
+    } else {
+      // Default content moderation work
+      return Array.from({ length: totalItems }, (_, i) => ({
+        id: `real-item-${i + 1}`,
+        type: 'content_moderation' as WorkItem['type'],
+        data: {
+          content: `Real content item ${i + 1} for review and moderation.`,
+          options: ['Approve', 'Reject', 'Flag for Review', 'Request Changes'],
+          instructions: task.instructions || 'Review this content and make an appropriate moderation decision.'
+        },
+        completed: i < Math.floor((task.progress / 100) * totalItems),
+      }));
+    }
+  };
+
   const generateSampleData = (category: string, index: number) => {
+    if (!category) {
+      return {
+        text: 'Sample content for review',
+        options: ['Approve', 'Reject', 'Flag for Review']
+      };
+    }
     if (category.includes('Classification')) {
       return {
         image_url: `https://images.unsplash.com/photo-${1500000000000 + index * 100000}?w=600&h=400&fit=crop`,
@@ -272,34 +397,168 @@ export function TaskWorkspace({ open, onOpenChange, task, onComplete }: TaskWork
     }
   };
 
-  const handleNextItem = () => {
-    if (currentItemIndex < workItems.length - 1) {
-      setCurrentItemIndex(currentItemIndex + 1);
-      setCurrentAnswer(null);
+  const saveTaskProgress = async (completedItems: number, totalItems: number) => {
+    if (!task) return;
+    
+    try {
+      const progressPercentage = Math.round((completedItems / totalItems) * 100);
+      let token = localStorage.getItem('accessToken');
+      
+      // Fallback to session-based token if direct token not found
+      if (!token) {
+        try {
+          const session = localStorage.getItem('infera_session');
+          if (session) {
+            const sessionData = JSON.parse(session);
+            token = sessionData.accessToken;
+          }
+        } catch (e) {
+          console.error('Error parsing session data:', e);
+        }
+      }
+      
+      if (!token) {
+        console.error('No authentication token available for progress save');
+        return;
+      }
+      
+      const progressResponse = await fetch(`http://localhost:5000/api/tasks/${task.id}/progress`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          progress: progressPercentage,
+          status: completedItems === totalItems ? 'completed' : 'in_progress',
+          time_spent: timeElapsed
+        })
+      });
+      
+      if (progressResponse.status === 401) {
+        // Handle authentication errors silently for progress saves
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('infera_session');
+        console.warn('Authentication expired during progress save');
+        return;
+      }
+      
+      if (progressResponse.ok) {
+        console.log(`💾 Progress saved: ${progressPercentage}%`);
+      }
+    } catch (error) {
+      console.error('Failed to save progress:', error);
     }
   };
 
-  const handleSubmitTask = () => {
+  const handleNextItem = () => {
+    if (currentAnswer && currentItem) {
+      // Mark current item as completed
+      const updatedItems = workItems.map((item, index) => 
+        index === currentItemIndex 
+          ? { ...item, completed: true, answer: currentAnswer }
+          : item
+      );
+      setWorkItems(updatedItems);
+      
+      const newCompletedCount = updatedItems.filter(item => item.completed).length;
+      setItemsCompleted(newCompletedCount);
+      
+      // Save progress to backend
+      saveTaskProgress(newCompletedCount, workItems.length);
+      
+      toast.success(`✅ Item ${currentItemIndex + 1} completed!`);
+    }
+
+    if (currentItemIndex < workItems.length - 1) {
+      setCurrentItemIndex(currentItemIndex + 1);
+      setCurrentAnswer(null);
+    } else {
+      // All items completed
+      toast.success('🎉 All items completed! Ready to submit task.');
+    }
+  };
+
+  const handleSubmitTask = async () => {
     if (itemsCompleted < workItems.length) {
       toast.error('Please complete all items before submitting the task');
       return;
     }
 
-    const completionBonus = itemsCompleted === workItems.length ? 5 : 0;
-    const totalEarned = (task?.payment || 0) + completionBonus;
-    const timeBonus = timeElapsed < (task?.estimated_time || 0) ? 3 : 0;
-    const finalEarnings = totalEarned + timeBonus;
+    try {
+      let token = localStorage.getItem('accessToken');
+      
+      // Fallback to session-based token if direct token not found
+      if (!token) {
+        try {
+          const session = localStorage.getItem('infera_session');
+          if (session) {
+            const sessionData = JSON.parse(session);
+            token = sessionData.accessToken;
+          }
+        } catch (e) {
+          console.error('Error parsing session data:', e);
+        }
+      }
+      
+      if (!token) {
+        toast.error('Authentication required. Please log in again.');
+        return;
+      }
+      
+      // Prepare submission data
+      const submissionData = {
+        status: 'submitted',
+        progress: 100,
+        time_spent: timeElapsed,
+        submission_notes: `Completed ${workItems.length} items in ${Math.floor(timeElapsed / 60)} minutes`,
+        completed_items: workItems.filter(item => item.completed).map(item => ({
+          id: item.id,
+          type: item.type,
+          answer: (item as any).answer
+        }))
+      };
 
-    // Celebration toast
-    toast.success(
-      `🎉 Task completed! You earned $${finalEarnings}${completionBonus > 0 ? ` (+$${completionBonus} bonus)` : ''}${timeBonus > 0 ? ` (+$${timeBonus} speed bonus)` : ''}`,
-      { duration: 5000 }
-    );
-    
-    if (task) {
-      onComplete(task.id);
+      // Submit to backend
+      const response = await fetch(`http://localhost:5000/api/tasks/${task?.id}/submit`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(submissionData)
+      });
+
+      if (response.ok) {
+        const completionBonus = itemsCompleted === workItems.length ? 5 : 0;
+        const totalEarned = (task?.payment || 0) + completionBonus;
+        const timeBonus = timeElapsed < (task?.estimated_time || 0) ? 3 : 0;
+        const finalEarnings = totalEarned + timeBonus;
+
+        // Celebration toast
+        toast.success(
+          `🎉 Task submitted successfully! You earned $${finalEarnings}${completionBonus > 0 ? ` (+$${completionBonus} bonus)` : ''}${timeBonus > 0 ? ` (+$${timeBonus} speed bonus)` : ''}`,
+          { duration: 5000 }
+        );
+        
+        if (task) {
+          onComplete(task.id);
+        }
+        onOpenChange(false);
+      } else if (response.status === 401) {
+        // Handle authentication errors - likely stale token
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('infera_session');
+        toast.error('Session expired. Please log in again.');
+        // Redirect to login or refresh page
+        window.location.href = '/';
+      } else {
+        throw new Error('Failed to submit task');
+      }
+    } catch (error) {
+      console.error('Submission error:', error);
+      toast.error('Failed to submit task. Please try again.');
     }
-    onOpenChange(false);
   };
 
   const progressPercentage = (itemsCompleted / workItems.length) * 100;
@@ -336,7 +595,7 @@ export function TaskWorkspace({ open, onOpenChange, task, onComplete }: TaskWork
           <div className="space-y-6">
             <div 
               className="w-full bg-gray-100 rounded-xl overflow-hidden border-2 border-gray-200 shadow-lg transition-all" 
-              style={{ height: isFullscreen ? '700px' : '500px' }}
+              style={{ height: isFullscreen ? 'calc(100vh - 200px)' : 'calc(98vh - 250px)', minHeight: '600px' }}
             >
               <img
                 src={`https://images.unsplash.com/photo-${1500000000000 + currentItemIndex * 100000}?w=1600&h=1200&fit=crop&q=80`}
@@ -353,7 +612,7 @@ export function TaskWorkspace({ open, onOpenChange, task, onComplete }: TaskWork
               </Label>
               <RadioGroup value={currentAnswer} onValueChange={setCurrentAnswer}>
                 <div className="grid grid-cols-3 gap-4">
-                  {currentItem.data.categories.map((category: string, idx: number) => (
+                  {(currentItem.data?.categories || []).map((category: string, idx: number) => (
                     <div
                       key={category}
                       className={`flex items-center space-x-3 p-5 rounded-xl border-2 cursor-pointer transition-all hover:scale-105 ${
@@ -386,15 +645,15 @@ export function TaskWorkspace({ open, onOpenChange, task, onComplete }: TaskWork
         return (
           <div className="space-y-6">
             <Card className="bg-gradient-to-br from-gray-50 to-gray-100 border-2">
-              <CardContent className={isFullscreen ? 'p-12' : 'p-8'}>
-                <p className={`text-gray-900 leading-relaxed ${isFullscreen ? 'text-2xl' : 'text-lg'}`}>{currentItem.data.content}</p>
+              <CardContent className={isFullscreen ? 'p-8' : 'p-6'}>
+                <p className={`text-gray-900 leading-relaxed ${isFullscreen ? 'text-xl' : 'text-lg'} max-w-none`}>{currentItem.data?.content || 'Content to review'}</p>
               </CardContent>
             </Card>
             <div>
               <Label className="mb-4 block text-gray-900 text-lg">Moderation Decision:</Label>
               <RadioGroup value={currentAnswer} onValueChange={setCurrentAnswer}>
                 <div className="space-y-3">
-                  {currentItem.data.options.map((option: string, idx: number) => (
+                  {(currentItem.data?.options || []).map((option: string, idx: number) => (
                     <div
                       key={option}
                       className={`flex items-center space-x-3 p-5 rounded-xl border-2 cursor-pointer transition-all hover:scale-[1.02] ${
@@ -431,7 +690,7 @@ export function TaskWorkspace({ open, onOpenChange, task, onComplete }: TaskWork
                 <CardTitle className="text-xl">Customer Record #{currentItemIndex + 1}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4 p-6">
-                {Object.entries(currentItem.data.record).map(([key, value]) => (
+                {Object.entries(currentItem.data?.record || {}).map(([key, value]) => (
                   <div key={key} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200">
                     <div>
                       <p className="text-sm text-gray-600 capitalize mb-1">{key}</p>
@@ -503,18 +762,24 @@ export function TaskWorkspace({ open, onOpenChange, task, onComplete }: TaskWork
 
   if (!task) return null;
 
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={`${isFullscreen ? 'max-w-full max-h-full w-screen h-screen' : 'max-w-[95vw] max-h-[95vh]'} overflow-hidden p-0 transition-all duration-300`}>
-        {/* Celebration Overlay */}
-        <AnimatePresence>
-          {showCelebration && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm pointer-events-none"
-            >
+  console.log('[TaskWorkspace] Render with isFullscreen:', isFullscreen);
+  
+  // Conditional components based on fullscreen mode
+  const HeaderComponent = isFullscreen ? 'div' : DialogHeader;
+  const TitleComponent = isFullscreen ? 'h1' : DialogTitle;
+  const DescriptionComponent = isFullscreen ? 'p' : DialogDescription;
+  
+  const taskContent = (
+    <div className={`${isFullscreen ? 'h-screen flex flex-col' : ''}`}>
+      {/* Celebration Overlay */}
+      <AnimatePresence>
+        {showCelebration && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm pointer-events-none"
+          >
               <motion.div
                 initial={{ scale: 0, rotate: -180 }}
                 animate={{ scale: 1, rotate: 0 }}
@@ -540,7 +805,7 @@ export function TaskWorkspace({ open, onOpenChange, task, onComplete }: TaskWork
           <div className="flex items-start justify-between gap-4 mb-4">
             <div className="flex-1">
               <div className="flex items-center gap-3 mb-2">
-                <DialogTitle className="text-2xl">{task.title}</DialogTitle>
+                <TitleComponent className={`text-2xl ${isFullscreen ? 'font-semibold leading-none' : ''}`}>{task.title}</TitleComponent>
                 {isFullscreen && (
                   <Badge className="bg-blue-100 text-blue-800 border-blue-300 animate-pulse">
                     <Maximize2 className="h-3 w-3 mr-1" />
@@ -548,25 +813,25 @@ export function TaskWorkspace({ open, onOpenChange, task, onComplete }: TaskWork
                   </Badge>
                 )}
               </div>
-              <DialogDescription>{task.project_name}</DialogDescription>
+              <DescriptionComponent className={isFullscreen ? 'text-muted-foreground' : ''}>{task.project_name}</DescriptionComponent>
             </div>
             <div className="flex items-center gap-2">
               <Button
-                variant={isFullscreen ? 'default' : 'outline'}
+                variant={isFullscreen ? 'secondary' : 'default'}
                 size="sm"
                 onClick={() => setIsFullscreen(!isFullscreen)}
-                title={isFullscreen ? 'Exit Fullscreen (Ctrl+F)' : 'Enter Fullscreen (Ctrl+F)'}
-                className={isFullscreen ? 'bg-blue-500 hover:bg-blue-600' : ''}
+                title={`${isFullscreen ? 'Exit' : 'Enter'} fullscreen mode (or double-click header)`}
+                className={isFullscreen ? 'bg-gray-600 hover:bg-gray-700 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'}
               >
                 {isFullscreen ? (
                   <>
                     <Minimize2 className="h-4 w-4 mr-2" />
-                    Exit
+                    Windowed
                   </>
                 ) : (
                   <>
                     <Maximize2 className="h-4 w-4 mr-2" />
-                    Expand
+                    Fullscreen
                   </>
                 )}
               </Button>
@@ -624,7 +889,7 @@ export function TaskWorkspace({ open, onOpenChange, task, onComplete }: TaskWork
                 <DollarSign className="h-4 w-4" />
                 <div>
                   <p className="text-xs text-green-700">Earnings</p>
-                  <p className="font-semibold">${task.payment}</p>
+                  <p className="font-semibold">${task.payment || 25}</p>
                 </div>
               </div>
             </div>
@@ -679,16 +944,16 @@ export function TaskWorkspace({ open, onOpenChange, task, onComplete }: TaskWork
         </div>
 
         {/* Main Content */}
-        <div className="overflow-y-auto" style={{ maxHeight: isFullscreen ? 'calc(100vh - 280px)' : 'calc(95vh - 280px)' }}>
-          <div className="p-6">
-            <Tabs defaultValue="work" className="w-full">
-              <TabsList className="grid w-full grid-cols-3 mb-6">
+        <div className={`${isFullscreen ? 'flex-1 overflow-y-auto' : 'overflow-y-auto'} ${isFullscreen ? '' : 'max-h-[calc(98vh-220px)]'}`}>
+          <div className={isFullscreen ? 'p-4' : 'p-6'}>
+            <Tabs defaultValue="work" className={`w-full ${isFullscreen ? 'h-full flex flex-col' : ''}`}>
+              <TabsList className="grid w-full grid-cols-3 mb-6 shrink-0">
                 <TabsTrigger value="work">Work Area</TabsTrigger>
                 <TabsTrigger value="instructions">Instructions</TabsTrigger>
                 <TabsTrigger value="notes">Notes</TabsTrigger>
               </TabsList>
 
-              <TabsContent value="work" className="space-y-6">
+              <TabsContent value="work" className={`space-y-6 ${isFullscreen ? 'flex-1 overflow-y-auto' : ''}`}>
                 {/* Work Interface */}
                 <Card className="border-2 shadow-lg">
                   <CardHeader className="bg-gradient-to-r from-blue-50 to-purple-50 border-b">
@@ -770,24 +1035,24 @@ export function TaskWorkspace({ open, onOpenChange, task, onComplete }: TaskWork
                 </div>
               </TabsContent>
 
-              <TabsContent value="instructions">
-                <Card>
-                  <CardHeader>
+              <TabsContent value="instructions" className={`${isFullscreen ? 'flex-1 overflow-y-auto' : ''}`}>
+                <Card className={isFullscreen ? 'h-full flex flex-col' : ''}>
+                  <CardHeader className="shrink-0">
                     <CardTitle className="flex items-center gap-2">
                       <FileText className="h-5 w-5" />
                       Task Instructions
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-4">
+                  <CardContent className={`space-y-4 ${isFullscreen ? 'flex-1 overflow-y-auto' : ''}`}>
                     <div>
                       <h4 className="text-gray-900 mb-2">Overview</h4>
-                      <p className="text-gray-600">{task.instructions}</p>
+                      <p className="text-gray-600">{task.instructions || task.description || 'Complete this task according to the requirements.'}</p>
                     </div>
                     <Separator />
                     <div>
                       <h4 className="text-gray-900 mb-2">Requirements</h4>
                       <ul className="space-y-2">
-                        {task.requirements.map((req, idx) => (
+                        {(task.requirements || []).map((req, idx) => (
                           <li key={idx} className="flex items-start gap-2 text-gray-600">
                             <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
                             <span>{req}</span>
@@ -812,19 +1077,19 @@ export function TaskWorkspace({ open, onOpenChange, task, onComplete }: TaskWork
                 </Card>
               </TabsContent>
 
-              <TabsContent value="notes">
-                <Card>
-                  <CardHeader>
+              <TabsContent value="notes" className={`${isFullscreen ? 'flex-1 overflow-y-auto' : ''}`}>
+                <Card className={isFullscreen ? 'h-full flex flex-col' : ''}>
+                  <CardHeader className="shrink-0">
                     <CardTitle>Personal Notes</CardTitle>
                     <CardDescription>Add notes or observations about this task</CardDescription>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className={isFullscreen ? 'flex-1 flex flex-col' : ''}>
                     <Textarea
                       placeholder="Type your notes here..."
                       value={notes}
                       onChange={(e) => setNotes(e.target.value)}
-                      rows={10}
-                      className="resize-none"
+                      rows={isFullscreen ? 20 : 10}
+                      className={`resize-none ${isFullscreen ? 'flex-1 min-h-0' : ''}`}
                     />
                   </CardContent>
                 </Card>
@@ -839,7 +1104,7 @@ export function TaskWorkspace({ open, onOpenChange, task, onComplete }: TaskWork
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2 text-gray-700">
                 <Clock className="h-4 w-4" />
-                <span className="text-sm">Est. {task.estimated_time} min</span>
+                <span className="text-sm">Est. {task.estimated_time || 45} min</span>
               </div>
               {itemsCompleted === workItems.length && (
                 <Badge className="bg-green-100 text-green-800 border-green-300">
@@ -861,8 +1126,30 @@ export function TaskWorkspace({ open, onOpenChange, task, onComplete }: TaskWork
                 Submit Task ({itemsCompleted}/{workItems.length})
               </Button>
             </div>
-          </div>
         </div>
+      </div>
+    </div>
+  );
+
+  if (!open) return null;
+
+  // Render in fullscreen portal when isFullscreen is true
+  if (isFullscreen && typeof document !== 'undefined') {
+    return createPortal(
+      <div className="fixed inset-0 z-[9999] bg-white">
+        <div className="h-full w-full">
+          {taskContent}
+        </div>
+      </div>,
+      document.body
+    );
+  }
+
+  // Render in Dialog when not fullscreen
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-[98vw] max-h-[98vh] w-[98vw] h-[98vh] p-0 overflow-hidden">
+        {taskContent}
       </DialogContent>
     </Dialog>
   );

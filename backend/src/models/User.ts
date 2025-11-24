@@ -23,6 +23,15 @@ export interface IUser extends Document {
   rating: number;
   reviewCount: number;
   
+  // Task assignment statistics
+  statistics?: {
+    totalTasksCompleted: number;
+    totalTasksApproved: number;
+    overallAccuracy: number;
+  };
+  activeAssignments?: any[];
+  activeTasks?: any[];
+  
   // Account status
   isActive: boolean;
   isVerified: boolean;
@@ -126,6 +135,15 @@ const UserSchema = new Schema<IUser>({
     default: 0,
     min: 0
   },
+  
+  // Task assignment statistics
+  statistics: {
+    totalTasksCompleted: { type: Number, default: 0 },
+    totalTasksApproved: { type: Number, default: 0 },
+    overallAccuracy: { type: Number, default: 0 },
+  },
+  activeAssignments: [{ type: Schema.Types.ObjectId, ref: 'TaskAssignment' }],
+  activeTasks: [{ type: Schema.Types.ObjectId, ref: 'Task' }],
   
   // Account status
   isActive: {

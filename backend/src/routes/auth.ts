@@ -16,14 +16,42 @@ const generateToken = (userId: string): string => {
   );
 };
 
-// Register new user
+// Register new user or update existing user for application flow
 router.post('/register', authLimiter, validateUserRegistration, async (req: Request, res: Response) => {
   try {
-    const { email, password, name, role = 'user' } = req.body;
+    const { email, password, name, role = 'user', allowUpdate = false } = req.body;
     
     // Check if user already exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
+      // If allowUpdate is true (from application submission), update the password
+      if (allowUpdate) {
+        existingUser.password = password; // This will trigger the pre-save hash
+        existingUser.name = name; // Update name if provided
+        await existingUser.save();
+        
+        // Generate token
+        const token = generateToken(existingUser._id);
+        
+        // Remove password from response
+        const userResponse = {
+          id: existingUser._id,
+          name: existingUser.name,
+          email: existingUser.email,
+          role: existingUser.role,
+          avatar: existingUser.avatar,
+          isVerified: existingUser.isVerified,
+          joinedDate: existingUser.joinedDate
+        };
+
+        return res.json({ 
+          success: true, 
+          message: 'User account updated successfully',
+          user: userResponse,
+          accessToken: token
+        });
+      }
+      
       return res.status(400).json({ 
         success: false, 
         message: 'User with this email already exists' 

@@ -56,7 +56,7 @@ export function ProfileSettings() {
   
   // Profile form state
   const [profileData, setProfileData] = useState({
-    name: user?.name || `${user?.first_name || ''} ${user?.last_name || ''}`.trim() || '',
+    name: user?.name || '',
     email: user?.email || '',
     phone: user?.phone || '+1 (555) 123-4567',
     location: user?.location || 'San Francisco, CA',
@@ -106,7 +106,7 @@ export function ProfileSettings() {
   const handleCancelEdit = () => {
     // Reset to original values
     setProfileData({
-      name: user?.name || `${user?.first_name || ''} ${user?.last_name || ''}`.trim() || '',
+      name: user?.name || '',
       email: user?.email || '',
       phone: user?.phone || '+1 (555) 123-4567',
       location: user?.location || 'San Francisco, CA',

@@ -3,17 +3,20 @@ import { apiClient, API_ENDPOINTS } from './api';
 export interface User {
   id: string;
   email: string;
-  first_name: string;
-  last_name: string;
+  name: string;
   role: 'user' | 'admin';
-  status: 'active' | 'inactive' | 'suspended';
+  isActive: boolean;
   hourly_rate?: number;
-  total_earned?: number;
-  tasks_completed?: number;
+  totalEarnings?: number;
+  completedTasks?: number;
   password?: string; // Only returned on creation
   payment_method?: PaymentMethod;
-  created_at: string;
-  last_active?: string;
+  createdAt: string;
+  lastLoginDate?: string;
+  avatar?: string;
+  bio?: string;
+  skills?: string[];
+  isVerified?: boolean;
 }
 
 export interface PaymentMethod {
@@ -38,81 +41,75 @@ function getInitialUsers(): User[] {
     {
       id: '1',
       email: 'demo@inferaai.com',
-      first_name: 'Demo',
-      last_name: 'User',
+      name: 'Demo User',
       role: 'user',
-      status: 'active',
+      isActive: true,
       hourly_rate: 45,
-      total_earned: 2847.50,
-      tasks_completed: 23,
-      created_at: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
-      last_active: new Date().toISOString(),
+      totalEarnings: 2847.50,
+      completedTasks: 23,
+      createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+      lastLoginDate: new Date().toISOString(),
       password: 'Demo123!',
     },
     {
       id: '2',
       email: 'sarah.johnson@example.com',
-      first_name: 'Sarah',
-      last_name: 'Johnson',
+      name: 'Sarah Johnson',
       role: 'user',
-      status: 'active',
+      isActive: true,
       hourly_rate: 50,
-      total_earned: 4250.00,
-      tasks_completed: 31,
-      created_at: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000).toISOString(),
-      last_active: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+      totalEarnings: 4250.00,
+      completedTasks: 31,
+      createdAt: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000).toISOString(),
+      lastLoginDate: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
     },
     {
       id: '3',
       email: 'michael.chen@example.com',
-      first_name: 'Michael',
-      last_name: 'Chen',
+      name: 'Michael Chen',
       role: 'user',
-      status: 'active',
+      isActive: true,
       hourly_rate: 55,
-      total_earned: 5890.00,
-      tasks_completed: 42,
-      created_at: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString(),
-      last_active: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
+      totalEarnings: 5890.00,
+      completedTasks: 42,
+      createdAt: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString(),
+      lastLoginDate: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
     },
     {
       id: '4',
       email: 'emily.rodriguez@example.com',
-      first_name: 'Emily',
-      last_name: 'Rodriguez',
+      name: 'Emily Rodriguez',
       role: 'admin',
-      status: 'active',
+      isActive: true,
       hourly_rate: 60,
-      total_earned: 3420.00,
-      tasks_completed: 18,
-      created_at: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString(),
-      last_active: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
+      totalEarnings: 3420.00,
+      completedTasks: 18,
+      createdAt: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString(),
+      lastLoginDate: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
     },
     {
       id: '5',
       email: 'david.patel@example.com',
-      first_name: 'David',
-      last_name: 'Patel',
+      name: 'David Patel',
       role: 'user',
-      status: 'inactive',
+      isActive: false,
       hourly_rate: 40,
-      total_earned: 1280.00,
-      tasks_completed: 8,
-      created_at: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
-      last_active: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
+      totalEarnings: 1280.00,
+      completedTasks: 8,
+      createdAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
+      lastLoginDate: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
     },
     {
       id: '6',
       email: 'admin@inferaai.com',
-      first_name: 'Admin',
-      last_name: 'User',
+      name: 'Admin User',
       role: 'admin',
-      status: 'active',
+      isActive: true,
       hourly_rate: 0,
-      total_earned: 0,
-      tasks_completed: 0,
-      created_at: new Date(Date.now() - 180 * 24 * 60 * 60 * 1000).toISOString(),
-      last_active: new Date().toISOString(),
+      totalEarnings: 0,
+      completedTasks: 0,
+      createdAt: new Date(Date.now() - 180 * 24 * 60 * 60 * 1000).toISOString(),
+      lastLoginDate: new Date().toISOString(),
       password: 'Admin123!',
     },
   ];
@@ -142,10 +139,33 @@ function saveUsers(users: User[]): void {
 
 export async function getUsers(accessToken?: string): Promise<User[]> {
   try {
+    console.log('👥 Fetching users from backend...');
     const response = await apiClient.get(API_ENDPOINTS.USERS.LIST, accessToken);
-    return response.users || [];
+    console.log('👥 Backend users response:', response);
+    
+    if (response.success && response.users) {
+      console.log('👥 Users from backend:', response.users);
+      return response.users.map((user: any) => ({
+        id: user._id || user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        isActive: user.isActive !== false, // Default to true if undefined
+        hourly_rate: user.hourly_rate || user.hourlyRate,
+        totalEarnings: user.totalEarnings,
+        completedTasks: user.completedTasks,
+        createdAt: user.createdAt,
+        lastLoginDate: user.lastLoginDate,
+        avatar: user.avatar,
+        bio: user.bio,
+        skills: user.skills,
+        isVerified: user.isVerified,
+      }));
+    }
+    
+    return response.users || response || [];
   } catch (error: any) {
-    console.log('Backend API error:', error.message);
+    console.error('👥 Backend API error:', error.message);
     console.log('Falling back to local storage');
   }
 
@@ -155,8 +175,7 @@ export async function getUsers(accessToken?: string): Promise<User[]> {
 
 export async function createUser(userData: {
   email: string;
-  first_name: string;
-  last_name: string;
+  name: string;
   role: 'user' | 'admin';
   hourly_rate?: number;
   password?: string;
@@ -181,15 +200,14 @@ export async function createUser(userData: {
   const newUser: User = {
     id: `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
     email: userData.email,
-    first_name: userData.first_name,
-    last_name: userData.last_name,
+    name: userData.name,
     role: userData.role,
-    status: 'active',
+    isActive: true,
     hourly_rate: userData.hourly_rate,
-    total_earned: 0,
-    tasks_completed: 0,
-    created_at: new Date().toISOString(),
-    last_active: new Date().toISOString(),
+    totalEarnings: 0,
+    completedTasks: 0,
+    createdAt: new Date().toISOString(),
+    lastLoginDate: new Date().toISOString(),
     password, // Store password for authentication
   };
 
@@ -203,9 +221,9 @@ export async function createUser(userData: {
       id: newUser.id,
       email: newUser.email,
       password: password,
-      name: `${newUser.first_name} ${newUser.last_name}`,
+      name: newUser.name,
       role: newUser.role,
-      joinedDate: newUser.created_at,
+      joinedDate: newUser.createdAt,
     });
     localStorage.setItem('inferaai_local_users', JSON.stringify(authUsers));
   } catch (error) {
@@ -247,7 +265,7 @@ export async function updateUser(userId: string, updates: Partial<User>, accessT
       authUsers[authUserIndex] = {
         ...authUsers[authUserIndex],
         email: users[userIndex].email,
-        name: `${users[userIndex].first_name} ${users[userIndex].last_name}`,
+        name: users[userIndex].name,
         role: users[userIndex].role,
       };
       localStorage.setItem('inferaai_local_users', JSON.stringify(authUsers));

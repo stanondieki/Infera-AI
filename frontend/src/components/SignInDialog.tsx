@@ -8,6 +8,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { useAuth } from "../utils/auth";
 import { motion, AnimatePresence } from "framer-motion";
+import { User } from "lucide-react";
 import { Mail, Lock, ArrowRight, Eye, EyeOff, Sparkles, Shield, CheckCircle } from "lucide-react";
 import { Separator } from "./ui/separator";
 import { Logo } from "./Logo";
@@ -17,18 +18,54 @@ interface SignInDialogProps {
   onOpenChange: (open: boolean) => void;
   onSignInSuccess?: (user?: any) => void;
   onSwitchToApply?: () => void;
+  isAdminSignIn?: boolean;
 }
 
-export function SignInDialog({ open, onOpenChange, onSignInSuccess, onSwitchToApply }: SignInDialogProps) {
-  const { signIn } = useAuth();
+export function SignInDialog({ open, onOpenChange, onSignInSuccess, onSwitchToApply, isAdminSignIn = false }: SignInDialogProps) {
+  const { signIn, signUp } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  const [isRegistering, setIsRegistering] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (isRegistering) {
+      // Registration validation
+      if (!name || !email || !password || !confirmPassword) {
+        toast.error("Please fill in all fields");
+        return;
+      }
+      if (password !== confirmPassword) {
+        toast.error("Passwords do not match");
+        return;
+      }
+      if (password.length < 6) {
+        toast.error("Password must be at least 6 characters");
+        return;
+      }
+      
+      setLoading(true);
+      try {
+        await signUp(email, password, name);
+        toast.success("Account created successfully! You are now signed in.");
+        onOpenChange(false);
+        if (onSignInSuccess) onSignInSuccess();
+      } catch (error: any) {
+        toast.error(error.message || "Failed to create account");
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
+    // Sign in validation
     if (!email || !password) {
       toast.error("Please fill in all fields");
       return;
@@ -38,9 +75,13 @@ export function SignInDialog({ open, onOpenChange, onSignInSuccess, onSwitchToAp
     try {
       const userData = await signIn(email, password);
       
-      // Show appropriate welcome message based on role
-      if (userData?.role === 'admin') {
-        toast.success("Welcome back, Admin! Redirecting to admin panel...");
+      // Show appropriate welcome message based on role and context
+      if (isAdminSignIn && userData?.role === 'admin') {
+        toast.success("Admin access granted! Redirecting to admin panel...");
+      } else if (isAdminSignIn && userData?.role !== 'admin') {
+        toast.error("Access denied. Admin privileges required.");
+      } else if (userData?.role === 'admin') {
+        toast.success("Welcome back, Admin! Redirecting to dashboard...");
       } else {
         toast.success("Welcome back! Redirecting to your dashboard...");
       }
@@ -99,11 +140,29 @@ export function SignInDialog({ open, onOpenChange, onSignInSuccess, onSwitchToAp
               
               <div className="relative z-10 text-center">
                 <div className="flex justify-center mb-3">
-                  <Logo variant="white" size="sm" animated={false} />
+                  {isAdminSignIn ? (
+                    <div className="bg-white/20 backdrop-blur-sm rounded-full p-3">
+                      <Shield className="h-6 w-6 text-white" />
+                    </div>
+                  ) : (
+                    <Logo variant="white" size="sm" animated={false} />
+                  )}
                 </div>
-                <h2 className="text-xl font-semibold mb-1">Welcome Back</h2>
+                <h2 className="text-xl font-semibold mb-1">
+                  {isAdminSignIn 
+                    ? "Admin Access Required" 
+                    : isRegistering 
+                      ? "Create Your Account"
+                      : "Welcome Back"
+                  }
+                </h2>
                 <p className="text-blue-100 text-sm">
-                  Sign in to continue to your dashboard
+                  {isAdminSignIn 
+                    ? "Sign in with admin credentials to access the admin panel"
+                    : isRegistering
+                      ? "Join Infera AI and start your journey"
+                      : "Sign in to continue to your dashboard"
+                  }
                 </p>
               </div>
             </div>
@@ -111,18 +170,19 @@ export function SignInDialog({ open, onOpenChange, onSignInSuccess, onSwitchToAp
             {/* Form Content */}
             <div className="p-6">
               <form onSubmit={handleSubmit} className="space-y-4">
-                {/* Google Sign In */}
-                <motion.div
-                  whileHover={{ scale: 1.01 }}
-                  whileTap={{ scale: 0.99 }}
-                >
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full h-11 border-2 hover:bg-gray-50 transition-all"
-                    onClick={handleGoogleSignIn}
+                {/* Google Sign In - Only for Sign In */}
+                {!isRegistering && (
+                  <motion.div
+                    whileHover={{ scale: 1.01 }}
+                    whileTap={{ scale: 0.99 }}
                   >
-                  <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full h-11 border-2 hover:bg-gray-50 transition-all"
+                      onClick={handleGoogleSignIn}
+                    >
+                    <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24">
                     <path
                       fill="#4285F4"
                       d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -139,17 +199,38 @@ export function SignInDialog({ open, onOpenChange, onSignInSuccess, onSwitchToAp
                       fill="#EA4335"
                       d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
                     />
-                  </svg>
-                  Continue with Google
-                </Button>
-              </motion.div>
+                    </svg>
+                    Continue with Google
+                  </Button>
+                </motion.div>
+                )}
 
-                <div className="relative">
-                  <Separator />
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="bg-white px-3 text-xs text-gray-500">Or continue with email</span>
+                {!isRegistering && (
+                  <div className="relative">
+                    <Separator />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="bg-white px-3 text-xs text-gray-500">Or continue with email</span>
+                    </div>
                   </div>
-                </div>
+                )}
+
+                {/* Admin Credentials Helper */}
+                {isAdminSignIn && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    className="bg-blue-50 border border-blue-200 rounded-lg p-3"
+                  >
+                    <div className="flex items-center gap-2 text-blue-800">
+                      <Shield className="h-4 w-4" />
+                      <span className="text-sm font-medium">Admin Credentials</span>
+                    </div>
+                    <div className="mt-2 text-xs text-blue-700 space-y-1">
+                      <div><strong>Email:</strong> admin@inferaai.com</div>
+                      <div><strong>Password:</strong> Admin123!</div>
+                    </div>
+                  </motion.div>
+                )}
 
                 {/* Email Field */}
                 <div className="space-y-1">
@@ -169,6 +250,27 @@ export function SignInDialog({ open, onOpenChange, onSignInSuccess, onSwitchToAp
                     />
                   </div>
                 </div>
+
+                {/* Name Field - Only for Registration */}
+                {isRegistering && (
+                  <div className="space-y-1">
+                    <Label htmlFor="name" className="text-gray-700 text-sm">
+                      Full Name
+                    </Label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <Input
+                        id="name"
+                        type="text"
+                        placeholder="Your full name"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        className="pl-9 h-10 border focus:border-blue-500 transition-colors"
+                        required
+                      />
+                    </div>
+                  </div>
+                )}
 
                 {/* Password Field */}
                 <div className="space-y-1">
@@ -209,19 +311,53 @@ export function SignInDialog({ open, onOpenChange, onSignInSuccess, onSwitchToAp
                   </div>
                 </div>
 
-                {/* Remember Me */}
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    id="remember"
-                    checked={rememberMe}
-                    onChange={(e) => setRememberMe(e.target.checked)}
-                    className="h-3 w-3 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  />
-                  <label htmlFor="remember" className="ml-2 text-xs text-gray-600">
-                    Keep me signed in
-                  </label>
-                </div>                {/* Submit Button */}
+                {/* Confirm Password Field - Only for Registration */}
+                {isRegistering && (
+                  <div className="space-y-1">
+                    <Label htmlFor="confirmPassword" className="text-gray-700 text-sm">
+                      Confirm Password
+                    </Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <Input
+                        id="confirmPassword"
+                        type={showConfirmPassword ? "text" : "password"}
+                        placeholder="••••••••"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        className="pl-9 pr-9 h-10 border focus:border-blue-500 transition-colors"
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        {showConfirmPassword ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Remember Me - Only for Sign In */}
+                {!isRegistering && (
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="remember"
+                      checked={rememberMe}
+                      onChange={(e) => setRememberMe(e.target.checked)}
+                      className="h-3 w-3 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <label htmlFor="remember" className="ml-2 text-xs text-gray-600">
+                      Keep me signed in
+                    </label>
+                  </div>
+                )}                {/* Submit Button */}
                 <motion.div
                   whileHover={{ scale: 1.01 }}
                   whileTap={{ scale: 0.99 }}
@@ -238,11 +374,11 @@ export function SignInDialog({ open, onOpenChange, onSignInSuccess, onSwitchToAp
                           transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
                           className="h-4 w-4 border-2 border-white border-t-transparent rounded-full"
                         />
-                        Signing in...
+                        {isRegistering ? 'Creating account...' : 'Signing in...'}
                       </span>
                     ) : (
                       <span className="flex items-center gap-2">
-                        Sign In
+                        {isRegistering ? 'Create Account' : 'Sign In'}
                         <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
                       </span>
                     )}
@@ -253,19 +389,46 @@ export function SignInDialog({ open, onOpenChange, onSignInSuccess, onSwitchToAp
               {/* Footer */}
               <div className="mt-4 pt-4 border-t">
                 <p className="text-center text-xs text-gray-600">
-                  Don't have an account?{" "}
-                  <button
-                    type="button"
-                    className="text-blue-600 hover:text-blue-700 hover:underline"
-                    onClick={() => {
-                      onOpenChange(false);
-                      if (onSwitchToApply) {
-                        setTimeout(() => onSwitchToApply(), 300);
-                      }
-                    }}
-                  >
-                    Apply now
-                  </button>
+                  {isRegistering ? (
+                    <>
+                      Already have an account?{" "}
+                      <button
+                        type="button"
+                        className="text-blue-600 hover:text-blue-700 hover:underline"
+                        onClick={() => {
+                          setIsRegistering(false);
+                          setName("");
+                          setConfirmPassword("");
+                        }}
+                      >
+                        Sign in
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      Don't have an account?{" "}
+                      <button
+                        type="button"
+                        className="text-blue-600 hover:text-blue-700 hover:underline"
+                        onClick={() => setIsRegistering(true)}
+                      >
+                        Create account
+                      </button>
+                      {" | "}
+                      <button
+                        type="button"
+                        className="text-blue-600 hover:text-blue-700 hover:underline"
+                        onClick={() => {
+                          onOpenChange(false);
+                          if (onSwitchToApply) {
+                            setTimeout(() => onSwitchToApply(), 300);
+                          }
+                        }}
+                      >
+                        Apply now
+                      </button>
+                    </>
+                  )}
                 </p>
 
                 {/* Trust Indicators */}

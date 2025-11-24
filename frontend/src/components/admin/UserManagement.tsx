@@ -59,8 +59,7 @@ export function UserManagement({ users, onRefresh }: UserManagementProps) {
 
   const [formData, setFormData] = useState({
     email: '',
-    first_name: '',
-    last_name: '',
+    name: '',
     role: 'user' as 'user' | 'admin',
     hourly_rate: '',
     status: 'active' as 'active' | 'inactive' | 'suspended',
@@ -68,11 +67,10 @@ export function UserManagement({ users, onRefresh }: UserManagementProps) {
 
   const filteredUsers = users.filter(user => {
     const matchesSearch = 
-      user.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.last_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchTerm.toLowerCase());
+      user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.email?.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesStatus = statusFilter === 'all' || user.status === statusFilter;
+    const matchesStatus = statusFilter === 'all' || (user.isActive ? 'active' : 'inactive') === statusFilter;
     const matchesRole = roleFilter === 'all' || user.role === roleFilter;
     
     return matchesSearch && matchesStatus && matchesRole;
@@ -80,9 +78,9 @@ export function UserManagement({ users, onRefresh }: UserManagementProps) {
 
   const stats = {
     total: users.length,
-    active: users.filter(u => u.status === 'active').length,
+    active: users.filter(u => u.isActive).length,
     admins: users.filter(u => u.role === 'admin').length,
-    avgEarnings: users.reduce((sum, u) => sum + (u.total_earned || 0), 0) / (users.length || 1),
+    avgEarnings: users.reduce((sum, u) => sum + (u.totalEarnings || 0), 0) / (users.length || 1),
   };
 
   const handleCreateUser = async () => {
@@ -90,8 +88,7 @@ export function UserManagement({ users, onRefresh }: UserManagementProps) {
       const password = useCustomPassword ? customPassword : generatePassword();
       const result = await createUser({
         email: formData.email,
-        first_name: formData.first_name,
-        last_name: formData.last_name,
+        name: formData.name,
         role: formData.role,
         hourly_rate: formData.hourly_rate ? parseFloat(formData.hourly_rate) : undefined,
         password: password,
@@ -115,10 +112,9 @@ export function UserManagement({ users, onRefresh }: UserManagementProps) {
 
     try {
       await updateUser(selectedUser.id, {
-        first_name: formData.first_name,
-        last_name: formData.last_name,
+        name: formData.name,
         role: formData.role,
-        status: formData.status,
+        isActive: formData.status === 'active',
         hourly_rate: formData.hourly_rate ? parseFloat(formData.hourly_rate) : undefined,
       });
 
@@ -133,7 +129,7 @@ export function UserManagement({ users, onRefresh }: UserManagementProps) {
   };
 
   const handleDeleteUser = async (user: User) => {
-    if (!confirm(`Are you sure you want to delete ${user.first_name} ${user.last_name}?`)) return;
+    if (!confirm(`Are you sure you want to delete ${user.name}?`)) return;
 
     try {
       await deleteUser(user.id);
@@ -181,8 +177,7 @@ export function UserManagement({ users, onRefresh }: UserManagementProps) {
   const resetForm = () => {
     setFormData({
       email: '',
-      first_name: '',
-      last_name: '',
+      name: '',
       role: 'user',
       hourly_rate: '',
       status: 'active',
@@ -193,11 +188,10 @@ export function UserManagement({ users, onRefresh }: UserManagementProps) {
     setSelectedUser(user);
     setFormData({
       email: user.email,
-      first_name: user.first_name,
-      last_name: user.last_name,
+      name: user.name,
       role: user.role,
       hourly_rate: user.hourly_rate?.toString() || '',
-      status: user.status,
+      status: user.isActive ? 'active' : 'inactive',
     });
     setIsEditing(true);
   };
@@ -250,8 +244,12 @@ export function UserManagement({ users, onRefresh }: UserManagementProps) {
         };
   };
 
-  const getInitials = (firstName: string, lastName: string) => {
-    return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
+  const getInitials = (name: string) => {
+    const names = name.trim().split(' ');
+    if (names.length === 1) {
+      return names[0].charAt(0).toUpperCase();
+    }
+    return `${names[0].charAt(0)}${names[names.length - 1].charAt(0)}`.toUpperCase();
   };
 
   return (
@@ -406,7 +404,7 @@ export function UserManagement({ users, onRefresh }: UserManagementProps) {
             </motion.div>
           ) : (
             filteredUsers.map((user, index) => {
-              const statusConfig = getStatusConfig(user.status);
+              const statusConfig = getStatusConfig(user.isActive ? 'active' : 'inactive');
               const roleConfig = getRoleConfig(user.role);
               const StatusIcon = statusConfig.icon;
               const RoleIcon = roleConfig.icon;
@@ -427,7 +425,7 @@ export function UserManagement({ users, onRefresh }: UserManagementProps) {
                         {/* Avatar */}
                         <div className="relative">
                           <div className={`w-20 h-20 rounded-2xl bg-gradient-to-br ${roleConfig.gradient} flex items-center justify-center text-white shadow-lg`}>
-                            <span className="text-2xl">{getInitials(user.first_name, user.last_name)}</span>
+                            <span className="text-2xl">{getInitials(user.name)}</span>
                           </div>
                           <div className={`absolute -bottom-2 -right-2 rounded-full p-2 bg-gradient-to-br ${statusConfig.gradient} shadow-lg`}>
                             <StatusIcon className="h-4 w-4 text-white" />
@@ -439,7 +437,7 @@ export function UserManagement({ users, onRefresh }: UserManagementProps) {
                           <div className="flex items-start justify-between gap-4 mb-3">
                             <div>
                               <h3 className="text-gray-900 mb-2 flex items-center gap-2">
-                                {user.first_name} {user.last_name}
+                                {user.name}
                                 {user.role === 'admin' && (
                                   <Crown className="h-5 w-5 text-purple-500" />
                                 )}
@@ -450,7 +448,7 @@ export function UserManagement({ users, onRefresh }: UserManagementProps) {
                                   {user.role}
                                 </Badge>
                                 <Badge className={statusConfig.color}>
-                                  {user.status}
+                                  {user.isActive ? 'Active' : 'Inactive'}
                                 </Badge>
                               </div>
                             </div>
@@ -505,25 +503,25 @@ export function UserManagement({ users, onRefresh }: UserManagementProps) {
                                   <CheckCircle className="h-4 w-4 text-blue-500" />
                                   Tasks Completed
                                 </span>
-                                <span>{user.tasks_completed || 0}</span>
+                                <span>{user.completedTasks || 0}</span>
                               </div>
                               <div className="flex items-center justify-between text-gray-600">
                                 <span className="flex items-center gap-2">
                                   <Award className="h-4 w-4 text-purple-500" />
                                   Total Earned
                                 </span>
-                                <span className="text-green-600">${(user.total_earned || 0).toFixed(2)}</span>
+                                <span className="text-green-600">${(user.totalEarnings || 0).toFixed(2)}</span>
                               </div>
                             </div>
                           </div>
 
-                          {(user.tasks_completed || 0) > 0 && (
+                          {(user.completedTasks || 0) > 0 && (
                             <div className="mt-4">
                               <div className="flex items-center justify-between text-sm text-gray-600 mb-2">
                                 <span>Performance</span>
-                                <span>{Math.min(100, (user.tasks_completed || 0) * 10)}%</span>
+                                <span>{Math.min(100, (user.completedTasks || 0) * 10)}%</span>
                               </div>
-                              <Progress value={Math.min(100, (user.tasks_completed || 0) * 10)} className="h-2" />
+                              <Progress value={Math.min(100, (user.completedTasks || 0) * 10)} className="h-2" />
                             </div>
                           )}
                         </div>
@@ -588,23 +586,15 @@ export function UserManagement({ users, onRefresh }: UserManagementProps) {
 
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
-              <div>
+              <div className="col-span-2">
                 <Label className="flex items-center gap-2">
                   <UserCheck className="h-4 w-4" />
-                  First Name
+                  Full Name
                 </Label>
                 <Input
-                  value={formData.first_name}
-                  onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
-                  placeholder="John"
-                />
-              </div>
-              <div>
-                <Label>Last Name</Label>
-                <Input
-                  value={formData.last_name}
-                  onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
-                  placeholder="Doe"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="John Doe"
                 />
               </div>
             </div>
@@ -808,11 +798,11 @@ export function UserManagement({ users, onRefresh }: UserManagementProps) {
               <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-4 rounded-lg border-2 border-blue-200">
                 <div className="flex items-center gap-3 mb-4">
                   <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${getRoleConfig(viewCredentialsUser.role).gradient} flex items-center justify-center text-white`}>
-                    <span className="text-lg">{getInitials(viewCredentialsUser.first_name, viewCredentialsUser.last_name)}</span>
+                    <span className="text-lg">{getInitials(viewCredentialsUser.name)}</span>
                   </div>
                   <div>
                     <h4 className="text-gray-900">
-                      {viewCredentialsUser.first_name} {viewCredentialsUser.last_name}
+                      {viewCredentialsUser.name}
                     </h4>
                     <p className="text-gray-600 text-sm">{viewCredentialsUser.email}</p>
                   </div>

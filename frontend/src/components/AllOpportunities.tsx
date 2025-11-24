@@ -59,9 +59,20 @@ export function AllOpportunities({ onBack, onSignInClick, onApplyClick }: AllOpp
       return;
     }
 
-    // Trigger the apply dialog from parent component
-    if (onApplyClick) {
-      onApplyClick();
+    setApplying(opportunity._id || opportunity.id);
+    
+    try {
+      // Simulate application process for signed-in users
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      toast.success(`Successfully applied to: ${opportunity.title}`, {
+        description: "Your application has been submitted and is under review.",
+        duration: 5000,
+      });
+    } catch (error) {
+      toast.error('Failed to submit application. Please try again.');
+    } finally {
+      setApplying(null);
     }
   };
 
@@ -70,7 +81,7 @@ export function AllOpportunities({ onBack, onSignInClick, onApplyClick }: AllOpp
       searchQuery === '' ||
       opp.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       opp.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      opp.skills.some((skill) => skill.toLowerCase().includes(searchQuery.toLowerCase()));
+      (opp.requiredSkills || opp.skills || []).some((skill) => skill.toLowerCase().includes(searchQuery.toLowerCase()));
     return matchesSearch;
   });
 
@@ -142,11 +153,13 @@ export function AllOpportunities({ onBack, onSignInClick, onApplyClick }: AllOpp
                   transition={{ duration: 0.6, delay: 0.2 }}
                 >
                   <h1 className="text-4xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-white to-blue-100 bg-clip-text text-transparent">
-                    All Opportunities
+                    {user ? 'Available Opportunities' : 'All Opportunities'}
                   </h1>
                   <p className="text-xl text-blue-100 mb-8 leading-relaxed">
-                    Explore all available AI training projects and find the perfect match for your skills. 
-                    Join a global community of experts contributing to the future of AI.
+                    {user 
+                      ? `Welcome back, ${user.name}! Browse and apply to opportunities that match your expertise.`
+                      : 'Explore all available AI training projects and find the perfect match for your skills. Join a global community of experts contributing to the future of AI.'
+                    }
                   </p>
                 </motion.div>
                 
@@ -345,12 +358,12 @@ export function AllOpportunities({ onBack, onSignInClick, onApplyClick }: AllOpp
           <motion.div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 relative z-0" layout>
             {filteredOpportunities.map((opp, index) => (
               <motion.div
-                key={opp.id}
+                key={opp._id || opp.id || `opp-${index}`}
                 layout
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.05 }}
-                onHoverStart={() => setHoveredCard(opp.id)}
+                onHoverStart={() => setHoveredCard(opp._id || opp.id)}
                 onHoverEnd={() => setHoveredCard(null)}
                 whileHover={{ y: -5, zIndex: 50 }}
                 className="relative z-10"
@@ -367,11 +380,14 @@ export function AllOpportunities({ onBack, onSignInClick, onApplyClick }: AllOpp
                       <motion.span
                         className="text-blue-600 font-bold text-lg"
                         animate={{
-                          scale: hoveredCard === opp.id ? 1.1 : 1,
+                          scale: hoveredCard === (opp._id || opp.id) ? 1.1 : 1,
                         }}
                         transition={{ duration: 0.2 }}
                       >
-                        {opp.rate}
+                        {opp.rate || 
+                         (opp.hourlyRate 
+                           ? `$${opp.hourlyRate.min}-${opp.hourlyRate.max}/${opp.hourlyRate.currency || 'hr'}` 
+                           : '$25-40/hr')}
                       </motion.span>
                     </div>
                     <h3 className="text-xl font-semibold text-gray-900 mb-3 line-clamp-2">{opp.title}</h3>
@@ -388,23 +404,37 @@ export function AllOpportunities({ onBack, onSignInClick, onApplyClick }: AllOpp
                     {opp.timeCommitment && (
                       <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
                         <p className="text-sm text-green-800">
-                          <span className="font-medium">Time Commitment:</span> {opp.timeCommitment}
+                          <span className="font-medium">Time Commitment:</span> {(() => {
+                            if (typeof opp.timeCommitment === 'string') {
+                              return opp.timeCommitment;
+                            }
+                            if (typeof opp.timeCommitment === 'object' && opp.timeCommitment) {
+                              const tc = opp.timeCommitment as any;
+                              if (tc.duration) {
+                                return tc.duration;
+                              }
+                              if (tc.hoursPerWeek) {
+                                return `${tc.hoursPerWeek.min || 10}-${tc.hoursPerWeek.max || 20} hrs/week`;
+                              }
+                            }
+                            return '10-20 hrs/week';
+                          })()}
                         </p>
                       </div>
                     )}
 
                     <div className="flex flex-wrap gap-2 mb-6">
-                      {opp.skills.slice(0, 4).map((skill) => (
+                      {(opp.requiredSkills || opp.skills || []).slice(0, 4).map((skill, skillIndex) => (
                         <span
-                          key={skill}
+                          key={`${skill}-${skillIndex}`}
                           className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm font-medium hover:bg-gray-200 transition-colors"
                         >
                           {skill}
                         </span>
                       ))}
-                      {opp.skills.length > 4 && (
+                      {(opp.requiredSkills || opp.skills || []).length > 4 && (
                         <span className="bg-gray-100 text-gray-500 px-3 py-1 rounded-full text-sm">
-                          +{opp.skills.length - 4} more
+                          +{(opp.requiredSkills || opp.skills || []).length - 4} more
                         </span>
                       )}
                     </div>
@@ -417,9 +447,9 @@ export function AllOpportunities({ onBack, onSignInClick, onApplyClick }: AllOpp
                       <Button
                         className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 transition-all duration-300 shadow-lg hover:shadow-xl relative z-40"
                         onClick={() => handleApply(opp)}
-                        disabled={applying === opp.id}
+                        disabled={applying === (opp._id || opp.id)}
                       >
-                        {applying === opp.id ? (
+                        {applying === (opp._id || opp.id) ? (
                           <motion.div
                             className="flex items-center gap-2"
                             initial={{ opacity: 0 }}

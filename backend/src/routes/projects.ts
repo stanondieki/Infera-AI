@@ -157,6 +157,90 @@ router.get('/:identifier', optionalAuth, async (req: AuthRequest, res: Response)
   }
 });
 
+// Get user's active projects based on their assigned tasks
+router.get('/active', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?._id;
+    
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'User authentication required'
+      });
+    }
+
+    // Import Task model here to avoid circular dependency
+    const { Task } = await import('../models');
+
+    // Get user's tasks and aggregate by project
+    const userTasks = await Task.find({ 
+      assignedTo: userId,
+      status: { $in: ['assigned', 'in_progress', 'completed', 'under_review'] }
+    }).populate('opportunityId');
+
+    // Group tasks by project and calculate project stats
+    const projectMap = new Map();
+    
+    for (const task of userTasks) {
+      // Cast opportunityId to any to handle populated object
+      const opportunity = task.opportunityId as any;
+      const projectId = opportunity?._id?.toString() || opportunity?.toString() || 'unknown';
+      const projectName = opportunity?.title || 'Unknown Project';
+      const projectCategory = opportunity?.category || 'General';
+      
+      if (!projectMap.has(projectId)) {
+        projectMap.set(projectId, {
+          id: projectId,
+          name: projectName,
+          description: opportunity?.description || 'Project description not available',
+          category: projectCategory,
+          total_tasks: 0,
+          completed_tasks: 0,
+          total_earnings: 0,
+          status: 'active',
+          priority: 'medium',
+          deadline: opportunity?.deadline || null,
+          tasks: []
+        });
+      }
+      
+      const project = projectMap.get(projectId);
+      project.total_tasks++;
+      project.tasks.push(task);
+      
+      // Count completed tasks
+      if (task.status === 'completed' || task.status === 'under_review') {
+        project.completed_tasks++;
+      }
+      
+      // Calculate earnings (use totalEarnings if available, otherwise calculate from hourlyRate)
+      if (task.totalEarnings) {
+        project.total_earnings += task.totalEarnings;
+      } else if (task.hourlyRate && task.actualHours) {
+        project.total_earnings += Math.floor(task.hourlyRate * task.actualHours);
+      } else if (task.hourlyRate && task.estimatedHours) {
+        project.total_earnings += Math.floor(task.hourlyRate * task.estimatedHours);
+      }
+    }
+
+    // Convert map to array and filter out empty projects
+    const projects = Array.from(projectMap.values()).filter(p => p.total_tasks > 0);
+
+    res.json({
+      success: true,
+      projects,
+      message: `Found ${projects.length} active projects`
+    });
+    
+  } catch (error) {
+    console.error('Get active projects error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while fetching active projects'
+    });
+  }
+});
+
 // Create new opportunity (Admin only)
 router.post('/', authenticateToken, requireAdmin, validateOpportunity, async (req: AuthRequest, res: Response) => {
   try {

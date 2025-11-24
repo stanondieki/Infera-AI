@@ -23,13 +23,16 @@ import {
   Eye,
   Edit,
   Save,
+  Maximize,
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Progress } from '../ui/progress';
+import { Label } from '../ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { TaskWorkspace } from './TaskWorkspace';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../ui/dialog';
 import { toast } from 'sonner';
 
 interface Task {
@@ -42,7 +45,7 @@ interface Task {
   difficulty: 'easy' | 'medium' | 'hard' | 'expert';
   estimated_time: number; // in minutes
   payment: number;
-  status: 'available' | 'in_progress' | 'submitted' | 'completed';
+  status: 'assigned' | 'available' | 'in_progress' | 'submitted' | 'completed';
   progress: number;
   deadline?: string;
   instructions: string;
@@ -64,222 +67,164 @@ interface Project {
   priority: 'high' | 'medium' | 'low';
 }
 
-export function ActiveProjects() {
+interface ActiveProjectsProps {
+  tasks?: any[];
+  onRefresh?: () => void;
+}
+
+export function ActiveProjects({ tasks: assignedTasks = [], onRefresh }: ActiveProjectsProps) {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [workspaceOpen, setWorkspaceOpen] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [activeFilter, setActiveFilter] = useState<'all' | 'in_progress' | 'available'>('all');
+  
+  console.log('📋 ActiveProjects received tasks:', assignedTasks);
 
-  // Sample data - in real app, fetch from backend
-  const [projects] = useState<Project[]>([
-    {
-      id: '1',
-      name: 'AI Training Dataset Annotation',
-      description: 'Label and annotate images for machine learning models',
-      category: 'AI Training',
-      total_tasks: 50,
-      completed_tasks: 23,
-      total_earnings: 1840,
-      status: 'active',
-      priority: 'high',
-    },
-    {
-      id: '2',
-      name: 'Content Moderation System',
-      description: 'Review and moderate user-generated content',
-      category: 'Content Moderation',
-      total_tasks: 120,
-      completed_tasks: 87,
-      total_earnings: 2610,
-      status: 'active',
-      priority: 'medium',
-    },
-    {
-      id: '3',
-      name: 'Data Validation & Quality Check',
-      description: 'Verify accuracy of data entries and flag errors',
-      category: 'Data Annotation',
-      total_tasks: 75,
-      completed_tasks: 45,
-      total_earnings: 1350,
-      status: 'active',
-      priority: 'high',
-    },
-  ]);
+  // Real projects data from backend
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loadingProjects, setLoadingProjects] = useState(true);
+  
+  // Real tasks data from backend
+  const [realTasks, setRealTasks] = useState<Task[]>([]);
+  const [loadingTasks, setLoadingTasks] = useState(true);
 
-  const [tasks] = useState<Task[]>([
-    {
-      id: 't1',
-      project_id: '1',
-      project_name: 'AI Training Dataset Annotation',
-      title: 'Image Classification - Batch #247',
-      description: 'Classify 100 images into predefined categories',
-      category: 'Image Classification',
-      difficulty: 'medium',
-      estimated_time: 45,
-      payment: 35,
-      status: 'in_progress',
-      progress: 65,
-      deadline: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
-      instructions: 'Review each image and select the most appropriate category. Ensure accuracy and consistency.',
-      requirements: [
-        'High attention to detail',
-        'Consistent categorization',
-        'Complete all 100 images',
-        'Submit within deadline',
-      ],
-      started_at: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
-      time_spent: 30,
-    },
-    {
-      id: 't2',
-      project_id: '1',
-      project_name: 'AI Training Dataset Annotation',
-      title: 'Object Detection - Batch #189',
-      description: 'Draw bounding boxes around objects in images',
-      category: 'Object Detection',
-      difficulty: 'hard',
-      estimated_time: 60,
-      payment: 50,
-      status: 'available',
-      progress: 0,
-      deadline: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
-      instructions: 'Accurately draw bounding boxes around all specified objects. Follow the annotation guidelines.',
-      requirements: [
-        'Precise bounding box placement',
-        'Label all visible objects',
-        'Follow annotation standards',
-        'Quality over speed',
-      ],
-    },
-    {
-      id: 't3',
-      project_id: '2',
-      project_name: 'Content Moderation System',
-      title: 'Review User Comments - Set #45',
-      description: 'Moderate 200 user comments for policy violations',
-      category: 'Content Moderation',
-      difficulty: 'easy',
-      estimated_time: 30,
-      payment: 25,
-      status: 'available',
-      progress: 0,
-      deadline: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-      instructions: 'Review each comment and flag any violations. Use the moderation guidelines provided.',
-      requirements: [
-        'Understand content policies',
-        'Consistent decision making',
-        'Flag all violations',
-        'Provide clear reasoning',
-      ],
-    },
-    {
-      id: 't4',
-      project_id: '3',
-      project_name: 'Data Validation & Quality Check',
-      title: 'Verify Customer Data - Batch #312',
-      description: 'Validate accuracy of customer information entries',
-      category: 'Data Validation',
-      difficulty: 'medium',
-      estimated_time: 40,
-      payment: 32,
-      status: 'in_progress',
-      progress: 25,
-      deadline: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
-      instructions: 'Check each data field for accuracy and completeness. Flag any errors or inconsistencies.',
-      requirements: [
-        'Attention to detail',
-        'Data accuracy verification',
-        'Error documentation',
-        'Complete all records',
-      ],
-      started_at: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
-      time_spent: 10,
-    },
-    {
-      id: 't5',
-      project_id: '2',
-      project_name: 'Content Moderation System',
-      title: 'Image Content Review - Batch #78',
-      description: 'Review images for inappropriate content',
-      category: 'Image Moderation',
-      difficulty: 'medium',
-      estimated_time: 35,
-      payment: 30,
-      status: 'available',
-      progress: 0,
-      deadline: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-      instructions: 'Review each image against community guidelines. Flag inappropriate content.',
-      requirements: [
-        'Know community guidelines',
-        'Accurate flagging',
-        'Consistent standards',
-        'Fast turnaround',
-      ],
-    },
-    {
-      id: 't6',
-      project_id: '1',
-      project_name: 'AI Training Dataset Annotation',
-      title: 'Text Annotation - Batch #156',
-      description: 'Annotate text data with sentiment labels',
-      category: 'Text Annotation',
-      difficulty: 'easy',
-      estimated_time: 25,
-      payment: 22,
-      status: 'available',
-      progress: 0,
-      deadline: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
-      instructions: 'Read each text and label it with the appropriate sentiment (positive, negative, neutral).',
-      requirements: [
-        'Good reading comprehension',
-        'Understand sentiment analysis',
-        'Consistent labeling',
-        'Complete all items',
-      ],
-    },
-    {
-      id: 't7',
-      project_id: '3',
-      project_name: 'Data Validation & Quality Check',
-      title: 'Email Validation - Batch #89',
-      description: 'Verify email addresses are properly formatted',
-      category: 'Data Validation',
-      difficulty: 'easy',
-      estimated_time: 20,
-      payment: 18,
-      status: 'available',
-      progress: 0,
-      deadline: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-      instructions: 'Check each email address for correct format and flag any errors.',
-      requirements: [
-        'Know email format standards',
-        'Attention to detail',
-        'Accuracy required',
-        'Fast processing',
-      ],
-    },
-    {
-      id: 't8',
-      project_id: '2',
-      project_name: 'Content Moderation System',
-      title: 'Social Media Post Review - Set #234',
-      description: 'Moderate social media posts for violations',
-      category: 'Content Moderation',
-      difficulty: 'medium',
-      estimated_time: 40,
-      payment: 35,
-      status: 'available',
-      progress: 0,
-      deadline: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
-      instructions: 'Review social media posts and apply moderation policies consistently.',
-      requirements: [
-        'Understand platform policies',
-        'Fair judgment',
-        'Document decisions',
-        'Handle sensitive content',
-      ],
-    },
-  ]);
+  useEffect(() => {
+    fetchActiveProjects();
+    fetchUserTasks();
+  }, []);
+
+  const fetchActiveProjects = async () => {
+    try {
+      let token = localStorage.getItem('accessToken');
+      
+      // Fallback to session-based token if direct token not found
+      if (!token) {
+        try {
+          const session = localStorage.getItem('infera_session');
+          if (session) {
+            const sessionData = JSON.parse(session);
+            token = sessionData.accessToken;
+          }
+        } catch (e) {
+          console.error('Error parsing session data:', e);
+        }
+      }
+      
+      if (!token) {
+        console.error('⚠️ No authentication token found - user needs to login');
+        setProjects([]);
+        setLoadingProjects(false);
+        return;
+      }
+      
+      console.log('🔑 Token found, fetching real projects...');
+      
+      const response = await fetch('http://localhost:5000/api/projects/active', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      console.log('📡 API Response status:', response.status);
+      const data = await response.json();
+      console.log('📋 API Response data:', data);
+      
+      if (data.success) {
+        console.log('✅ Fetched real projects:', data.projects);
+        setProjects(data.projects);
+      }
+      setLoadingProjects(false);
+    } catch (error) {
+      console.error('❌ Failed to fetch active projects:', error);
+      setProjects([]);
+      setLoadingProjects(false);
+    }
+  };
+
+  const fetchUserTasks = async () => {
+    try {
+      let token = localStorage.getItem('accessToken');
+      
+      // Fallback to session-based token if direct token not found
+      if (!token) {
+        try {
+          const session = localStorage.getItem('infera_session');
+          if (session) {
+            const sessionData = JSON.parse(session);
+            token = sessionData.accessToken;
+          }
+        } catch (e) {
+          console.error('Error parsing session data:', e);
+        }
+      }
+      
+      if (!token) {
+        console.error('⚠️ No authentication token found for tasks');
+        setLoadingTasks(false);
+        return;
+      }
+      
+      console.log('🔑 Fetching user tasks with token...');
+      
+      const response = await fetch('http://localhost:5000/api/tasks/my-tasks', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      console.log('📡 Tasks API Response status:', response.status);
+      const data = await response.json();
+      console.log('📋 Tasks API Response data:', data);
+      
+      if (data.success && data.tasks) {
+        // Transform backend tasks to match frontend interface with proper payment calculation
+        const transformedTasks = data.tasks.map((task: any) => {
+          // Calculate payment from multiple possible sources
+          let taskPayment = 0;
+          if (task.payment) {
+            taskPayment = task.payment;
+          } else if (task.totalEarnings) {
+            taskPayment = task.totalEarnings;
+          } else if (task.hourlyRate && task.estimatedHours) {
+            taskPayment = Math.floor(task.hourlyRate * task.estimatedHours);
+          } else if (task.hourlyRate) {
+            taskPayment = task.hourlyRate; // Default to 1 hour if no estimated hours
+          } else {
+            console.warn(`No payment info found for task ${task.title}, using hourlyRate: ${task.hourlyRate}`);
+            taskPayment = 0; // Don't default to arbitrary values in production
+          }
+
+          return {
+            id: task._id,
+            project_id: task.project_id || task.opportunityId || 'unknown',
+            project_name: task.project_name || 'Unknown Project',
+            title: task.title,
+            description: task.description,
+            category: task.category || task.type || 'General',
+            difficulty: task.difficulty || 'medium',
+            estimated_time: task.estimated_time || Math.floor(task.estimatedHours * 60) || 60,
+            payment: taskPayment,
+            status: task.status || 'assigned',
+            progress: task.progress || 0,
+            deadline: task.deadline,
+            instructions: task.instructions || 'Complete the assigned task according to guidelines.',
+            requirements: task.requirements || ['Follow task guidelines', 'Submit quality work'],
+            started_at: task.startedAt,
+            time_spent: task.actualHours ? Math.floor(task.actualHours * 60) : 0,
+          };
+        });
+        
+        console.log('✅ Transformed tasks:', transformedTasks);
+        setRealTasks(transformedTasks);
+      }
+      setLoadingTasks(false);
+    } catch (error) {
+      console.error('❌ Failed to fetch user tasks:', error);
+      setLoadingTasks(false);
+    }
+  };
+
+  // No mock data in production
 
   const getDifficultyColor = (difficulty: string) => {
     const colors = {
@@ -322,22 +267,41 @@ export function ActiveProjects() {
     setWorkspaceOpen(true);
   };
 
+  const handleViewDetails = (task: Task) => {
+    setSelectedTask(task);
+    setDetailsOpen(true);
+  };
+
   const handleTaskComplete = (taskId: string) => {
     toast.success('Task submitted successfully! Pending review.');
     setWorkspaceOpen(false);
     setSelectedTask(null);
   };
 
-  const filteredTasks = tasks.filter((task) => {
+  // Use only real data - no mock data in production
+  const allTasks = realTasks.length > 0 ? realTasks : (assignedTasks.length > 0 ? assignedTasks : []);
+  
+  const filteredTasks = allTasks.filter((task) => {
     if (activeFilter === 'all') return true;
     return task.status === activeFilter;
   });
 
+  // Calculate stats from the actual task data
+  const realActiveProjects = allTasks.filter((t) => t.status === 'assigned' || t.status === 'in_progress').length;
+  const realTasksInProgress = allTasks.filter((t) => t.status === 'in_progress').length;
+  const realTasksAvailable = allTasks.filter((t) => t.status === 'assigned' || t.status === 'available').length;
+
   const stats = {
-    total_active: projects.filter((p) => p.status === 'active').length,
-    tasks_in_progress: tasks.filter((t) => t.status === 'in_progress').length,
-    tasks_available: tasks.filter((t) => t.status === 'available').length,
-    total_earnings: projects.reduce((sum, p) => sum + p.total_earnings, 0),
+    total_active: realActiveProjects,
+    tasks_in_progress: realTasksInProgress,
+    tasks_available: realTasksAvailable,
+    total_earnings: allTasks.reduce((sum, task) => {
+      const payment = task.payment || 0;
+      if (payment === 0) {
+        console.warn(`Task ${task.title} has no payment value`);
+      }
+      return sum + payment;
+    }, 0),
   };
 
   const formatTimeRemaining = (deadline?: string) => {
@@ -353,6 +317,8 @@ export function ActiveProjects() {
 
   return (
     <div className="space-y-6">
+
+      
       {/* Header Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <motion.div
@@ -638,16 +604,17 @@ export function ActiveProjects() {
 
                       {/* Action Buttons */}
                       <div className="flex flex-col gap-2" onClick={(e) => e.stopPropagation()}>
-                        {task.status === 'available' && (
+                        {task.status === 'assigned' && (
                           <Button
                             onClick={(e) => {
                               e.stopPropagation();
                               handleStartTask(task);
                             }}
-                            className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600"
+                            className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 relative"
                           >
-                            <Play className="h-4 w-4 mr-2" />
-                            Start Task
+                            <Play className="h-4 w-4 mr-1" />
+                            <Maximize className="h-3 w-3 mr-2" />
+                            Start Task (Fullscreen)
                           </Button>
                         )}
                         {task.status === 'in_progress' && (
@@ -667,7 +634,7 @@ export function ActiveProjects() {
                           size="sm"
                           onClick={(e) => {
                             e.stopPropagation();
-                            toast.info('Task details feature coming soon!');
+                            handleViewDetails(task);
                           }}
                         >
                           <Eye className="h-4 w-4 mr-2" />
@@ -695,12 +662,131 @@ export function ActiveProjects() {
         </CardContent>
       </Card>
 
+      {/* Task Details Dialog */}
+      <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
+        <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              {selectedTask?.title}
+            </DialogTitle>
+            <DialogDescription>
+              {selectedTask?.project_name && `Part of ${selectedTask.project_name}`}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedTask && (
+            <div className="space-y-6">
+              {/* Task Overview */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-sm font-medium text-gray-700">Status</Label>
+                  <Badge className={`mt-1 ${getStatusColor(selectedTask.status)}`}>
+                    {selectedTask.status.replace('_', ' ')}
+                  </Badge>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium text-gray-700">Difficulty</Label>
+                  <Badge className={`mt-1 ${getDifficultyColor(selectedTask.difficulty)}`}>
+                    {selectedTask.difficulty}
+                  </Badge>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium text-gray-700">Payment</Label>
+                  <div className="text-lg font-semibold text-green-600 mt-1">
+                    ${selectedTask.payment || (selectedTask.estimated_time ? Math.floor(selectedTask.estimated_time / 60 * 25) : 25)}
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium text-gray-700">Estimated Time</Label>
+                  <div className="text-lg font-medium mt-1">
+                    ~{selectedTask.estimated_time ? Math.floor(selectedTask.estimated_time / 60) : 45} min
+                  </div>
+                </div>
+              </div>
+
+              {/* Progress */}
+              {selectedTask.progress > 0 && (
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <Label className="text-sm font-medium text-gray-700">Progress</Label>
+                    <span className="text-sm text-gray-600">{selectedTask.progress}%</span>
+                  </div>
+                  <Progress value={selectedTask.progress} className="w-full" />
+                </div>
+              )}
+
+              {/* Description */}
+              <div>
+                <Label className="text-sm font-medium text-gray-700">Description</Label>
+                <p className="mt-1 text-gray-600">{selectedTask.description}</p>
+              </div>
+
+              {/* Instructions */}
+              {selectedTask.instructions && (
+                <div>
+                  <Label className="text-sm font-medium text-gray-700">Instructions</Label>
+                  <p className="mt-1 text-gray-600">{selectedTask.instructions}</p>
+                </div>
+              )}
+
+              {/* Requirements */}
+              {selectedTask.requirements && selectedTask.requirements.length > 0 && (
+                <div>
+                  <Label className="text-sm font-medium text-gray-700">Requirements</Label>
+                  <ul className="mt-1 list-disc list-inside text-gray-600 space-y-1">
+                    {selectedTask.requirements.map((req, index) => (
+                      <li key={index}>{req}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Timeline */}
+              {selectedTask.deadline && (
+                <div>
+                  <Label className="text-sm font-medium text-gray-700">Deadline</Label>
+                  <div className="mt-1 flex items-center gap-2">
+                    <Calendar className="h-4 w-4 text-gray-500" />
+                    <span className="text-gray-600">
+                      {new Date(selectedTask.deadline).toLocaleDateString()}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setDetailsOpen(false)}
+            >
+              Close
+            </Button>
+            <Button
+              onClick={() => {
+                setDetailsOpen(false);
+                if (selectedTask) {
+                  handleStartTask(selectedTask);
+                }
+              }}
+              className="gap-2"
+            >
+              <Play className="h-4 w-4" />
+              {selectedTask?.status === 'assigned' ? 'Start Task' : 'Continue Task'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Task Workspace Dialog */}
       <TaskWorkspace
         open={workspaceOpen}
         onOpenChange={setWorkspaceOpen}
         task={selectedTask}
         onComplete={handleTaskComplete}
+        forceFullscreen={true}
       />
     </div>
   );

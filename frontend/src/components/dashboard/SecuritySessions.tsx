@@ -70,8 +70,20 @@ export function SecuritySessions() {
   const [deviceFilter, setDeviceFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
 
-  // Mock user ID - replace with actual user context
-  const userId = '1';
+  // Get user ID from auth context or localStorage
+  const getUserId = () => {
+    try {
+      const session = localStorage.getItem('infera_session');
+      if (session) {
+        const sessionData = JSON.parse(session);
+        return sessionData.user?.id || 'unknown';
+      }
+    } catch (e) {
+      console.error('Error getting user ID:', e);
+    }
+    return 'unknown';
+  };
+  const userId = getUserId();
 
   useEffect(() => {
     loadData();

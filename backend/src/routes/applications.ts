@@ -115,6 +115,70 @@ router.get('/status/:email', async (req: Request, res: Response) => {
   }
 });
 
+// Get user's own applications
+router.get('/my-applications', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const userEmail = req.user?.email;
+    
+    if (!userEmail) {
+      return res.status(400).json({
+        success: false,
+        message: 'User email not found'
+      });
+    }
+
+    const { 
+      status, 
+      page = 1, 
+      limit = 10,
+      sortBy = 'submittedAt',
+      sortOrder = 'desc'
+    } = req.query;
+
+    const query: any = { email: userEmail };
+    if (status && status !== 'all') {
+      query.status = status;
+    }
+
+    const sort: any = {};
+    sort[sortBy as string] = sortOrder === 'asc' ? 1 : -1;
+
+    const skip = (Number(page) - 1) * Number(limit);
+
+    const applications = await Application.find(query)
+      .sort(sort)
+      .skip(skip)
+      .limit(Number(limit));
+
+    const total = await Application.countDocuments(query);
+
+    res.json({
+      success: true,
+      applications: applications.map(app => ({
+        id: app._id,
+        opportunityId: null, // General applications, not for specific opportunities
+        opportunityTitle: 'Platform Application', // General application title
+        status: app.status,
+        appliedAt: app.submittedAt,
+        reviewedAt: app.reviewedAt,
+        feedback: app.reviewNotes || null
+      })),
+      pagination: {
+        page: Number(page),
+        limit: Number(limit),
+        total,
+        pages: Math.ceil(total / Number(limit))
+      }
+    });
+  } catch (error) {
+    console.error('Get user applications error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
 // Get all applications (Admin only)
 router.get('/', authenticateToken, requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
@@ -157,6 +221,50 @@ router.get('/', authenticateToken, requireAdmin, async (req: AuthRequest, res: R
     });
   } catch (error) {
     console.error('Get applications error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
+// Get user application statistics 
+router.get('/my-stats', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const userEmail = req.user?.email;
+    
+    if (!userEmail) {
+      return res.status(400).json({
+        success: false,
+        message: 'User email not found'
+      });
+    }
+
+    // Get user's applications
+    const applications = await Application.find({ email: userEmail });
+    
+    const stats = {
+      totalApplications: applications.length,
+      pendingApplications: applications.filter(app => app.status === 'pending').length,
+      reviewingApplications: applications.filter(app => app.status === 'reviewing').length,
+      approvedApplications: applications.filter(app => app.status === 'accepted').length,
+      rejectedApplications: applications.filter(app => app.status === 'rejected').length,
+    };
+
+    // Mock other stats for now (to be implemented when those features exist)
+    const dashboardStats = {
+      ...stats,
+      activeProjects: 0, // To be implemented with project tracking
+      completedTasks: 0, // To be implemented with task system
+      totalEarnings: 0,  // To be implemented with payment system
+    };
+
+    res.json({
+      success: true,
+      ...dashboardStats
+    });
+  } catch (error) {
+    console.error('Get user stats error:', error);
     res.status(500).json({
       success: false,
       message: 'Server error'

@@ -1,16 +1,48 @@
 import { apiClient, API_ENDPOINTS } from './api';
 
 export interface Opportunity {
+  // Backend fields
+  _id?: string;
   id: string;
   title: string;
   category: string;
-  rate: string;
   description: string;
-  skills: string[];
-  timeCommitment: string;
-  applicants: number;
-  rating: number;
+  
+  // Skills (backend uses requiredSkills)
+  skills?: string[];
+  requiredSkills?: string[];
+  preferredSkills?: string[];
+  
+  // Rate structure (backend uses hourlyRate object)
+  rate?: string;
+  hourlyRate?: {
+    min: number;
+    max: number;
+    currency: string;
+  };
+  
+  // Time commitment (backend uses object structure)
+  timeCommitment?: string | {
+    hoursPerWeek: {
+      min: number;
+      max: number;
+    };
+    duration?: string;
+  };
+  
+  // Applicant counts (backend uses different field names)
+  applicants?: number;
+  applications?: number;
+  currentApplicants?: number;
+  maxApplicants?: number;
+  
+  rating?: number;
   location: string;
+  status?: string;
+  priority?: string;
+  experienceLevel?: string;
+  
+  // Display fields
   badge?: string;
   badgeColor?: string;
   trending?: boolean;
@@ -20,6 +52,12 @@ export interface Opportunity {
   benefits?: string[];
   duration?: string;
   level?: 'entry' | 'intermediate' | 'advanced';
+  
+  // Backend timestamps
+  publishedAt?: string;
+  applicationDeadline?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 // Fallback hardcoded data for when API is unavailable

@@ -276,4 +276,104 @@ router.post('/debug/test-user', async (req: Request, res: Response) => {
   }
 });
 
+// Send friend invitation
+router.post('/invite', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const { email, referralCode, invitedBy } = req.body;
+    const userId = req.user?._id;
+
+    if (!email || !referralCode) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email and referral code are required'
+      });
+    }
+
+    // Check if email already exists
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({
+        success: false,
+        message: 'User with this email already exists'
+      });
+    }
+
+    // TODO: In production, implement actual email sending
+    // For now, we'll just log the invitation
+    console.log(`📧 Invitation sent to ${email} with referral code ${referralCode} by user ${userId}`);
+    
+    // Store invitation in user's referral data (extend User model if needed)
+    const inviter = await User.findById(userId);
+    if (inviter) {
+      // Add to a referrals array or separate Invitation model
+      // For now, we'll track it in memory or implement later
+    }
+
+    res.json({
+      success: true,
+      message: 'Invitation sent successfully',
+      data: {
+        email,
+        referralCode,
+        sentAt: new Date()
+      }
+    });
+
+  } catch (error) {
+    console.error('Send invitation error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to send invitation'
+    });
+  }
+});
+
+// Get referral statistics
+router.get('/referral-stats', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?._id;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'User authentication required'
+      });
+    }
+
+    // Calculate referral stats based on user's invitations
+    // TODO: Implement proper referral tracking with separate model
+    // For now, return calculated stats based on existing data
+    
+    const user = await User.findById(userId);
+    const userEmail = user?.email || '';
+    const referralCode = userEmail.split('@')[0].toUpperCase() + userId.toString().slice(-4);
+    
+    // Count users who joined with this referral code (implement when referral system is fully built)
+    // For demo purposes, calculate based on user activity
+    const userTasks = await Task.find({ assignedTo: userId, status: 'completed' });
+    const completedTasks = userTasks.length;
+    
+    // Simulate referral stats based on user activity (replace with real data)
+    const totalInvited = Math.floor(completedTasks / 5); // 1 invite per 5 completed tasks
+    const totalEarnings = totalInvited * 25; // $25 per successful referral
+
+    res.json({
+      success: true,
+      data: {
+        totalInvited,
+        totalEarnings,
+        referralCode,
+        activeReferrals: Math.floor(totalInvited * 0.8), // 80% conversion rate
+      }
+    });
+
+  } catch (error) {
+    console.error('Get referral stats error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get referral statistics'
+    });
+  }
+});
+
 export default router;

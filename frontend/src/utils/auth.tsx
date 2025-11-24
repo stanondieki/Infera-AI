@@ -1,16 +1,18 @@
+"use client";
+
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { API_CONFIG, API_ENDPOINTS, apiClient, buildApiUrl } from './api';
+import { apiClient, API_ENDPOINTS } from './api';
 
 interface User {
   id: string;
   email: string;
-  name?: string;
-  first_name?: string;
-  last_name?: string;
-  role?: string;
-  joinedDate?: string;
-  created_at?: string;
-  applications?: any[];
+  name: string;
+  role: 'user' | 'admin';
+  isActive?: boolean;
+  avatar?: string;
+  createdAt?: string;
+  
+  // Additional profile fields
   phone?: string;
   location?: string;
   bio?: string;
@@ -19,141 +21,164 @@ interface User {
   website?: string;
   timezone?: string;
   language?: string;
-  hourly_rate?: number;
-  total_earned?: number;
-  tasks_completed?: number;
+  skills?: string[];
+  languages?: string[];
+  github?: string;
+  linkedin?: string;
 }
 
 interface AuthContextType {
   user: User | null;
   accessToken: string | null;
   signIn: (email: string, password: string) => Promise<User>;
-  signUp: (email: string, password: string, name: string) => Promise<void>;
-  signOut: () => Promise<void>;
-  loading: boolean;
+  signUp: (email: string, password: string, name: string) => Promise<User>;
+  signOut: () => void;
+  isLoading: boolean;
+  isAuthenticated: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Session storage key
-const LOCAL_SESSION_KEY = 'inferaai_session';
+const SESSION_KEY = 'infera_session';
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
 
+  // Initialize auth state from storage
   useEffect(() => {
-    // Check for existing session on app load
-    const checkSession = () => {
+    const initAuth = () => {
       try {
-        const storedSession = localStorage.getItem(LOCAL_SESSION_KEY);
-        if (storedSession) {
-          const { accessToken: token, user: userData } = JSON.parse(storedSession);
-          if (token && userData) {
-            setAccessToken(token);
-            setUser(userData);
-            console.log('[CLIENT] ✓ Session restored for:', userData.email);
+        const savedSession = localStorage.getItem(SESSION_KEY);
+        if (savedSession) {
+          const session = JSON.parse(savedSession);
+          if (session?.user && session?.accessToken) {
+            console.log('[AUTH] Session restored for:', session.user.email);
+            setUser(session.user);
+            setAccessToken(session.accessToken);
           }
         }
       } catch (error) {
-        console.error('[CLIENT] Error restoring session:', error);
-        // Clear corrupted session
-        localStorage.removeItem(LOCAL_SESSION_KEY);
+        console.error('[AUTH] Session restore failed:', error);
+        localStorage.removeItem(SESSION_KEY);
+      } finally {
+        setIsLoading(false);
       }
-      setLoading(false);
     };
 
-    checkSession();
+    initAuth();
   }, []);
+
+  // Save session when user/token changes
+  useEffect(() => {
+    if (user && accessToken) {
+      const session = { user, accessToken, timestamp: Date.now() };
+      localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+    }
+  }, [user, accessToken]);
 
   const signIn = async (email: string, password: string): Promise<User> => {
     try {
-      console.log('[CLIENT] Attempting to sign in:', email);
+      console.log('[AUTH] Signing in:', email);
       
-      const response = await apiClient.post(buildApiUrl(API_ENDPOINTS.AUTH.LOGIN), {
+      const response = await apiClient.post(API_ENDPOINTS.AUTH.LOGIN, {
         email,
         password
       });
 
-      console.log('[CLIENT] Raw response:', response);
-      console.log('[CLIENT] Response data:', response);
+      console.log('[AUTH] Login response:', response);
 
-      if (!response || !response.user || !response.accessToken) {
-        console.error('[CLIENT] Missing user or token in response:', response);
-        throw new Error('Invalid response from server - missing user or token');
+      if (!response.success || !response.user || !response.accessToken) {
+        throw new Error('Invalid response from server');
       }
 
-      const userData: User = response.user;
-      const token = response.accessToken;
+      const userData: User = {
+        id: response.user.id || response.user._id,
+        email: response.user.email,
+        name: response.user.name,
+        role: response.user.role || 'user',
+        isActive: response.user.isActive,
+        avatar: response.user.avatar,
+        createdAt: response.user.createdAt,
+      };
 
-      setAccessToken(token);
       setUser(userData);
-
-      // Persist to localStorage
-      localStorage.setItem(LOCAL_SESSION_KEY, JSON.stringify({
-        accessToken: token,
-        user: userData,
-      }));
+      setAccessToken(response.accessToken);
       
-      console.log('[CLIENT] ✓ Sign in successful:', userData.email);
-      console.log('[CLIENT] User role:', userData.role);
-      
+      console.log('[AUTH] Sign in successful:', userData.email);
       return userData;
+
     } catch (error: any) {
-      console.error('[CLIENT] Sign in error:', error);
-      throw new Error(error.response?.data?.message || 'Failed to sign in. Please check your credentials.');
+      console.error('[AUTH] Sign in failed:', error);
+      throw new Error(error.message || 'Sign in failed. Please check your credentials.');
     }
   };
 
-  const signUp = async (email: string, password: string, name: string) => {
+  const signUp = async (email: string, password: string, name: string): Promise<User> => {
     try {
-      console.log('[CLIENT] Attempting to sign up:', email);
+      console.log('[AUTH] Creating account:', email);
       
-      const response = await apiClient.post(buildApiUrl(API_ENDPOINTS.AUTH.REGISTER), {
+      const response = await apiClient.post(API_ENDPOINTS.AUTH.REGISTER, {
         email,
         password,
         name
       });
 
-      console.log('[CLIENT] ✓ Sign up successful:', email);
+      console.log('[AUTH] Registration response:', response);
+
+      if (!response.success || !response.user || !response.accessToken) {
+        throw new Error('Invalid response from server');
+      }
+
+      const userData: User = {
+        id: response.user.id || response.user._id,
+        email: response.user.email,
+        name: response.user.name,
+        role: response.user.role || 'user',
+        isActive: response.user.isActive,
+        avatar: response.user.avatar,
+        createdAt: response.user.createdAt,
+      };
+
+      setUser(userData);
+      setAccessToken(response.accessToken);
       
-      // After signup, sign in automatically
-      await signIn(email, password);
+      console.log('[AUTH] Registration successful:', userData.email);
+      return userData;
+
     } catch (error: any) {
-      console.error('[CLIENT] Sign up error:', error);
-      throw new Error(error.response?.data?.message || 'Failed to create account. Please try again.');
+      console.error('[AUTH] Registration failed:', error);
+      throw new Error(error.message || 'Registration failed. Please try again.');
     }
   };
 
-  const signOut = async () => {
-    try {
-      if (accessToken) {
-        try {
-          await apiClient.post(buildApiUrl(API_ENDPOINTS.AUTH.LOGOUT), {}, accessToken);
-        } catch (error) {
-          console.log('Backend sign out failed, continuing with local sign out');
-        }
-      }
-    } catch (error) {
-      console.error('Sign out error:', error);
-    } finally {
-      setUser(null);
-      setAccessToken(null);
-      localStorage.removeItem(LOCAL_SESSION_KEY);
-      console.log('[CLIENT] ✓ Signed out successfully');
+  const signOut = () => {
+    console.log('[AUTH] Signing out');
+    localStorage.removeItem(SESSION_KEY);
+    setUser(null);
+    setAccessToken(null);
+    
+    // Optionally notify backend (don't wait for response)
+    if (accessToken) {
+      apiClient.post(API_ENDPOINTS.AUTH.LOGOUT, {}, accessToken).catch(() => {});
     }
   };
+
+  const isAuthenticated = !!(user && accessToken);
 
   return (
-    <AuthContext.Provider value={{
-      user,
-      accessToken,
-      signIn,
-      signUp,
-      signOut,
-      loading,
-    }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        accessToken,
+        signIn,
+        signUp,
+        signOut,
+        isLoading,
+        isAuthenticated,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
@@ -166,5 +191,3 @@ export const useAuth = () => {
   }
   return context;
 };
-
-export default AuthProvider;

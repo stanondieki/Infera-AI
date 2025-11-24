@@ -24,6 +24,7 @@ function AppContent() {
   const [isSignInOpen, setIsSignInOpen] = useState(false);
   const [isApplyOpen, setIsApplyOpen] = useState(false);
   const [currentView, setCurrentView] = useState<View>('home');
+  const [isAdminSignIn, setIsAdminSignIn] = useState(false); // Track if admin sign-in was requested
 
   useEffect(() => {
     // Listen for view all opportunities event
@@ -38,7 +39,14 @@ function AppContent() {
   }, []);
 
   const handleApplyClick = () => {
-    setIsApplyOpen(true);
+    if (user) {
+      // User is signed in → Navigate to opportunities
+      setCurrentView('all-opportunities');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      // User not signed in → Show registration dialog
+      setIsApplyOpen(true);
+    }
   };
 
   const handleSignInClick = () => {
@@ -46,7 +54,13 @@ function AppContent() {
   };
 
   const handleDashboardClick = () => {
-    setCurrentView('dashboard');
+    if (!user) {
+      // If user is not authenticated, show sign in dialog first
+      setIsSignInOpen(true);
+    } else {
+      // User is authenticated, go to dashboard
+      setCurrentView('dashboard');
+    }
   };
 
   const handleBackToHome = () => {
@@ -55,12 +69,37 @@ function AppContent() {
   };
 
   const handleAdminClick = () => {
-    setCurrentView('admin');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (!user) {
+      // If user is not authenticated, show admin sign in dialog
+      setIsAdminSignIn(true);
+      setIsSignInOpen(true);
+    } else if (user.role === 'admin') {
+      // User is authenticated and is admin, go to admin panel
+      setCurrentView('admin');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      // User is authenticated but not admin, show error message
+      alert('Access denied. Admin privileges required.');
+    }
   };
 
-  const handleSignInSuccess = () => {
-    setCurrentView('dashboard');
+  const handleSignInSuccess = (userData?: any) => {
+    if (isAdminSignIn) {
+      if (userData?.role === 'admin') {
+        // If this was an admin sign-in request and user is admin, go to admin dashboard
+        setCurrentView('admin');
+        setIsAdminSignIn(false);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        // If admin sign-in was requested but user is not admin
+        alert('Access denied. Admin privileges required to access the admin panel.');
+        setCurrentView('dashboard');
+        setIsAdminSignIn(false);
+      }
+    } else {
+      // Normal user sign-in, go to regular dashboard
+      setCurrentView('dashboard');
+    }
   };
 
   return (
@@ -69,9 +108,18 @@ function AppContent() {
         <>
           <Header 
             onSignInClick={handleSignInClick} 
-            onApplyClick={handleApplyClick}
+            onApplyClick={handleApplyClick} 
             onDashboardClick={handleDashboardClick}
           />
+          {/* Temporary test button for direct dashboard access */}
+          <div className="fixed top-20 right-4 z-50 bg-yellow-100 border border-yellow-300 rounded p-2">
+            <button 
+              onClick={() => setCurrentView('dashboard')} 
+              className="text-xs text-yellow-800 hover:text-yellow-900"
+            >
+              🧪 Test Dashboard
+            </button>
+          </div>
           <Hero 
             onGetStartedClick={handleApplyClick}
             onLearnMoreClick={() => {
@@ -108,9 +156,13 @@ function AppContent() {
       
       <SignInDialog 
         open={isSignInOpen} 
-        onOpenChange={setIsSignInOpen}
+        onOpenChange={(open) => {
+          setIsSignInOpen(open);
+          if (!open) setIsAdminSignIn(false); // Reset admin flag when dialog closes
+        }}
         onSignInSuccess={handleSignInSuccess}
         onSwitchToApply={() => setIsApplyOpen(true)}
+        isAdminSignIn={isAdminSignIn}
       />
       <ApplyDialog 
         open={isApplyOpen} 

@@ -12,7 +12,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import React from "react";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
-import { submitApplication } from "../utils/applications";
+import { submitApplication, checkApplicationStatus } from "../utils/applications";
 import {
   User,
   Mail,
@@ -863,7 +863,26 @@ export function ApplyDialog({ open, onOpenChange, onSwitchToSignIn }: ApplyDialo
       console.error('❌ Application submission failed:', error);
       console.error('Error details:', error.response?.data);
       setIsSubmitting(false);
-      toast.error(error.message || "❌ Failed to submit application. Please try again.", { duration: 5000 });
+      
+      if (error.message?.includes('already have an active application')) {
+        toast.error(
+          "You already have an active application. Would you like to sign in to your existing account instead?", 
+          { 
+            duration: 8000,
+            action: {
+              label: "Sign In",
+              onClick: () => {
+                onOpenChange(false);
+                if (onSwitchToSignIn) {
+                  onSwitchToSignIn();
+                }
+              }
+            }
+          }
+        );
+      } else {
+        toast.error(error.message || "❌ Failed to submit application. Please try again.", { duration: 5000 });
+      }
     }
   };
 

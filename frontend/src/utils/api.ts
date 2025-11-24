@@ -20,9 +20,11 @@ export const API_ENDPOINTS = {
     SUBMIT: '/applications/submit',
     STATUS: '/applications/status',
     LIST: '/applications',
+    MY_APPLICATIONS: '/applications/my-applications',
     GET: (id: string) => `/applications/${id}`,
     UPDATE_STATUS: (id: string) => `/applications/${id}/status`,
     STATS: '/applications/stats/overview',
+    MY_STATS: '/applications/my-stats',
   },
   
   // Opportunities
@@ -81,24 +83,55 @@ export const buildApiUrl = (endpoint: string, params?: Record<string, string | n
 export const apiClient = {
   get: async (url: string, token?: string) => {
     const fullUrl = url.startsWith('http') ? url : `${API_CONFIG.BASE_URL}${url}`;
+    console.log('📡 Making GET request to:', fullUrl);
+    
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
     };
     
     if (token) {
       headers.Authorization = `Bearer ${token}`;
+      console.log('📡 Authorization header added');
+    } else {
+      console.log('⚠️ No authorization token provided');
     }
-    
-    const response = await fetch(fullUrl, {
-      method: 'GET',
-      headers,
-    });
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+
+    try {
+      const response = await fetch(fullUrl, {
+        method: 'GET',
+        headers,
+      });
+      
+      console.log('📡 Response status:', response.status);
+      
+      if (!response.ok) {
+        let errorMessage = `HTTP error! status: ${response.status}`;
+        try {
+          const errorData = await response.json();
+          console.log('📡 Error response data:', errorData);
+          if (errorData.message) {
+            errorMessage = errorData.message;
+          }
+        } catch (e) {
+          console.log('📡 Could not parse error response');
+        }
+        throw new Error(errorMessage);
+      }
+      
+      const data = await response.json();
+      console.log('📡 Response data:', data);
+      return data;
+      
+    } catch (error: any) {
+      console.error('📡 Network error:', error.message);
+      console.error('📡 Full error:', error);
+      
+      // Re-throw with more specific error message
+      if (error.name === 'TypeError' && error.message.includes('fetch')) {
+        throw new Error('Network connection failed - please check if the backend server is running');
+      }
+      throw error;
     }
-    
-    return response.json();
   },
   
   post: async (url: string, data?: any, token?: string) => {

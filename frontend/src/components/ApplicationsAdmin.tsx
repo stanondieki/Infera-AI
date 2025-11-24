@@ -12,18 +12,26 @@ import { UserManagement } from './admin/UserManagement';
 import { TaskManagement } from './admin/TaskManagement';
 import { PaymentTracking } from './admin/PaymentTracking';
 import { ApplicationsList } from './admin/ApplicationsList';
+import ProjectManagement from './admin/ProjectManagement';
+import { useAuth } from '../utils/auth';
+import { Card, CardContent } from './ui/card';
+import { Button } from './ui/button';
 
 interface ApplicationsAdminProps {
   onBack: () => void;
 }
 
 export function ApplicationsAdmin({ onBack }: ApplicationsAdminProps) {
+  const { user, accessToken } = useAuth();
   const [applications, setApplications] = useState([]);
   const [users, setUsers] = useState<User[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('applications');
+
+  console.log('🔐 ApplicationsAdmin - User:', user);
+  console.log('🔑 ApplicationsAdmin - AccessToken:', accessToken ? 'Present' : 'Missing');
 
   useEffect(() => {
     loadAllData();
@@ -42,7 +50,7 @@ export function ApplicationsAdmin({ onBack }: ApplicationsAdminProps) {
 
   const loadApplications = async () => {
     try {
-      const data = await getApplications();
+      const data = await getApplications('all', accessToken || undefined);
       setApplications(data.applications);
     } catch (error) {
       console.error('Error loading applications:', error);
@@ -51,7 +59,9 @@ export function ApplicationsAdmin({ onBack }: ApplicationsAdminProps) {
 
   const loadUsers = async () => {
     try {
-      const data = await getUsers();
+      console.log('👥 Loading users with accessToken:', accessToken ? 'Present' : 'Missing');
+      const data = await getUsers(accessToken || undefined);
+      console.log('👥 Loaded users:', data);
       setUsers(data);
     } catch (error) {
       console.error('Error loading users:', error);
@@ -60,7 +70,9 @@ export function ApplicationsAdmin({ onBack }: ApplicationsAdminProps) {
 
   const loadTasks = async () => {
     try {
-      const data = await getTasks();
+      console.log('🔑 Loading tasks with accessToken:', accessToken ? 'Present' : 'Missing');
+      const data = await getTasks(undefined, accessToken || undefined);
+      console.log('📋 Loaded tasks:', data);
       setTasks(data);
     } catch (error) {
       console.error('Error loading tasks:', error);
@@ -75,6 +87,49 @@ export function ApplicationsAdmin({ onBack }: ApplicationsAdminProps) {
       console.error('Error loading payments:', error);
     }
   };
+
+  // Authentication guard - require admin role
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.3 }}
+        >
+          <Card className="w-full max-w-md shadow-xl">
+            <CardContent className="p-6 text-center">
+              <p className="text-gray-600">Please sign in to access the admin panel</p>
+              <Button className="mt-4" onClick={onBack}>
+                Go Back
+              </Button>
+            </CardContent>
+          </Card>
+        </motion.div>
+      </div>
+    );
+  }
+
+  if (user.role !== 'admin') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.3 }}
+        >
+          <Card className="w-full max-w-md shadow-xl">
+            <CardContent className="p-6 text-center">
+              <p className="text-gray-600">Access denied. Admin privileges required.</p>
+              <Button className="mt-4" onClick={onBack}>
+                Go Back
+              </Button>
+            </CardContent>
+          </Card>
+        </motion.div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
@@ -121,7 +176,7 @@ export function ApplicationsAdmin({ onBack }: ApplicationsAdminProps) {
                 <Users className="h-5 w-5 text-purple-600" />
                 <span className="text-purple-900">Active Users</span>
               </div>
-              <p className="text-purple-900">{users.filter(u => u.status === 'active').length}</p>
+              <p className="text-purple-900">{users.filter(u => u.isActive).length}</p>
             </motion.div>
 
             <motion.div
@@ -160,10 +215,14 @@ export function ApplicationsAdmin({ onBack }: ApplicationsAdminProps) {
       {/* Tabs */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-4 mb-8">
+          <TabsList className="grid w-full grid-cols-5 mb-8">
             <TabsTrigger value="applications" className="gap-2">
               <FileText className="h-4 w-4" />
               Applications
+            </TabsTrigger>
+            <TabsTrigger value="projects" className="gap-2">
+              <Briefcase className="h-4 w-4" />
+              Projects
             </TabsTrigger>
             <TabsTrigger value="users" className="gap-2">
               <Users className="h-4 w-4" />
@@ -181,6 +240,10 @@ export function ApplicationsAdmin({ onBack }: ApplicationsAdminProps) {
 
           <TabsContent value="applications">
             <ApplicationsList applications={applications} onRefresh={loadApplications} />
+          </TabsContent>
+
+          <TabsContent value="projects">
+            <ProjectManagement />
           </TabsContent>
 
           <TabsContent value="users">

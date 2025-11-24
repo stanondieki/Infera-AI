@@ -26,9 +26,10 @@ import {
 import { toast } from 'sonner';
 import { getTasks, submitTask, Task } from '../../utils/tasks';
 import { useAuth } from '../../utils/auth';
+import { apiClient, API_ENDPOINTS } from '../../utils/api';
 
 export function MyTasks() {
-  const { user } = useAuth();
+  const { user, accessToken } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
@@ -48,15 +49,41 @@ export function MyTasks() {
   }, [user]);
 
   const loadTasks = async () => {
-    if (!user?.id) return;
+    if (!user?.id || !accessToken) return;
     
     setLoading(true);
     try {
-      const data = await getTasks(user.id);
-      setTasks(data);
+      console.log('👤 Loading my tasks for user:', user.id);
+      // Use dedicated my-tasks endpoint instead of general getTasks
+      const response = await apiClient.get(API_ENDPOINTS.TASKS.MY_TASKS, accessToken);
+      console.log('👤 My tasks response:', response);
+      
+      if (response.success && response.tasks) {
+        // Map backend tasks to frontend format
+        const mappedTasks = response.tasks.map((task: any) => ({
+          id: task._id,
+          user_id: typeof task.assignedTo === 'object' ? task.assignedTo._id : task.assignedTo,
+          user_name: typeof task.assignedTo === 'object' ? task.assignedTo.name : 'Unknown User',
+          title: task.title,
+          description: task.description,
+          category: task.type, // Keep backend type for now
+          status: task.status,
+          priority: task.priority,
+          deadline: task.deadline,
+          estimated_hours: task.estimatedHours,
+          hourly_rate: task.hourlyRate,
+          progress: task.progress || 0,
+          created_at: task.createdAt,
+          updated_at: task.updatedAt,
+        }));
+        setTasks(mappedTasks);
+      } else {
+        setTasks([]);
+      }
     } catch (error) {
       console.error('Error loading tasks:', error);
       toast.error('Failed to load tasks');
+      setTasks([]);
     } finally {
       setLoading(false);
     }

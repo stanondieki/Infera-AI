@@ -80,15 +80,16 @@ export async function submitApplication(formData: ApplicationFormData) {
     
 
     
-    // Create user account after successful application submission (only in real backend)
+    // Create user account after successful application submission
     try {
       console.log('👤 Creating user account...');
       
-      // Create user account with user's chosen password
+      // Create user account with user's chosen password (allow updating existing users)
       const userResponse = await apiClient.post(buildApiUrl(API_ENDPOINTS.AUTH.REGISTER), {
         email: formData.email,
         password: formData.password,
-        name: `${formData.firstName} ${formData.lastName}`
+        name: `${formData.firstName} ${formData.lastName}`,
+        allowUpdate: true
       });
       
       console.log('✅ User account created successfully:', userResponse);
@@ -96,20 +97,53 @@ export async function submitApplication(formData: ApplicationFormData) {
       return {
         ...response,
         userCreated: true,
-        message: 'Application submitted and account created successfully! You can now sign in with your chosen password.'
+        message: userResponse.message?.includes('updated') 
+          ? 'Application submitted and account updated successfully! You can now sign in with your new password.'
+          : 'Application submitted and account created successfully! You can now sign in with your chosen password.'
       };
     } catch (userError: any) {
       console.log('⚠️ Account creation failed, but application was submitted:', userError.message);
+      
+      // If user already exists, that's actually fine - they can sign in with existing account
+      if (userError.message?.includes('already exists')) {
+        return {
+          ...response,
+          userCreated: false,
+          message: 'Application submitted successfully! An account with this email already exists. Please sign in with your existing credentials.'
+        };
+      }
+      
       return {
         ...response,
         userCreated: false,
-        message: 'Application submitted successfully! You can create an account separately using the sign-in dialog.'
+        message: 'Application submitted successfully! Please create an account using the sign-in dialog to access your dashboard.'
       };
     }
   } catch (error: any) {
     console.error('❌ Application submission error:', error);
     console.error('Error details:', error.response?.data);
-    throw new Error(error.response?.data?.message || 'Failed to submit application. Please try again.');
+    
+    // Handle specific error cases
+    if (error.message?.includes('already have an active application')) {
+      throw new Error('You already have an active application. Please check your application status or sign in to your existing account.');
+    }
+    
+    throw new Error(error.message || 'Failed to submit application. Please try again.');
+  }
+}
+
+export async function checkApplicationStatus(email: string) {
+  try {
+    console.log('🔍 Checking application status for:', email);
+    const response = await apiClient.get(buildApiUrl(`/applications/status/${email}`));
+    console.log('✅ Application status response:', response);
+    return response;
+  } catch (error: any) {
+    console.error('❌ Error checking application status:', error);
+    if (error.message?.includes('404') || error.message?.includes('No application found')) {
+      return null; // No application found
+    }
+    throw new Error(error.message || 'Failed to check application status');
   }
 }
 

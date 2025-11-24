@@ -1,5 +1,5 @@
 // Dashboard API Service - Real Data Only
-import { API_CONFIG, API_ENDPOINTS } from './api';
+import { API_CONFIG, API_ENDPOINTS, apiClient } from './api';
 
 // Types for real dashboard data
 export interface DashboardStats {
@@ -78,7 +78,7 @@ class DashboardService {
         return this.getEmptyStats();
       }
       
-      const data = await this.fetchWithAuth(API_ENDPOINTS.APPLICATIONS.STATS);
+      const data = await this.fetchWithAuth(API_ENDPOINTS.APPLICATIONS.MY_STATS);
       
       if (!data.success) {
         return this.getEmptyStats();
@@ -119,7 +119,7 @@ class DashboardService {
         return [];
       }
       
-      const data = await this.fetchWithAuth(API_ENDPOINTS.APPLICATIONS.LIST);
+      const data = await this.fetchWithAuth(API_ENDPOINTS.APPLICATIONS.MY_APPLICATIONS);
       if (!data.success) {
         return [];
       }
@@ -135,14 +135,34 @@ class DashboardService {
     try {
       const token = localStorage.getItem('token');
       if (!token) {
+        console.log('📋 No token available for getUserTasks');
         return [];
       }
       
-      const data = await this.fetchWithAuth(API_ENDPOINTS.TASKS.MY_TASKS);
+      console.log('📋 Fetching user tasks with token:', token ? 'Present' : 'Missing');
+      const data = await apiClient.get(API_ENDPOINTS.TASKS.MY_TASKS, token);
+      console.log('📋 getUserTasks response:', data);
+      
       if (!data.success) {
+        console.log('📋 getUserTasks failed:', data.message);
         return [];
       }
-      return data.tasks || [];
+      
+      // Map backend task format to dashboard UserTask format
+      const mappedTasks = (data.tasks || []).map((task: any) => ({
+        id: task._id,
+        title: task.title,
+        description: task.description,
+        status: task.status,
+        priority: task.priority,
+        dueDate: task.deadline,
+        progress: task.progress || 0,
+        projectId: task._id,
+        projectName: task.title,
+      }));
+      
+      console.log('📋 Mapped tasks:', mappedTasks);
+      return mappedTasks;
     } catch (error) {
       console.error('Error fetching tasks:', error);
       return [];

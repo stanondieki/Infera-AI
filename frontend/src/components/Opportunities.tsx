@@ -61,7 +61,7 @@ export function Opportunities({ onApplyClick }: OpportunitiesProps) {
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
           {featuredOpportunities.map((opportunity, index) => (
             <motion.div
-              key={opportunity.id}
+              key={opportunity._id || opportunity.id || `opportunity-${index}`}
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: index * 0.1 }}
@@ -83,7 +83,10 @@ export function Opportunities({ onApplyClick }: OpportunitiesProps) {
                     </div>
                     <div className="flex items-center text-green-600 font-bold text-lg">
                       <DollarSign className="h-5 w-5 mr-1" />
-                      {opportunity.rate}
+                      {opportunity.rate || 
+                       (opportunity.hourlyRate 
+                         ? `$${opportunity.hourlyRate.min}-${opportunity.hourlyRate.max}/${opportunity.hourlyRate.currency || 'hr'}` 
+                         : '$25-40/hr')}
                     </div>
                   </div>
 
@@ -102,9 +105,9 @@ export function Opportunities({ onApplyClick }: OpportunitiesProps) {
                   </p>
 
                   <div className="flex flex-wrap gap-2 mb-6">
-                    {opportunity.skills.slice(0, 3).map((skill) => (
+                    {(opportunity.requiredSkills || opportunity.skills || []).slice(0, 3).map((skill, skillIndex) => (
                       <Badge 
-                        key={skill} 
+                        key={`${skill}-${skillIndex}`} 
                         variant="outline" 
                         className="text-xs bg-gray-50 border-gray-200 text-gray-700"
                       >
@@ -117,7 +120,21 @@ export function Opportunities({ onApplyClick }: OpportunitiesProps) {
                     <div className="flex items-center justify-between text-sm">
                       <div className="flex items-center text-gray-600">
                         <Clock className="h-4 w-4 mr-2" />
-                        {opportunity.timeCommitment}
+                        {(() => {
+                          if (typeof opportunity.timeCommitment === 'string') {
+                            return opportunity.timeCommitment;
+                          }
+                          if (typeof opportunity.timeCommitment === 'object' && opportunity.timeCommitment) {
+                            const tc = opportunity.timeCommitment as any;
+                            if (tc.duration) {
+                              return tc.duration;
+                            }
+                            if (tc.hoursPerWeek) {
+                              return `${tc.hoursPerWeek.min || 10}-${tc.hoursPerWeek.max || 20} hrs/week`;
+                            }
+                          }
+                          return '10-20 hrs/week';
+                        })()}
                       </div>
                       <div className="flex items-center text-gray-600">
                         <MapPin className="h-4 w-4 mr-2" />
@@ -128,11 +145,11 @@ export function Opportunities({ onApplyClick }: OpportunitiesProps) {
                     <div className="flex items-center justify-between text-sm">
                       <div className="flex items-center text-amber-600">
                         <Star className="h-4 w-4 mr-1 fill-current" />
-                        <span className="font-medium">{opportunity.rating}</span>
+                        <span className="font-medium">{opportunity.rating || 4.8}</span>
                       </div>
                       <div className="flex items-center text-gray-600">
                         <Users className="h-4 w-4 mr-1" />
-                        {opportunity.applicants} applied
+                        {opportunity.applications || opportunity.applicants || opportunity.currentApplicants || 0} applied
                       </div>
                     </div>
                   </div>

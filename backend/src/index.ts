@@ -10,7 +10,9 @@ import { generalLimiter } from './middleware/rateLimiter';
 import authRoutes from './routes/auth';
 import applicationRoutes from './routes/applications';
 import opportunityRoutes from './routes/projects';
+import projectsManagementRoutes from './routes/projectsManagement';
 import taskRoutes from './routes/tasks';
+import taskProjectRoutes from './routes/taskProjects';
 import userRoutes from './routes/users';
 
 // Load environment variables
@@ -23,19 +25,47 @@ const PORT = process.env.PORT || 5000;
 const connectDB = async () => {
   try {
     const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/infera_ai';
-    await mongoose.connect(mongoURI);
+    
+    console.log('🔗 Attempting to connect to MongoDB...');
+    console.log('📍 Connection URI format:', mongoURI.replace(/:\/\/[^@]+@/, '://***:***@'));
+    
+    // Connection options for better reliability
+    await mongoose.connect(mongoURI, {
+      serverSelectionTimeoutMS: 10000, // 10 seconds timeout
+      connectTimeoutMS: 10000,
+      socketTimeoutMS: 45000,
+    });
+    
     console.log('✅ MongoDB connected successfully');
     
     // Create initial admin user if none exists
     await createInitialAdmin();
   } catch (error) {
     console.error('❌ MongoDB connection error:', error);
-    console.log('\n🔧 MongoDB Setup Instructions:');
+    
+    if (error instanceof Error) {
+      if (error.message.includes('ETIMEDOUT')) {
+        console.log('\n🔧 Connection Timeout Solutions:');
+        console.log('1. Check your internet connection');
+        console.log('2. Verify MongoDB Atlas cluster is running (not paused)');
+        console.log('3. Check if your IP address is whitelisted in Atlas');
+        console.log('4. Try connecting from MongoDB Compass with the same URI');
+      } else if (error.message.includes('authentication failed')) {
+        console.log('\n🔐 Authentication Error Solutions:');
+        console.log('1. Verify username and password in MONGODB_URI');
+        console.log('2. Check database user permissions in MongoDB Atlas');
+      }
+    }
+    
+    console.log('\n🔧 General MongoDB Setup Instructions:');
     console.log('1. Install MongoDB Community Server from: https://www.mongodb.com/try/download/community');
     console.log('2. Or use MongoDB Atlas (cloud): https://www.mongodb.com/atlas');
     console.log('3. Update MONGODB_URI in .env file if using a different connection string');
     console.log('4. Make sure MongoDB service is running\n');
-    process.exit(1);
+    
+    // Don't exit immediately, allow for retries
+    console.log('🔄 Retrying connection in 5 seconds...');
+    setTimeout(connectDB, 5000);
   }
 };
 
@@ -125,11 +155,13 @@ app.get('/health', (req, res) => {
   });
 });
 
-// API Routes
+// Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/applications', applicationRoutes);
 app.use('/api/opportunities', opportunityRoutes);
+app.use('/api/projects', projectsManagementRoutes);
 app.use('/api/tasks', taskRoutes);
+app.use('/api/task-projects', taskProjectRoutes);
 app.use('/api/users', userRoutes);
 
 // Global error handling middleware

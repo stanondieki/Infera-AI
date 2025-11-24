@@ -1,11 +1,15 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+// import { Inter } from "next/font/google";
 import { Toaster } from "sonner";
 import "./globals.css";
+import { AuthProvider } from "../utils/auth";
 
-const inter = Inter({
-  subsets: ["latin"],
-});
+// Temporarily use system fonts for build
+// const inter = Inter({
+//   subsets: ["latin"],
+//   display: 'swap',
+//   fallback: ['system-ui', 'arial'],
+// });
 
 export const metadata: Metadata = {
   title: "Infera AI - Shape the Future of Artificial Intelligence",
@@ -19,9 +23,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${inter.className} antialiased bg-white`}>
-        {children}
-        <Toaster position="top-right" richColors />
+      <body className="font-sans antialiased bg-white">
+        <AuthProvider>
+          {children}
+          <Toaster position="top-right" richColors />
+        </AuthProvider>
       </body>
     </html>
   );

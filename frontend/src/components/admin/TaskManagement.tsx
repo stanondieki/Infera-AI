@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Plus, Search, Edit, Trash2, Clock, CheckCircle, AlertCircle, Calendar } from 'lucide-react';
 import { Task, createTask, updateTask, deleteTask } from '../../utils/tasks';
 import { User } from '../../utils/users';
+import { useAuth } from '../../utils/auth';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Textarea } from '../ui/textarea';
@@ -33,6 +34,7 @@ interface TaskManagementProps {
 }
 
 export function TaskManagement({ tasks, users, onRefresh }: TaskManagementProps) {
+  const { accessToken } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [userFilter, setUserFilter] = useState<string>('all');
@@ -40,6 +42,11 @@ export function TaskManagement({ tasks, users, onRefresh }: TaskManagementProps)
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isEditing, setIsEditing] = useState(false);
 
+  const [showCreateFromProjectDialog, setShowCreateFromProjectDialog] = useState(false);
+  const [projects, setProjects] = useState([]);
+  const [selectedProject, setSelectedProject] = useState('');
+  const [taskCount, setTaskCount] = useState(5);
+  
   const [formData, setFormData] = useState({
     user_id: '',
     title: '',
@@ -51,6 +58,19 @@ export function TaskManagement({ tasks, users, onRefresh }: TaskManagementProps)
     hourly_rate: '',
   });
 
+  const resetForm = () => {
+    setFormData({
+      user_id: '',
+      title: '',
+      description: '',
+      category: 'data_labeling',
+      priority: 'medium',
+      deadline: '',
+      estimated_hours: '',
+      hourly_rate: '',
+    });
+  };
+
   const filteredTasks = tasks.filter(task => {
     const matchesSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || task.status === statusFilter;
@@ -60,22 +80,38 @@ export function TaskManagement({ tasks, users, onRefresh }: TaskManagementProps)
 
   const handleCreateTask = async () => {
     try {
+      // Client-side validation
+      if (!formData.user_id) {
+        toast.error('Please select a user to assign the task to');
+        return;
+      }
+      if (!formData.title.trim()) {
+        toast.error('Please provide a task title');
+        return;
+      }
+      if (!formData.description.trim() || formData.description.trim().length < 20) {
+        toast.error('Please provide a description with at least 20 characters');
+        return;
+      }
+
+      console.log('🚀 Creating task with data:', formData);
       await createTask({
         user_id: formData.user_id,
-        title: formData.title,
-        description: formData.description,
+        title: formData.title.trim(),
+        description: formData.description.trim(),
         category: formData.category,
         priority: formData.priority,
         deadline: formData.deadline || undefined,
         estimated_hours: formData.estimated_hours ? parseFloat(formData.estimated_hours) : undefined,
         hourly_rate: formData.hourly_rate ? parseFloat(formData.hourly_rate) : undefined,
-      });
+      }, accessToken || undefined);
 
       toast.success('Task created successfully');
       onRefresh();
       setShowCreateDialog(false);
       resetForm();
     } catch (error: any) {
+      console.error('❌ Failed to create task:', error);
       toast.error(error.message || 'Failed to create task');
     }
   };
@@ -92,7 +128,7 @@ export function TaskManagement({ tasks, users, onRefresh }: TaskManagementProps)
         deadline: formData.deadline || undefined,
         estimated_hours: formData.estimated_hours ? parseFloat(formData.estimated_hours) : undefined,
         hourly_rate: formData.hourly_rate ? parseFloat(formData.hourly_rate) : undefined,
-      });
+      }, accessToken || undefined);
 
       toast.success('Task updated successfully');
       onRefresh();
@@ -108,7 +144,7 @@ export function TaskManagement({ tasks, users, onRefresh }: TaskManagementProps)
     if (!confirm('Are you sure you want to delete this task?')) return;
 
     try {
-      await deleteTask(taskId);
+      await deleteTask(taskId, accessToken || undefined);
       toast.success('Task deleted successfully');
       onRefresh();
     } catch (error: any) {
@@ -118,7 +154,7 @@ export function TaskManagement({ tasks, users, onRefresh }: TaskManagementProps)
 
   const handleStatusChange = async (taskId: string, status: string) => {
     try {
-      await updateTask(taskId, { status: status as any });
+      await updateTask(taskId, { status: status as any }, accessToken || undefined);
       toast.success('Task status updated');
       onRefresh();
     } catch (error: any) {
@@ -126,17 +162,55 @@ export function TaskManagement({ tasks, users, onRefresh }: TaskManagementProps)
     }
   };
 
-  const resetForm = () => {
-    setFormData({
-      user_id: '',
-      title: '',
-      description: '',
-      category: 'data_labeling',
-      priority: 'medium',
-      deadline: '',
-      estimated_hours: '',
-      hourly_rate: '',
-    });
+  const fetchProjects = async () => {
+    try {
+      const response = await fetch('http://localhost:5000/api/projects/admin', {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`
+        }
+      });
+      const data = await response.json();
+      if (data.success) {
+        setProjects(data.projects);
+      }
+    } catch (error) {
+      console.error('Failed to fetch projects:', error);
+    }
+  };
+
+  const handleCreateTasksFromProject = async () => {
+    if (!selectedProject || !taskCount) {
+      toast.error('Please select a project and specify task count');
+      return;
+    }
+
+    try {
+      const response = await fetch('http://localhost:5000/api/tasks/create-from-project', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`
+        },
+        body: JSON.stringify({
+          projectId: selectedProject,
+          taskCount: parseInt(taskCount.toString())
+        })
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        toast.success(`✅ Created ${taskCount} tasks for ${data.projectName}`);
+        onRefresh();
+        setShowCreateFromProjectDialog(false);
+        setSelectedProject('');
+        setTaskCount(5);
+      } else {
+        throw new Error(data.message);
+      }
+    } catch (error: any) {
+      console.error('❌ Failed to create tasks from project:', error);
+      toast.error(error.message || 'Failed to create tasks from project');
+    }
   };
 
   const openEditDialog = (task: Task) => {
@@ -216,16 +290,26 @@ export function TaskManagement({ tasks, users, onRefresh }: TaskManagementProps)
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Users</SelectItem>
-              {users.map(user => (
-                <SelectItem key={user.id} value={user.id}>
-                  {user.first_name} {user.last_name}
+              {users.filter(user => user && user.id).map((user, index) => (
+                <SelectItem key={user.id || `user-${index}`} value={user.id}>
+                  {user.name || 'Unknown User'}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
-          <Button onClick={() => setShowCreateDialog(true)} className="gap-2">
+          <Button onClick={() => { resetForm(); setShowCreateDialog(true); }} className="gap-2">
             <Plus className="h-4 w-4" />
             Add Task
+          </Button>
+          <Button 
+            onClick={() => { 
+              fetchProjects(); 
+              setShowCreateFromProjectDialog(true); 
+            }} 
+            className="gap-2 bg-purple-600 hover:bg-purple-700"
+          >
+            <Plus className="h-4 w-4" />
+            Tasks from Project
           </Button>
         </div>
       </div>
@@ -338,7 +422,7 @@ export function TaskManagement({ tasks, users, onRefresh }: TaskManagementProps)
           }
         }}
       >
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{isEditing ? 'Edit Task' : 'Create New Task'}</DialogTitle>
             <DialogDescription>
@@ -346,20 +430,26 @@ export function TaskManagement({ tasks, users, onRefresh }: TaskManagementProps)
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4">
+          <div className="space-y-3">
             {!isEditing && (
               <div>
                 <Label>Assign To</Label>
-                <Select value={formData.user_id} onValueChange={(value) => setFormData({ ...formData, user_id: value })}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a user" />
+                <Select value={formData.user_id || ""} onValueChange={(value) => setFormData({ ...formData, user_id: value })}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select a user">
+                      {formData.user_id ? users.find(u => u.id === formData.user_id)?.name || "Select a user" : "Select a user"}
+                    </SelectValue>
                   </SelectTrigger>
-                  <SelectContent>
-                    {users.filter(u => u.status === 'active').map(user => (
-                      <SelectItem key={user.id} value={user.id}>
-                        {user.first_name} {user.last_name} ({user.email})
-                      </SelectItem>
-                    ))}
+                  <SelectContent className="max-h-[200px] overflow-y-auto" position="popper" sideOffset={5}>
+                    {(() => {
+                      console.log('🧑‍💼 All users for task assignment:', users);
+                      console.log('🧑‍💼 Active users:', users.filter(u => u && u.isActive && u.id));
+                      return users.filter(u => u && u.id && (u.isActive !== false)).map((user, index) => (
+                        <SelectItem key={user.id || `form-user-${index}`} value={user.id} className="cursor-pointer">
+                          {user.name || 'Unknown User'}
+                        </SelectItem>
+                      ));
+                    })()}
                   </SelectContent>
                 </Select>
               </div>
@@ -380,11 +470,11 @@ export function TaskManagement({ tasks, users, onRefresh }: TaskManagementProps)
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 placeholder="Detailed task description"
-                rows={4}
+                rows={3}
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label>Category</Label>
                 <Select value={formData.category} onValueChange={(value) => setFormData({ ...formData, category: value })}>
@@ -418,8 +508,8 @@ export function TaskManagement({ tasks, users, onRefresh }: TaskManagementProps)
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
-              <div>
+            <div>
+              <div className="mb-3">
                 <Label>Deadline (Optional)</Label>
                 <Input
                   type="date"
@@ -428,26 +518,28 @@ export function TaskManagement({ tasks, users, onRefresh }: TaskManagementProps)
                 />
               </div>
 
-              <div>
-                <Label>Estimated Hours</Label>
-                <Input
-                  type="number"
-                  step="0.5"
-                  value={formData.estimated_hours}
-                  onChange={(e) => setFormData({ ...formData, estimated_hours: e.target.value })}
-                  placeholder="8"
-                />
-              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Estimated Hours</Label>
+                  <Input
+                    type="number"
+                    step="0.5"
+                    value={formData.estimated_hours}
+                    onChange={(e) => setFormData({ ...formData, estimated_hours: e.target.value })}
+                    placeholder="8"
+                  />
+                </div>
 
-              <div>
-                <Label>Hourly Rate ($)</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={formData.hourly_rate}
-                  onChange={(e) => setFormData({ ...formData, hourly_rate: e.target.value })}
-                  placeholder="25.00"
-                />
+                <div>
+                  <Label>Hourly Rate ($)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={formData.hourly_rate}
+                    onChange={(e) => setFormData({ ...formData, hourly_rate: e.target.value })}
+                    placeholder="25.00"
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -465,6 +557,71 @@ export function TaskManagement({ tasks, users, onRefresh }: TaskManagementProps)
             </Button>
             <Button onClick={isEditing ? handleUpdateTask : handleCreateTask}>
               {isEditing ? 'Update' : 'Create'} Task
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Tasks from Project Dialog */}
+      <Dialog open={showCreateFromProjectDialog} onOpenChange={setShowCreateFromProjectDialog}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Create Tasks from Project</DialogTitle>
+            <DialogDescription>
+              Generate multiple tasks automatically based on a project template
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="project-select">Select Project</Label>
+              <Select value={selectedProject} onValueChange={setSelectedProject}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose a project..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {projects.map((project: any) => (
+                    <SelectItem key={project._id} value={project._id}>
+                      {project.title} ({project.category})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div>
+              <Label htmlFor="task-count">Number of Tasks</Label>
+              <Input
+                id="task-count"
+                type="number"
+                min="1"
+                max="20"
+                value={taskCount}
+                onChange={(e) => setTaskCount(parseInt(e.target.value) || 1)}
+                placeholder="5"
+              />
+              <p className="text-sm text-gray-500 mt-1">
+                Creates realistic tasks like "Image Classification - Batch #247"
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowCreateFromProjectDialog(false);
+                setSelectedProject('');
+                setTaskCount(5);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleCreateTasksFromProject}
+              className="bg-purple-600 hover:bg-purple-700"
+            >
+              Create {taskCount} Tasks
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -53,6 +53,14 @@ export interface ITask extends Document {
   rating?: number; // 1-5 stars
   feedback?: string;
   
+  // Frontend Compatibility Fields
+  project_id?: string;
+  project_name?: string;
+  category?: string;
+  difficulty?: 'easy' | 'medium' | 'hard' | 'expert';
+  estimated_time?: number; // in minutes
+  payment?: number;
+  
   // Timestamps
   createdAt: Date;
   updatedAt: Date;
@@ -212,6 +220,32 @@ const TaskSchema = new Schema<ITask>({
     type: String,
     trim: true,
     maxlength: [500, 'Feedback cannot be more than 500 characters']
+  },
+  
+  // Frontend Compatibility Fields
+  project_id: {
+    type: String,
+    trim: true
+  },
+  project_name: {
+    type: String,
+    trim: true
+  },
+  category: {
+    type: String,
+    trim: true
+  },
+  difficulty: {
+    type: String,
+    enum: ['easy', 'medium', 'hard', 'expert']
+  },
+  estimated_time: {
+    type: Number, // in minutes
+    min: [0, 'Estimated time cannot be negative']
+  },
+  payment: {
+    type: Number,
+    min: [0, 'Payment cannot be negative']
   }
 }, {
   timestamps: true

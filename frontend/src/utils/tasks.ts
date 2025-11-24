@@ -1,5 +1,107 @@
 import { apiClient, API_ENDPOINTS } from './api';
 
+// Backend task interface (as returned from API)
+interface BackendTask {
+  _id: string;
+  title: string;
+  description: string;
+  type: string;
+  assignedTo: {
+    _id: string;
+    name: string;
+    email: string;
+  } | string;
+  createdBy: {
+    _id: string;
+    name: string;
+    email: string;
+  };
+  status: string;
+  priority: string;
+  deadline: string;
+  estimatedHours: number;
+  hourlyRate: number;
+  progress: number;
+  createdAt: string;
+  updatedAt: string;
+  [key: string]: any;
+}
+
+// Convert backend task to frontend task format
+function mapBackendTaskToFrontend(backendTask: BackendTask): Task {
+  // Safely handle assignedTo field - it could be null, string, or object
+  let userId = '';
+  let userName = 'Unassigned';
+  
+  if (backendTask.assignedTo) {
+    if (typeof backendTask.assignedTo === 'object' && backendTask.assignedTo !== null) {
+      userId = backendTask.assignedTo._id || '';
+      userName = backendTask.assignedTo.name || 'Unknown User';
+    } else if (typeof backendTask.assignedTo === 'string') {
+      userId = backendTask.assignedTo;
+      userName = 'Unknown User';
+    }
+  }
+
+  return {
+    id: backendTask._id,
+    user_id: userId,
+    user_name: userName,
+    title: backendTask.title,
+    description: backendTask.description,
+    category: mapBackendTypeToCategory(backendTask.type),
+    status: mapBackendStatus(backendTask.status),
+    priority: backendTask.priority as any,
+    deadline: backendTask.deadline,
+    estimated_hours: backendTask.estimatedHours,
+    hourly_rate: backendTask.hourlyRate,
+    progress: backendTask.progress || 0,
+    created_at: backendTask.createdAt,
+    updated_at: backendTask.updatedAt,
+  };
+}
+
+// Map backend task type to frontend category
+function mapBackendTypeToCategory(type: string): Task['category'] {
+  const mapping: Record<string, Task['category']> = {
+    'data_annotation': 'data_labeling',
+    'content_creation': 'other',
+    'code_review': 'other',
+    'prompt_engineering': 'other',
+    'quality_assurance': 'content_moderation',
+    'research': 'research',
+    'other': 'other'
+  };
+  return mapping[type] || 'other';
+}
+
+// Map frontend category to backend type
+function mapFrontendCategoryToBackendType(category: string): string {
+  const mapping: Record<string, string> = {
+    'data_labeling': 'data_annotation',
+    'content_moderation': 'quality_assurance', 
+    'translation': 'other', // translation maps to other
+    'transcription': 'other', // transcription maps to other
+    'research': 'research',
+    'other': 'other'
+  };
+  return mapping[category] || 'other';
+}
+
+// Map backend status to frontend status
+function mapBackendStatus(status: string): Task['status'] {
+  const mapping: Record<string, Task['status']> = {
+    'assigned': 'pending',
+    'in_progress': 'in_progress',
+    'completed': 'completed',
+    'under_review': 'in_progress',
+    'approved': 'completed',
+    'rejected': 'rejected',
+    'cancelled': 'rejected'
+  };
+  return mapping[status] || 'pending';
+}
+
 export interface Task {
   id: string;
   user_id: string;
@@ -149,22 +251,35 @@ export async function getTasks(userId?: string, accessToken?: string): Promise<T
   try {
     let endpoint = API_ENDPOINTS.TASKS.LIST;
     if (userId) {
-      endpoint += `?user_id=${userId}`;
+      endpoint += `?assignedTo=${userId}`; // Backend uses assignedTo, not user_id
     }
     
+    console.log('🔍 Fetching tasks from:', endpoint);
+    console.log('🔑 Using accessToken:', accessToken ? 'Present (' + accessToken.substring(0, 10) + '...)' : 'Missing');
     const response = await apiClient.get(endpoint, accessToken);
-    return response.tasks || [];
+    console.log('📋 Tasks response:', response);
+    
+    if (response.success && response.tasks) {
+      // Map backend tasks to frontend format
+      const mappedTasks = response.tasks.map((task: BackendTask) => mapBackendTaskToFrontend(task));
+      console.log('✅ Mapped tasks:', mappedTasks);
+      return mappedTasks;
+    }
+    
+    // If response format is different, try direct tasks array
+    const tasks = response.tasks || response || [];
+    return Array.isArray(tasks) ? tasks.map((task: BackendTask) => mapBackendTaskToFrontend(task)) : [];
   } catch (error: any) {
-    console.log('Backend API error:', error.message);
+    console.error('❌ Backend API error:', error.message);
     console.log('Falling back to local storage');
+    
+    // Fallback to local storage
+    const tasks = loadTasks();
+    if (userId) {
+      return tasks.filter(t => t.user_id === userId);
+    }
+    return tasks;
   }
-
-  // Fallback to local storage
-  const tasks = loadTasks();
-  if (userId) {
-    return tasks.filter(t => t.user_id === userId);
-  }
-  return tasks;
 }
 
 export async function createTask(taskData: {
@@ -178,10 +293,36 @@ export async function createTask(taskData: {
   hourly_rate?: number;
 }, accessToken?: string): Promise<{ task: Task }> {
   try {
-    const response = await apiClient.post(API_ENDPOINTS.TASKS.CREATE, taskData, accessToken);
+    // Map frontend field names to backend field names
+    const backendTaskData = {
+      title: taskData.title,
+      description: taskData.description,
+      type: mapFrontendCategoryToBackendType(taskData.category), // Map category to valid backend type
+      assignedTo: taskData.user_id, // Map user_id to assignedTo
+      priority: taskData.priority,
+      deadline: taskData.deadline ? new Date(taskData.deadline).toISOString() : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // Default to 7 days from now
+      estimatedHours: taskData.estimated_hours || 1, // Map estimated_hours to estimatedHours
+      hourlyRate: taskData.hourly_rate || 25, // Map hourly_rate to hourlyRate
+      instructions: taskData.description.length >= 20 ? taskData.description : taskData.description + ' Please complete this task according to the requirements.', // Ensure min 20 chars
+      requirements: ['Complete the task as described', 'Follow the provided instructions'], // Default requirements
+      deliverables: ['Task completion confirmation', 'Final deliverable submission'], // Default deliverables
+    };
+
+    console.log('🚀 Sending task data to backend:', JSON.stringify(backendTaskData, null, 2));
+    console.log('🔑 Using access token:', accessToken ? 'Yes' : 'No');
+    
+    const response = await apiClient.post(API_ENDPOINTS.TASKS.CREATE, backendTaskData, accessToken);
+    console.log('✅ Task created successfully:', JSON.stringify(response, null, 2));
+    
+    // Map the created task from backend format to frontend format
+    if (response.success && response.task) {
+      const mappedTask = mapBackendTaskToFrontend(response.task);
+      return { task: mappedTask };
+    }
+    
     return { task: response.task };
   } catch (error: any) {
-    console.log('Backend API error:', error.message);
+    console.error('❌ Backend API error:', error.message);
     console.log('Falling back to local storage');
   }
 

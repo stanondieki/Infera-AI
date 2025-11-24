@@ -10,6 +10,7 @@ import { MyIssues } from './dashboard/MyIssues';
 import { ProfileSettings } from './dashboard/ProfileSettings';
 import { ActiveProjects } from './dashboard/ActiveProjects';
 import { SecuritySessions } from './dashboard/SecuritySessions';
+import TaskManagement from './dashboard/TaskManagement';
 import { getUnresolvedIssuesCount } from '../utils/issues';
 import { ViewProfileDialog } from './dashboard/ViewProfileDialog';
 import { InviteFriendsDialog } from './dashboard/InviteFriendsDialog';
@@ -36,6 +37,7 @@ import {
   Mail,
   Calendar as CalendarIcon,
   Briefcase,
+  ClipboardList,
   LogOut,
   ArrowLeft,
   DollarSign,
@@ -265,8 +267,91 @@ export function Dashboard({ onBack }: DashboardProps) {
   const activeProjectsCount = dashboardStats.activeProjects;
   const completedTasks = dashboardStats.completedTasks;
   const successRate = 98.5;
-  const currentStreak = 23; // Will be calculated from real data later
-  const longestStreak = 45; // Will be calculated from real data later
+  // Calculate real streak from user task completion data
+  const calculateStreak = (tasksData: any[]) => {
+    if (!tasksData || tasksData.length === 0) return { current: 0, longest: 0 };
+    
+    // Get completed tasks sorted by completion date
+    const completedTasks = tasksData
+      .filter(task => task.status === 'completed' && task.submittedAt)
+      .map(task => ({
+        date: new Date(task.submittedAt).toDateString(),
+        task: task.title
+      }))
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    
+    if (completedTasks.length === 0) return { current: 0, longest: 0 };
+    
+    // Group tasks by date
+    const tasksByDate = completedTasks.reduce((acc, task) => {
+      acc[task.date] = (acc[task.date] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    
+    const uniqueDates = Object.keys(tasksByDate).sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+    
+    // Calculate current streak
+    let currentStreak = 0;
+    const today = new Date().toDateString();
+    const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toDateString();
+    
+    // Check if user completed tasks today or yesterday to maintain streak
+    let checkDate = new Date();
+    if (uniqueDates.includes(today)) {
+      // Completed task today
+      for (let i = 0; i < uniqueDates.length; i++) {
+        const dateStr = new Date(checkDate).toDateString();
+        if (uniqueDates.includes(dateStr)) {
+          currentStreak++;
+          checkDate.setDate(checkDate.getDate() - 1);
+        } else {
+          break;
+        }
+      }
+    } else if (uniqueDates.includes(yesterday)) {
+      // Completed task yesterday, streak continues
+      checkDate.setDate(checkDate.getDate() - 1);
+      for (let i = 0; i < uniqueDates.length; i++) {
+        const dateStr = new Date(checkDate).toDateString();
+        if (uniqueDates.includes(dateStr)) {
+          currentStreak++;
+          checkDate.setDate(checkDate.getDate() - 1);
+        } else {
+          break;
+        }
+      }
+    }
+    
+    // Calculate longest streak
+    let longestStreak = 0;
+    let tempStreak = 0;
+    let previousDate = null;
+    
+    for (const dateStr of uniqueDates) {
+      const currentDate = new Date(dateStr);
+      
+      if (previousDate) {
+        const dayDiff = Math.abs(currentDate.getTime() - previousDate.getTime()) / (1000 * 60 * 60 * 24);
+        if (dayDiff === 1) {
+          tempStreak++;
+        } else {
+          longestStreak = Math.max(longestStreak, tempStreak);
+          tempStreak = 1;
+        }
+      } else {
+        tempStreak = 1;
+      }
+      
+      previousDate = currentDate;
+    }
+    longestStreak = Math.max(longestStreak, tempStreak);
+    
+    return { current: currentStreak, longest: longestStreak };
+  };
+  
+  const streakData = calculateStreak(userTasks);
+  const currentStreak = streakData.current;
+  const longestStreak = streakData.longest;
 
   // Skills will be calculated from user's task history
 
@@ -304,12 +389,204 @@ export function Dashboard({ onBack }: DashboardProps) {
 
   useEffect(() => {
     // Only load data if user is authenticated or show guest view
+    console.log('🔄 Dashboard useEffect triggered - User:', user?.email, 'AccessToken:', accessToken ? 'Present' : 'Missing');
     loadDashboardData();
-  }, [user]); // Re-run when user changes
+  }, [user, accessToken]); // Re-run when user OR token changes
+
+  const loadActiveProjects = async () => {
+    try {
+      let token = localStorage.getItem('token') || accessToken;
+      
+      // Fallback to session-based token if direct token not found
+      if (!token) {
+        try {
+          const session = localStorage.getItem('infera_session');
+          if (session) {
+            const sessionData = JSON.parse(session);
+            token = sessionData.accessToken;
+          }
+        } catch (e) {
+          console.error('Error parsing session data:', e);
+        }
+      }
+
+      if (!token) {
+        console.warn('No token available for projects');
+        return;
+      }
+
+      const response = await fetch('http://localhost:5000/api/projects/active', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('📋 Active projects data:', data);
+        
+        if (data.success && data.projects) {
+          // Transform projects to match Dashboard interface
+          const transformedProjects = data.projects.map((project: any) => ({
+            id: project.id,
+            title: project.name,
+            description: project.description,
+            category: project.category,
+            progress: project.total_tasks > 0 ? Math.round((project.completed_tasks / project.total_tasks) * 100) : 0,
+            status: 'active',
+            hourlyRate: 0, // Will be calculated from tasks
+            tasksCompleted: project.completed_tasks,
+            totalTasks: project.total_tasks,
+            deadline: project.deadline || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+            earnings: project.total_earnings || 0,
+            quality: 95, // Default quality score
+            timeSpent: '2h 30m', // Will be calculated from actual time data
+          }));
+
+          setProjects(transformedProjects);
+          console.log('✅ Set projects:', transformedProjects);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading active projects:', error);
+    }
+  };
+
+  const generateActivities = (tasksData: any[]) => {
+    try {
+      const recentActivities = [];
+      let activityCounter = 0; // Counter to ensure unique IDs
+      
+      // Add task completions
+      const recentCompleted = tasksData
+        .filter(task => task.status === 'completed' || task.status === 'under_review')
+        .slice(0, 3)
+        .map((task, index) => ({
+          id: `task-completed-${task._id || activityCounter++}-${index}`,
+          type: 'task_completed',
+          title: 'Task Completed',
+          description: `Completed "${task.title || 'Unknown Task'}"`,
+          timestamp: task.submittedAt || task.updatedAt || new Date().toISOString(),
+          status: 'completed',
+          icon: 'CheckCircle2'
+        }));
+
+      // Add task assignments
+      const recentAssigned = tasksData
+        .filter(task => task.status === 'assigned')
+        .slice(0, 2)
+        .map((task, index) => ({
+          id: `task-assigned-${task._id || activityCounter++}-${index}`,
+          type: 'task_assigned',
+          title: 'New Task Assigned',
+          description: `Started "${task.title || 'Unknown Task'}"`,
+          timestamp: task.startedAt || task.createdAt || new Date().toISOString(),
+          status: 'assigned',
+          icon: 'Briefcase'
+        }));
+
+      // Add progress updates
+      const inProgress = tasksData
+        .filter(task => task.status === 'in_progress' && (task.progress || 0) > 0)
+        .slice(0, 2)
+        .map((task, index) => ({
+          id: `task-progress-${task._id || activityCounter++}-${index}`,
+          type: 'task_progress',
+          title: 'Task Progress',
+          description: `${task.progress || 0}% completed on "${task.title || 'Unknown Task'}"`,
+          timestamp: new Date(Date.now() - Math.random() * 2 * 60 * 60 * 1000).toISOString(),
+          status: 'in_progress',
+          icon: 'TrendingUp'
+        }));
+
+      // Combine and sort by timestamp
+      recentActivities.push(...recentCompleted, ...recentAssigned, ...inProgress);
+      recentActivities.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      
+      // Ensure all activities have unique IDs
+      const uniqueActivities = recentActivities.map((activity, index) => ({
+        ...activity,
+        id: `activity-${index}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+      }));
+      
+      setActivities(uniqueActivities.slice(0, 6));
+      console.log('✅ Generated activities with unique IDs:', uniqueActivities);
+    } catch (error) {
+      console.error('Error generating activities:', error);
+      // Set empty activities if there's an error
+      setActivities([]);
+    }
+  };
+
+  const generateMilestones = (allTasks: any[], completedTasks: any[]) => {
+    try {
+      const totalTasks = allTasks.length;
+      const totalCompleted = completedTasks.length;
+      const totalEarnings = completedTasks.reduce((sum, task) => {
+        return sum + (task.totalEarnings || task.payment || 0);
+      }, 0);
+
+      const milestones = [
+        {
+          id: 'tasks-milestone',
+          title: 'Task Master',
+          description: 'Complete 10 tasks',
+          progress: Math.min(totalCompleted, 10),
+          target: 10,
+          reward: '$50 Bonus',
+          completed: totalCompleted >= 10
+        },
+        {
+          id: 'earnings-milestone',
+          title: 'High Earner',
+          description: 'Earn $1,000 total',
+          progress: Math.min(totalEarnings, 1000),
+          target: 1000,
+          reward: 'Premium Badge',
+          completed: totalEarnings >= 1000
+        },
+        {
+          id: 'projects-milestone',
+          title: 'Project Expert',
+          description: 'Work on 3 different projects',
+          progress: Math.min(projects.length, 3),
+          target: 3,
+          reward: 'Expert Status',
+          completed: projects.length >= 3
+        },
+        {
+          id: 'quality-milestone',
+          title: 'Quality Champion',
+          description: 'Maintain 95% quality score',
+          progress: 95, // Default quality score
+          target: 100,
+          reward: 'Quality Badge',
+          completed: false
+        }
+      ];
+
+      setMilestones(milestones);
+      console.log('✅ Generated milestones:', milestones);
+    } catch (error) {
+      console.error('Error generating milestones:', error);
+    }
+  };
 
   const loadDashboardData = async () => {
     setIsLoading(true);
     try {
+      // Temporarily store token for API calls (use the same key as auth system)
+      if (accessToken) {
+        localStorage.setItem('token', accessToken);
+      }
+      
+      const storedToken = localStorage.getItem('token');
+      console.log('🔄 Loading dashboard data:');
+      console.log('  - User:', user?.email);
+      console.log('  - AccessToken from auth:', accessToken ? `${accessToken.substring(0, 20)}...` : 'Missing');
+      console.log('  - Stored token:', storedToken ? `${storedToken.substring(0, 20)}...` : 'Missing');
+      console.log('  - Tokens match:', accessToken === storedToken);
+      
       // Load all dashboard data
       const [statsData, applicationsData, tasksData, opportunitiesData] = await Promise.all([
         dashboardService.getDashboardStats(),
@@ -318,15 +595,43 @@ export function Dashboard({ onBack }: DashboardProps) {
         dashboardService.getOpportunities(),
       ]);
 
-      setDashboardStats(statsData);
+      console.log('📊 Dashboard stats:', statsData);
+      console.log('📋 User tasks:', tasksData);
+
+      // Update stats based on actual tasks data
+      console.log('📋 Raw tasks data:', tasksData);
+      console.log('📋 Task statuses:', tasksData.map((task: any) => ({ title: task.title, status: task.status })));
+      
+      const activeTasks = tasksData.filter((task: any) => task.status === 'assigned' || task.status === 'in_progress');
+      const completedTasks = tasksData.filter((task: any) => task.status === 'completed' || task.status === 'under_review');
+      
+      console.log('📊 Active tasks:', activeTasks);
+      console.log('📊 Completed tasks:', completedTasks);
+      
+      const updatedStats = {
+        ...statsData,
+        activeProjects: activeTasks.length,
+        completedTasks: completedTasks.length,
+      };
+      
+      console.log('📊 Updated stats with task counts:', updatedStats);
+      
+      // Fetch active projects from the new endpoint
+      await loadActiveProjects();
+      
+      // Generate activities from user tasks
+      generateActivities(tasksData);
+      
+      // Generate milestones from user progress
+      generateMilestones(tasksData, completedTasks);
+      
+      setDashboardStats(updatedStats);
       setApplications(applicationsData);
       setUserTasks(tasksData);
       setOpportunities(opportunitiesData);
     } catch (error) {
       console.error('Error loading dashboard data:', error);
-      // Don't show error toast if user is not authenticated
-      const token = localStorage.getItem('token');
-      if (token) {
+      if (accessToken) {
         toast.error('Failed to load dashboard data');
       }
     } finally {
@@ -388,6 +693,9 @@ export function Dashboard({ onBack }: DashboardProps) {
 
   const getActivityIcon = (iconName: string) => {
     const iconMap: { [key: string]: React.ReactElement } = {
+      CheckCircle2: <CheckCircle2 className="h-4 w-4 text-white" />,
+      Briefcase: <Briefcase className="h-4 w-4 text-white" />,
+      TrendingUp: <TrendingUp className="h-4 w-4 text-white" />,
       check: <CheckCircle2 className="h-4 w-4 text-green-600" />,
       dollar: <DollarSign className="h-4 w-4 text-green-600" />,
       trophy: <Trophy className="h-4 w-4 text-yellow-600" />,
@@ -395,7 +703,7 @@ export function Dashboard({ onBack }: DashboardProps) {
       award: <Award className="h-4 w-4 text-purple-600" />,
       star: <Star className="h-4 w-4 text-yellow-600" />,
     };
-    return iconMap[iconName] || <Activity className="h-4 w-4 text-gray-600" />;
+    return iconMap[iconName] || <Activity className="h-4 w-4 text-white" />;
   };
 
   const getSkillColor = (level: number) => {
@@ -660,6 +968,18 @@ export function Dashboard({ onBack }: DashboardProps) {
                     <Button onClick={onBack} variant="secondary" className="gap-1 sm:gap-2 text-xs sm:text-sm bg-white/20 hover:bg-white/30 text-white border-white/30 backdrop-blur-xl">
                       <Rocket className="h-3 w-3 sm:h-4 sm:w-4" />
                       <span className="hidden sm:inline">New</span> Opportunities
+                    </Button>
+                    <Button 
+                      onClick={() => { 
+                        console.log('🔄 Manual refresh triggered'); 
+                        loadDashboardData(); 
+                        toast.success('Dashboard refreshed!'); 
+                      }} 
+                      variant="secondary" 
+                      className="gap-1 sm:gap-2 text-xs sm:text-sm bg-white/20 hover:bg-white/30 text-white border-white/30 backdrop-blur-xl"
+                    >
+                      <RefreshCw className="h-3 w-3 sm:h-4 sm:w-4" />
+                      <span className="hidden sm:inline">Refresh</span>
                     </Button>
                     <Button onClick={() => setInviteFriendsOpen(true)} variant="secondary" className="gap-1 sm:gap-2 text-xs sm:text-sm bg-white/20 hover:bg-white/30 text-white border-white/30 backdrop-blur-xl">
                       <Share2 className="h-3 w-3 sm:h-4 sm:w-4" />
@@ -2066,7 +2386,7 @@ export function Dashboard({ onBack }: DashboardProps) {
 
           {/* Active Projects Tab */}
           <TabsContent value="active-projects" className="space-y-6">
-            <ActiveProjects />
+            <ActiveProjects tasks={userTasks} onRefresh={loadDashboardData} />
           </TabsContent>
 
           {/* My Tasks Tab */}

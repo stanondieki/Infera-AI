@@ -83,7 +83,7 @@ export function Header({ onSignInClick, onApplyClick, onDashboardClick }: Header
                 </Button>
                 {user.role !== 'admin' && (
                   <Button className="bg-blue-600 hover:bg-blue-700" onClick={onApplyClick}>
-                    Apply Now
+                    {user ? "View Opportunities" : "Apply Now"}
                   </Button>
                 )}
               </>
@@ -156,7 +156,7 @@ export function Header({ onSignInClick, onApplyClick, onDashboardClick }: Header
                     </Button>
                     {user.role !== 'admin' && (
                       <Button className="bg-blue-600 hover:bg-blue-700" onClick={onApplyClick}>
-                        Apply Now
+                        View Opportunities
                       </Button>
                     )}
                   </>

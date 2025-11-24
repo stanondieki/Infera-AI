@@ -199,7 +199,7 @@ export function PaymentTracking({ payments, users, onRefresh }: PaymentTrackingP
               <SelectItem value="all">All Users</SelectItem>
               {users.map(user => (
                 <SelectItem key={user.id} value={user.id}>
-                  {user.first_name} {user.last_name}
+                  {user.name}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -266,9 +266,9 @@ export function PaymentTracking({ payments, users, onRefresh }: PaymentTrackingP
                   <SelectValue placeholder="Select a user" />
                 </SelectTrigger>
                 <SelectContent>
-                  {users.filter(u => u.status === 'active').map(user => (
+                  {users.filter(u => u.isActive).map(user => (
                     <SelectItem key={user.id} value={user.id}>
-                      {user.first_name} {user.last_name} ({user.email})
+                      {user.name} ({user.email})
                     </SelectItem>
                   ))}
                 </SelectContent>
