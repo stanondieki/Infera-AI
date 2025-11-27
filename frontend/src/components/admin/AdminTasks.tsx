@@ -212,14 +212,13 @@ export function AdminTasks({ onBack, accessToken }: AdminTasksProps) {
 
   const assignTask = async (taskId: string, userId: string) => {
     try {
-      const token = localStorage.getItem('token');
-      console.log('🎯 Assigning task with token:', token ? 'Present' : 'Missing');
+      console.log('🎯 Assigning task with token:', accessToken ? 'Present' : 'Missing');
       
       const response = await fetch(`https://inferaai-hfh4hmd4frcee8e9.centralindia-01.azurewebsites.net/api/tasks/${taskId}/assign`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${accessToken}`
         },
         body: JSON.stringify({ userId })
       });
@@ -256,12 +255,11 @@ export function AdminTasks({ onBack, accessToken }: AdminTasksProps) {
 
   const handleBulkTaskCreation = async (category: string, count: number, difficulty: string) => {
     try {
-      const token = localStorage.getItem('token');
       const response = await fetch('/api/tasks/create-ai-tasks', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${accessToken}`
         },
         body: JSON.stringify({ category, taskCount: count, difficulty })
       });
