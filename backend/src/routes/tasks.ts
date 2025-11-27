@@ -12,12 +12,25 @@ const router = express.Router();
 router.post('/create', authenticateToken, requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const taskData = req.body;
+    
+    console.log('🎯 Task creation request received');
+    console.log('👤 Created by user:', req.user?.email);
+    console.log('📝 Task data keys:', Object.keys(taskData));
+    console.log('📋 Task data:', JSON.stringify(taskData, null, 2));
 
     // Validate required fields
-    if (!taskData.title || !taskData.description || !taskData.type || !taskData.category) {
+    const missingFields = [];
+    if (!taskData.title) missingFields.push('title');
+    if (!taskData.description) missingFields.push('description');
+    if (!taskData.type) missingFields.push('type');
+    if (!taskData.category) missingFields.push('category');
+    
+    if (missingFields.length > 0) {
+      console.log('❌ Missing required fields:', missingFields);
       return res.status(400).json({
         success: false,
-        message: 'Missing required fields: title, description, type, category'
+        message: `Missing required fields: ${missingFields.join(', ')}`,
+        receivedFields: Object.keys(taskData)
       });
     }
 
@@ -64,11 +77,29 @@ router.post('/create', authenticateToken, requireAdmin, async (req: AuthRequest,
       task: task
     });
   } catch (error) {
-    console.error('Error creating task:', error);
+    console.error('❌ Error creating task:', error);
+    console.error('📝 Task data received:', JSON.stringify(req.body, null, 2));
+    console.error('👤 Created by user ID:', req.user?._id);
+    
+    // More detailed error logging
+    if (error instanceof Error) {
+      console.error('Error name:', error.name);
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+    }
+    
+    // Check database connection
+    const mongoose = require('mongoose');
+    console.error('📊 DB connection state:', mongoose.connection.readyState);
+    
     res.status(500).json({
       success: false,
       message: 'Server error during task creation',
-      error: (error as any)?.message || 'Unknown error'
+      error: (error as any)?.message || 'Unknown error',
+      ...(process.env.NODE_ENV === 'development' && {
+        stack: error instanceof Error ? error.stack : undefined,
+        taskData: req.body
+      })
     });
   }
 });
