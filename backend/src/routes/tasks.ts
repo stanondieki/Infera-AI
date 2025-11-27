@@ -36,7 +36,7 @@ router.post('/create', authenticateToken, requireAdmin, async (req: AuthRequest,
 
     // Validate and convert assignedTo to ObjectId if provided
     let assignedToId = null;
-    if (taskData.assignedTo && taskData.assignedTo !== '') {
+    if (taskData.assignedTo && taskData.assignedTo !== '' && taskData.assignedTo !== 'null') {
       try {
         // Check if it's a valid ObjectId string
         if (mongoose.Types.ObjectId.isValid(taskData.assignedTo)) {
@@ -56,6 +56,8 @@ router.post('/create', authenticateToken, requireAdmin, async (req: AuthRequest,
           message: 'Invalid user ID for assignedTo field'
         });
       }
+    } else {
+      console.log('💭 No user assigned (assignedTo is empty or null)');
     }
 
     // Create the task
