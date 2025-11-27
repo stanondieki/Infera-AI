@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { X, Calendar, DollarSign, Clock, User, FileText } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { X, Calendar, DollarSign, Clock, User, FileText, ChevronLeft, ChevronRight, Info, CheckCircle } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Badge } from '../ui/badge';
@@ -25,7 +25,8 @@ interface CreateTaskDialogProps {
   }>;
 }
 
-interface TaskFormData {
+// Legacy TaskFormData interface for backward compatibility
+interface LegacyTaskFormData {
   title: string;
   description: string;
   type: string;
@@ -58,7 +59,7 @@ interface TaskFormData {
 export function CreateTaskDialog({ open, onClose, onTaskCreated, users }: CreateTaskDialogProps) {
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState(1);
-  const [formData, setFormData] = useState<TaskFormData>({
+  const [formData, setFormData] = useState<LegacyTaskFormData>({
     title: '',
     description: '',
     type: '',
@@ -109,14 +110,14 @@ export function CreateTaskDialog({ open, onClose, onTaskCreated, users }: Create
   const priorities = ['low', 'medium', 'high', 'critical'];
 
   const handleInputChange = (field: string, value: any) => {
-    setFormData(prev => ({
+    setFormData((prev: LegacyTaskFormData) => ({
       ...prev,
       [field]: value
     }));
   };
 
   const handleTaskDataChange = (field: string, value: any) => {
-    setFormData(prev => ({
+    setFormData((prev: LegacyTaskFormData) => ({
       ...prev,
       taskData: {
         ...prev.taskData,
@@ -127,7 +128,7 @@ export function CreateTaskDialog({ open, onClose, onTaskCreated, users }: Create
 
   const handleArrayChange = (field: string, value: string) => {
     const items = value.split('\\n').filter(item => item.trim());
-    setFormData(prev => ({
+    setFormData((prev: LegacyTaskFormData) => ({
       ...prev,
       [field]: items
     }));
@@ -135,7 +136,7 @@ export function CreateTaskDialog({ open, onClose, onTaskCreated, users }: Create
 
   const handleTaskDataArrayChange = (field: string, value: string) => {
     const items = value.split('\\n').filter(item => item.trim());
-    setFormData(prev => ({
+    setFormData((prev: LegacyTaskFormData) => ({
       ...prev,
       taskData: {
         ...prev.taskData,

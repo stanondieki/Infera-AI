@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Textarea } from '../ui/textarea';
 import { useAuth } from '../../utils/auth';
 import { TaskReviewDialog } from './TaskReviewDialog';
-import { CreateTaskDialog } from './CreateTaskDialog';
+import { CreateTaskDialog } from './CreateTaskDialogEnhanced';
 
 // Get API base URL from environment or fallback to production
 const getApiUrl = () => {
