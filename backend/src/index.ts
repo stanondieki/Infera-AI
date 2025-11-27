@@ -112,6 +112,8 @@ const createInitialAdmin = async () => {
 // Middleware
 const allowedOrigins = [
   process.env.FRONTEND_URL || 'http://localhost:3000',
+  'https://task-ify.com',
+  'https://www.task-ify.com',
   'https://infera-ai-five.vercel.app',
   'https://infera-ai.vercel.app',
   'http://localhost:3000',
