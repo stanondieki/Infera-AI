@@ -225,7 +225,7 @@ export function AdminTasks({ onBack, accessToken }: AdminTasksProps) {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${finalToken}`
         },
-        body: JSON.stringify({ userId })
+        body: JSON.stringify({ assignedTo: userId })
       });
 
       console.log('📡 Assignment response status:', response.status);
