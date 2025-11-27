@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Users, Settings, BarChart3, Calendar, Search, X, DollarSign, Clock } from 'lucide-react';
+import { Plus, Users, Settings, BarChart3, Calendar, Search, X, DollarSign, Clock, Eye, CheckCircle, XCircle } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
@@ -7,6 +7,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Textarea } from '../ui/textarea';
 import { useAuth } from '../../utils/auth';
+import { TaskReviewDialog } from './TaskReviewDialog';
+import { CreateTaskDialog } from './CreateTaskDialog';
 
 // Get API base URL from environment or fallback to production
 const getApiUrl = () => {
@@ -34,9 +36,19 @@ interface Task {
   deadline: string;
   hourlyRate: number;
   estimatedHours: number;
+  actualHours?: number;
   progress?: number;
   priority: string;
   createdAt: string;
+  submittedAt?: string;
+  completedAt?: string;
+  submissionNotes?: string;
+  submissionFiles?: string[];
+  reviewNotes?: string;
+  reviewedBy?: string;
+  reviewedAt?: string;
+  rating?: number;
+  feedback?: string;
 }
 
 interface User {
@@ -57,7 +69,9 @@ export function AdminTasks({ onBack, accessToken }: AdminTasksProps) {
   const [loading, setLoading] = useState(true);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showAssignDialog, setShowAssignDialog] = useState(false);
+  const [showReviewDialog, setShowReviewDialog] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [pendingTasks, setPendingTasks] = useState<Task[]>([]);
   const [createTaskForm, setCreateTaskForm] = useState({
     title: '',
     description: '',
@@ -79,6 +93,7 @@ export function AdminTasks({ onBack, accessToken }: AdminTasksProps) {
   useEffect(() => {
     loadTasks();
     loadUsers();
+    loadPendingReviewTasks();
   }, []);
 
   const loadTasks = async () => {
@@ -265,6 +280,42 @@ export function AdminTasks({ onBack, accessToken }: AdminTasksProps) {
     }
   };
 
+  const loadPendingReviewTasks = async () => {
+    try {
+      console.log('📋 Loading pending review tasks...');
+      
+      const response = await fetch(`${getApiUrl()}/tasks/admin/pending-review`, {
+        headers: {
+          'Authorization': `Bearer ${finalToken}`,
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('📋 Loaded pending review tasks:', data);
+        setPendingTasks(data.tasks || []);
+      } else {
+        console.error('❌ Failed to load pending tasks');
+      }
+    } catch (error) {
+      console.error('Error loading pending review tasks:', error);
+    }
+  };
+
+  const handleReviewComplete = async (taskId: string, action: string) => {
+    // Refresh tasks after review
+    await loadTasks();
+    await loadPendingReviewTasks();
+    
+    // Remove from pending tasks
+    setPendingTasks(prev => prev.filter(task => task._id !== taskId));
+  };
+
+  const openTaskReview = (task: Task) => {
+    setSelectedTask(task);
+    setShowReviewDialog(true);
+  };
+
   const handleBulkTaskCreation = async (category: string, count: number, difficulty: string) => {
     try {
       const response = await fetch('/api/tasks/create-ai-tasks', {
@@ -358,10 +409,10 @@ export function AdminTasks({ onBack, accessToken }: AdminTasksProps) {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Pending</p>
-                  <p className="text-2xl font-bold text-orange-600">{stats.pending}</p>
+                  <p className="text-sm font-medium text-gray-600">Pending Review</p>
+                  <p className="text-2xl font-bold text-orange-600">{pendingTasks.length}</p>
                 </div>
-                <Clock className="w-8 h-8 text-orange-600" />
+                <Eye className="w-8 h-8 text-orange-600" />
               </div>
             </CardContent>
           </Card>
@@ -406,6 +457,14 @@ export function AdminTasks({ onBack, accessToken }: AdminTasksProps) {
         <Tabs defaultValue="tasks" className="space-y-6">
           <TabsList>
             <TabsTrigger value="tasks">Task Management</TabsTrigger>
+            <TabsTrigger value="review" className="relative">
+              Review Submissions
+              {pendingTasks.length > 0 && (
+                <Badge className="ml-2 bg-red-500 text-white text-xs">
+                  {pendingTasks.length}
+                </Badge>
+              )}
+            </TabsTrigger>
             <TabsTrigger value="bulk">Bulk Creation</TabsTrigger>
             <TabsTrigger value="users">User Management</TabsTrigger>
           </TabsList>
@@ -495,7 +554,18 @@ export function AdminTasks({ onBack, accessToken }: AdminTasksProps) {
                       </div>
                       
                       <div className="flex items-center gap-2 ml-4">
-                        {!task.assignedTo && (
+                        {task.status === 'under_review' && (
+                          <Button 
+                            size="sm" 
+                            variant="default"
+                            onClick={() => openTaskReview(task)}
+                            className="bg-orange-600 hover:bg-orange-700"
+                          >
+                            <Eye className="w-4 h-4 mr-1" />
+                            Review
+                          </Button>
+                        )}
+                        {!task.assignedTo && task.status !== 'under_review' && (
                           <Button 
                             size="sm" 
                             variant="outline"
@@ -532,6 +602,62 @@ export function AdminTasks({ onBack, accessToken }: AdminTasksProps) {
             )}
           </TabsContent>
 
+          <TabsContent value="review" className="space-y-6">
+            {/* Review Queue */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Tasks Pending Review</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {pendingTasks.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-gray-500">No tasks pending review</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {pendingTasks.map(task => (
+                      <div key={task._id} className="border rounded-lg p-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-2">
+                              <h3 className="font-medium">{task.title}</h3>
+                              <Badge className="bg-orange-100 text-orange-800">
+                                {task.category?.replace('_', ' ')}
+                              </Badge>
+                              <Badge variant="outline">
+                                Under Review
+                              </Badge>
+                            </div>
+                            
+                            <div className="flex items-center gap-6 text-sm text-gray-500">
+                              <span>Assigned to: {task.assignedTo?.name}</span>
+                              <span>Submitted: {new Date(task.submittedAt || '').toLocaleDateString()}</span>
+                              <span>Rate: ${task.hourlyRate}/hr</span>
+                              {task.actualHours && (
+                                <span>Hours: {task.actualHours}h</span>
+                              )}
+                              <span className="font-medium text-green-600">
+                                Earnings: ${task.actualHours && task.hourlyRate ? (task.actualHours * task.hourlyRate).toFixed(2) : '0.00'}
+                              </span>
+                            </div>
+                          </div>
+                          
+                          <Button 
+                            onClick={() => openTaskReview(task)}
+                            className="flex items-center gap-2"
+                          >
+                            <Eye className="w-4 h-4" />
+                            Review Submission
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
           <TabsContent value="bulk">
             <BulkTaskCreation onBulkCreate={handleBulkTaskCreation} />
           </TabsContent>
@@ -543,190 +669,15 @@ export function AdminTasks({ onBack, accessToken }: AdminTasksProps) {
       </div>
 
       {/* Create Task Dialog */}
-      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Create New Task</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 pr-2">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-2">Task Title</label>
-                <input
-                  type="text"
-                  value={createTaskForm.title}
-                  onChange={(e) => setCreateTaskForm({...createTaskForm, title: e.target.value})}
-                  className="w-full p-2 border border-gray-300 rounded-lg"
-                  placeholder="Enter task title"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-2">Category</label>
-                <select
-                  value={createTaskForm.category}
-                  onChange={(e) => setCreateTaskForm({...createTaskForm, category: e.target.value})}
-                  className="w-full p-2 border border-gray-300 rounded-lg"
-                >
-                  <option value="AI_TRAINING">AI Training</option>
-                  <option value="DATA_ANNOTATION">Data Annotation</option>
-                  <option value="MODEL_EVALUATION">Model Evaluation</option>
-                  <option value="CONTENT_MODERATION">Content Moderation</option>
-                  <option value="TRANSCRIPTION">Transcription</option>
-                </select>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-2">Description</label>
-              <Textarea
-                value={createTaskForm.description}
-                onChange={(e) => setCreateTaskForm({...createTaskForm, description: e.target.value})}
-                className="w-full"
-                rows={2}
-                placeholder="Describe the task requirements"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-2">Task Type</label>
-              <input
-                type="text"
-                value={createTaskForm.type}
-                onChange={(e) => setCreateTaskForm({...createTaskForm, type: e.target.value})}
-                className="w-full p-2 border border-gray-300 rounded-lg"
-                placeholder="e.g., image_classification, text_annotation"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-2">Instructions</label>
-              <Textarea
-                value={createTaskForm.instructions}
-                onChange={(e) => setCreateTaskForm({...createTaskForm, instructions: e.target.value})}
-                className="w-full"
-                rows={3}
-                placeholder="Detailed instructions for task completion"
-              />
-            </div>
-
-            {/* Image/Dataset URLs for annotation tasks */}
-            {createTaskForm.category === 'DATA_ANNOTATION' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">Image URL</label>
-                  <input
-                    type="url"
-                    value={createTaskForm.imageUrl}
-                    onChange={(e) => setCreateTaskForm({...createTaskForm, imageUrl: e.target.value})}
-                    className="w-full p-2 border border-gray-300 rounded-lg"
-                    placeholder="https://example.com/image.jpg"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">URL of the image to be annotated</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2">Dataset URL (Alternative)</label>
-                  <input
-                    type="url"
-                    value={createTaskForm.datasetUrl}
-                    onChange={(e) => setCreateTaskForm({...createTaskForm, datasetUrl: e.target.value})}
-                    className="w-full p-2 border border-gray-300 rounded-lg"
-                    placeholder="https://example.com/dataset.zip"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">URL of dataset if multiple images</p>
-                </div>
-              </div>
-            )}
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-2">Estimated Hours</label>
-                <input
-                  type="number"
-                  value={createTaskForm.estimatedHours}
-                  onChange={(e) => setCreateTaskForm({...createTaskForm, estimatedHours: Number(e.target.value)})}
-                  className="w-full p-2 border border-gray-300 rounded-lg"
-                  min="0.5"
-                  step="0.5"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-2">Hourly Rate ($)</label>
-                <input
-                  type="number"
-                  value={createTaskForm.hourlyRate}
-                  onChange={(e) => setCreateTaskForm({...createTaskForm, hourlyRate: Number(e.target.value)})}
-                  className="w-full p-2 border border-gray-300 rounded-lg"
-                  min="10"
-                  step="1"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-2">Priority</label>
-                <select
-                  value={createTaskForm.priority}
-                  onChange={(e) => setCreateTaskForm({...createTaskForm, priority: e.target.value})}
-                  className="w-full p-2 border border-gray-300 rounded-lg"
-                >
-                  <option value="low">Low</option>
-                  <option value="medium">Medium</option>
-                  <option value="high">High</option>
-                  <option value="urgent">Urgent</option>
-                </select>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-2">Deadline</label>
-              <input
-                type="date"
-                value={createTaskForm.deadline}
-                onChange={(e) => setCreateTaskForm({...createTaskForm, deadline: e.target.value})}
-                className="w-full p-2 border border-gray-300 rounded-lg"
-                min={new Date().toISOString().split('T')[0]}
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-2">Assign to User</label>
-              <select
-                value={createTaskForm.assignedTo}
-                onChange={(e) => setCreateTaskForm({...createTaskForm, assignedTo: e.target.value})}
-                className="w-full p-2 border border-gray-300 rounded-lg"
-              >
-                <option value="">Leave unassigned (draft)</option>
-                {users.map(user => (
-                  <option key={user.id} value={user.id}>
-                    {user.name} - {user.email}
-                  </option>
-                ))}
-              </select>
-              <p className="text-xs text-gray-500 mt-1">
-                Required: Task must be assigned to a specific user
-              </p>
-            </div>
-
-            <div className="sticky bottom-0 bg-white pt-4 border-t flex flex-col sm:flex-row justify-end gap-3 mt-6">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setShowCreateDialog(false)}
-                className="w-full sm:w-auto"
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                onClick={createTask}
-                disabled={!createTaskForm.title || !createTaskForm.description || !createTaskForm.type}
-                className="w-full sm:w-auto"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Create Task
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <CreateTaskDialog
+        open={showCreateDialog}
+        onClose={() => setShowCreateDialog(false)}
+        onTaskCreated={(task) => {
+          setTasks([...tasks, task]);
+          setShowCreateDialog(false);
+        }}
+        users={users}
+      />
 
       {/* Assignment Dialog */}
       <Dialog open={showAssignDialog} onOpenChange={setShowAssignDialog}>
@@ -774,6 +725,20 @@ export function AdminTasks({ onBack, accessToken }: AdminTasksProps) {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Task Review Dialog */}
+      {selectedTask && (
+        <TaskReviewDialog
+          open={showReviewDialog}
+          onClose={() => {
+            setShowReviewDialog(false);
+            setSelectedTask(null);
+          }}
+          task={selectedTask}
+          onReviewComplete={handleReviewComplete}
+          accessToken={finalToken}
+        />
+      )}
     </>
   );
 }

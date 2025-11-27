@@ -5,17 +5,23 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Badge } from '../ui/badge';
 import { Textarea } from '../ui/textarea';
 
+// Get API base URL from environment or fallback to production
+const getApiUrl = () => {
+  return process.env.NEXT_PUBLIC_API_URL || 'https://inferaai-hfh4hmd4frcee8e9.centralindia-01.azurewebsites.net/api';
+};
+
 interface CreateTaskDialogProps {
   open: boolean;
   onClose: () => void;
   onTaskCreated: (task: any) => void;
   users: Array<{
-    _id: string;
+    _id?: string;
+    id?: string;
     name: string;
     email: string;
-    skills: string[];
-    completedTasks: number;
-    rating: number;
+    skills?: string[];
+    completedTasks?: number;
+    rating?: number;
   }>;
 }
 
@@ -143,7 +149,7 @@ export function CreateTaskDialog({ open, onClose, onTaskCreated, users }: Create
       setLoading(true);
       const token = localStorage.getItem('token');
       
-      const response = await fetch('/api/tasks/create', {
+      const response = await fetch(`${getApiUrl()}/tasks/create`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -156,13 +162,15 @@ export function CreateTaskDialog({ open, onClose, onTaskCreated, users }: Create
         const data = await response.json();
         onTaskCreated(data.task);
         resetForm();
+        alert('✅ Task created successfully!');
       } else {
-        const error = await response.json();
-        console.error('Task creation failed:', error);
-        // Handle error
+        const errorText = await response.text();
+        console.error('Task creation failed:', response.status, errorText);
+        alert(`❌ Failed to create task: ${response.status} - ${response.statusText}\n\nPlease check:\n1. Backend server is running on port 5000\n2. You're logged in as admin\n3. All required fields are filled`);
       }
     } catch (error) {
       console.error('Error creating task:', error);
+      alert(`❌ Network error: ${error instanceof Error ? error.message : 'Unknown error'}\n\nPlease check:\n1. Backend server is running (http://localhost:5000)\n2. Your internet connection\n3. CORS configuration`);
     } finally {
       setLoading(false);
     }
@@ -347,7 +355,7 @@ export function CreateTaskDialog({ open, onClose, onTaskCreated, users }: Create
                   <input
                     type="number"
                     value={formData.estimatedTime}
-                    onChange={(e) => handleInputChange('estimatedTime', parseInt(e.target.value))}
+                    onChange={(e) => handleInputChange('estimatedTime', parseInt(e.target.value) || 60)}
                     min="15"
                     max="480"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
@@ -380,6 +388,58 @@ export function CreateTaskDialog({ open, onClose, onTaskCreated, users }: Create
                   placeholder="Specific guidelines and best practices..."
                   className="w-full h-24"
                 />
+              </div>
+
+              {/* Test Content Section */}
+              <div className="bg-blue-50 p-6 rounded-lg border border-blue-200">
+                <h4 className="text-lg font-semibold text-blue-900 mb-4">Test Content & Materials</h4>
+                <p className="text-sm text-blue-700 mb-4">Add the actual content, questions, or materials that users will work with</p>
+                
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-sm font-medium block mb-2">Test Content / Questions</label>
+                    <Textarea
+                      value={formData.taskData.inputs.join('\n---\n')}
+                      onChange={(e) => {
+                        const items = e.target.value.split('\n---\n').filter(item => item.trim());
+                        handleTaskDataChange('inputs', items);
+                      }}
+                      placeholder="Add test content here. Separate multiple items with '---'
+
+Example for Spanish conversation task:
+Conversation 1:
+User: ¡Hola! Mi paquete debería haber llegado ayer pero no ha llegado. ¿Pueden ayudarme?
+AI Response: Hola, lamento la demora. Voy a revisar tu pedido. ¿Me das el número de seguimiento?
+Task: Review this AI response for cultural appropriateness and suggest improvements.
+
+---
+
+Conversation 2:
+User: ¿Podríamos programar una reunión para la próxima semana?
+AI Response: Sí, claro. ¿Qué tal el martes? Tengo tiempo libre.
+Task: Evaluate formality level and suggest more professional phrasing."
+                      rows={10}
+                      className="w-full"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-medium block mb-2">Expected Output / Answer Key (Optional)</label>
+                    <Textarea
+                      value={formData.taskData.expectedOutput || ''}
+                      onChange={(e) => handleTaskDataChange('expectedOutput', e.target.value)}
+                      placeholder="Provide sample answers or expected outputs to help with grading...
+
+Example:
+Conversation 1 Improved Response: 
+'Estimado cliente, lamento mucho las molestias ocasionadas por el retraso en su envío. Me haré cargo personalmente de investigar el estado de su paquete. ¿Podría proporcionarme su número de seguimiento para revisar inmediatamente?'
+
+Reasoning: Uses formal 'usted', shows empathy, takes personal responsibility."
+                      rows={6}
+                      className="w-full"
+                    />
+                  </div>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -444,7 +504,7 @@ export function CreateTaskDialog({ open, onClose, onTaskCreated, users }: Create
                   <input
                     type="number"
                     value={formData.estimatedHours}
-                    onChange={(e) => handleInputChange('estimatedHours', parseFloat(e.target.value))}
+                    onChange={(e) => handleInputChange('estimatedHours', parseFloat(e.target.value) || 1)}
                     min="0.25"
                     max="20"
                     step="0.25"
@@ -460,7 +520,7 @@ export function CreateTaskDialog({ open, onClose, onTaskCreated, users }: Create
                   <input
                     type="number"
                     value={formData.hourlyRate}
-                    onChange={(e) => handleInputChange('hourlyRate', parseFloat(e.target.value))}
+                    onChange={(e) => handleInputChange('hourlyRate', parseFloat(e.target.value) || 15)}
                     min="5"
                     max="100"
                     step="0.50"
@@ -486,9 +546,9 @@ export function CreateTaskDialog({ open, onClose, onTaskCreated, users }: Create
               <div className="bg-blue-50 p-4 rounded-lg">
                 <h4 className="font-medium text-blue-900 mb-2">Payment Summary</h4>
                 <div className="text-sm text-blue-800">
-                  <p>Estimated earnings: <span className="font-semibold">${(formData.estimatedHours * formData.hourlyRate).toFixed(2)}</span></p>
-                  <p>Time commitment: <span className="font-semibold">{formData.estimatedTime} minutes</span></p>
-                  <p>Effective rate: <span className="font-semibold">${((formData.estimatedHours * formData.hourlyRate) / (formData.estimatedTime / 60)).toFixed(2)}/hour</span></p>
+                  <p>Estimated earnings: <span className="font-semibold">${((formData.estimatedHours || 1) * (formData.hourlyRate || 15)).toFixed(2)}</span></p>
+                  <p>Time commitment: <span className="font-semibold">{formData.estimatedTime || 60} minutes</span></p>
+                  <p>Effective rate: <span className="font-semibold">${(((formData.estimatedHours || 1) * (formData.hourlyRate || 15)) / ((formData.estimatedTime || 60) / 60)).toFixed(2)}/hour</span></p>
                 </div>
               </div>
 
@@ -532,11 +592,14 @@ export function CreateTaskDialog({ open, onClose, onTaskCreated, users }: Create
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">Leave unassigned (will appear in task pool)</option>
-                  {users.map(user => (
-                    <option key={user._id} value={user._id}>
-                      {user.name} ({user.email}) - {user.completedTasks} tasks, ⭐{user.rating}
-                    </option>
-                  ))}
+                  {users.map((user, index) => {
+                    const userId = user._id || user.id || `user-${index}`;
+                    return (
+                      <option key={userId} value={userId}>
+                        {user.name} ({user.email}) - {user.completedTasks || 0} tasks, ⭐{user.rating || 0}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
 

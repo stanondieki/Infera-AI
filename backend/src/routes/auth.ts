@@ -167,7 +167,7 @@ router.post('/register', authLimiter, validateUserRegistration, async (req: Requ
         await existingUser.save();
         
         // Generate token
-        const token = generateToken(existingUser._id);
+        const token = generateToken(existingUser._id.toString());
         
         // Remove password from response
         const userResponse = {
@@ -206,7 +206,7 @@ router.post('/register', authLimiter, validateUserRegistration, async (req: Requ
     await user.save();
 
     // Generate token
-    const token = generateToken(user._id);
+    const token = generateToken(user._id.toString());
 
     // Remove password from response
     const userResponse = {
@@ -270,7 +270,7 @@ router.post('/login', authLimiter, validateUserLogin, async (req: Request, res: 
     await user.save();
 
     // Generate token
-    const token = generateToken(user._id);
+    const token = generateToken(user._id.toString());
 
     // Prepare user response
     const userResponse = {

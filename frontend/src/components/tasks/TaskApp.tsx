@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { TaskDashboard } from './TaskDashboard';
+import { UniversalTaskWorker } from './UniversalTaskWorker';
 import { ImageBoundingBox } from './components/ImageBoundingBox';
 import { TextEntityAnnotation } from './components/TextEntityAnnotation';
 import { ImageClassification } from './components/ImageClassification';
@@ -124,9 +125,20 @@ export function TaskApp({ task, onSubmit, onClose }: TaskAppProps) {
   };
 
   const renderTask = () => {
+    // If we have a real task from the database, use the universal worker
+    if (task && (task._id || task.id)) {
+      return (
+        <UniversalTaskWorker 
+          task={task}
+          onComplete={handleTaskComplete} 
+          onBack={onClose} 
+        />
+      );
+    }
+
+    // Fallback to demo tasks for specific types
     switch (currentTask) {
       case 'bounding-box':
-        // Computer Vision: Object detection, bounding boxes, image annotation
         return (
           <ImageBoundingBox 
             task={task}
@@ -135,7 +147,6 @@ export function TaskApp({ task, onSubmit, onClose }: TaskAppProps) {
           />
         );
       case 'text-entity':
-        // NLP & Text: Named entity recognition, text classification, sentiment analysis
         return (
           <MultilingualTraining 
             task={task}
@@ -144,7 +155,6 @@ export function TaskApp({ task, onSubmit, onClose }: TaskAppProps) {
           />
         );
       case 'image-classification':
-        // Model Evaluation: Quality assessment, classification tasks, evaluation metrics
         return (
           <ModelEvaluation 
             task={task}
@@ -153,7 +163,6 @@ export function TaskApp({ task, onSubmit, onClose }: TaskAppProps) {
           />
         );
       case 'semantic-segmentation':
-        // Math & Reasoning: Problem solving, logical reasoning, mathematical tasks
         return (
           <MathSolver 
             task={task}
@@ -162,7 +171,6 @@ export function TaskApp({ task, onSubmit, onClose }: TaskAppProps) {
           />
         );
       case 'keypoint-annotation':
-        // Content Moderation: Bias detection, harmful content review, policy compliance
         return (
           <ContentModeration 
             task={task}
@@ -171,7 +179,6 @@ export function TaskApp({ task, onSubmit, onClose }: TaskAppProps) {
           />
         );
       case 'code-review':
-        // Code Review: AI code evaluation, bug detection, code quality assessment
         return (
           <CodeReview 
             task={task}
@@ -179,69 +186,14 @@ export function TaskApp({ task, onSubmit, onClose }: TaskAppProps) {
             onBack={() => setCurrentTask('dashboard')} 
           />
         );
-      case 'transcription':
-        // Audio & Speech: Transcription, speech recognition, audio processing
-      case 'multimodal-training':
-        // Multilingual & Research: Translation, cross-lingual tasks, research projects
-        return (
-          <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl shadow-lg p-8 max-w-md text-center">
-              <div className="text-6xl mb-4">🚧</div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">Coming Soon!</h2>
-              <p className="text-gray-600 mb-6">
-                This task type is currently being developed. Please check back soon for an amazing experience!
-              </p>
-              <button 
-                onClick={() => setCurrentTask('dashboard')}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                Back to Dashboard
-              </button>
-            </div>
-          </div>
-        );
       default:
-        // For live task data, show error if we can't determine task type
-        if (task) {
-          return (
-            <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-              <div className="bg-white rounded-xl shadow-lg p-8 max-w-md text-center">
-                <div className="text-6xl mb-4">⚠️</div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">Unsupported Task Type</h2>
-                <p className="text-gray-600 mb-4">
-                  Task type "{task.type || task.category}" is not yet supported.
-                </p>
-                <p className="text-sm text-gray-500 mb-6">
-                  Task ID: {task.id || task._id}
-                </p>
-                <button 
-                  onClick={onClose}
-                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  Back to Dashboard
-                </button>
-              </div>
-            </div>
-          );
-        }
-        
-        // If no task provided, show error
+        // Show dashboard for demo mode
         return (
-          <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl shadow-lg p-8 max-w-md text-center">
-              <div className="text-6xl mb-4">🚫</div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">No Task Data</h2>
-              <p className="text-gray-600 mb-6">
-                No task data provided. Only real assigned tasks can be worked on.
-              </p>
-              <button 
-                onClick={onClose}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                Back to Dashboard
-              </button>
-            </div>
-          </div>
+          <TaskDashboard 
+            onSelectTask={setCurrentTask} 
+            completedTasks={completedTasks} 
+            onClose={onClose}
+          />
         );
     }
   };

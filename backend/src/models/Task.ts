@@ -32,6 +32,9 @@ export interface ITask extends Document {
   feedback?: string;
   revisionRequested?: boolean;
   revisionNotes?: string;
+  // Review system fields
+  qualityRating?: number;
+  reviewFeedback?: string;
   // AI Training Task specific fields
   taskData?: {
     category: string;
@@ -150,6 +153,9 @@ const TaskSchema = new Schema<ITask>({
     default: false
   },
   revisionNotes: String,
+  // Review system fields
+  qualityRating: Number,
+  reviewFeedback: String,
   // AI Training Task specific fields
   taskData: {
     category: String,

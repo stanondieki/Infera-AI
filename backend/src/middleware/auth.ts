@@ -20,8 +20,17 @@ export const authenticateToken = async (req: AuthRequest, res: Response, next: N
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as { userId: string };
     
+    console.log('🔍 Auth Debug - Decoded JWT:', decoded);
+    console.log('🔍 Auth Debug - Looking for userId:', decoded.userId);
+    
     const user = await User.findById(decoded.userId).select('-password');
+    console.log('🔍 Auth Debug - User found:', user ? `✅ ${user.email}` : '❌ NOT FOUND');
+    
     if (!user) {
+      // Debug: Show available users
+      const sampleUsers = await User.find({}, '_id email').limit(3);
+      console.log('🔍 Auth Debug - Sample user IDs:', sampleUsers.map(u => u._id.toString()));
+      
       return res.status(401).json({ 
         success: false, 
         message: 'User not found' 
@@ -61,46 +70,28 @@ export const authenticateToken = async (req: AuthRequest, res: Response, next: N
   }
 };
 
-export const requireAdmin = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  // First authenticate the token
-  try {
-    const authHeader = req.headers.authorization;
-    const token = authHeader && authHeader.split(' ')[1];
-
-    if (!token) {
-      return res.status(401).json({ 
-        success: false, 
-        message: 'Access token required for admin access' 
-      });
-    }
-
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret') as any;
-    const user = await User.findById(decoded.userId);
-
-    if (!user) {
-      return res.status(401).json({ 
-        success: false, 
-        message: 'Invalid token - user not found' 
-      });
-    }
-
-    req.user = user;
-
-    // Check if user is admin
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({ 
-        success: false, 
-        message: 'Admin access required' 
-      });
-    }
-
-    next();
-  } catch (error) {
+export const requireAdmin = (req: AuthRequest, res: Response, next: NextFunction) => {
+  // This middleware should be used AFTER authenticateToken
+  // It assumes the user is already authenticated and available in req.user
+  
+  if (!req.user) {
     return res.status(401).json({ 
       success: false, 
-      message: 'Invalid or expired token' 
+      message: 'Authentication required. Use authenticateToken middleware first.' 
     });
   }
+
+  // Check if user is admin
+  if (req.user.role !== 'admin') {
+    console.log('🚫 Non-admin user attempted admin action:', req.user.email, 'Role:', req.user.role);
+    return res.status(403).json({ 
+      success: false, 
+      message: 'Admin access required' 
+    });
+  }
+
+  console.log('✅ Admin access granted to:', req.user.email);
+  next();
 };
 
 export const optionalAuth = async (req: AuthRequest, res: Response, next: NextFunction) => {

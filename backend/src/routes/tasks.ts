@@ -413,12 +413,31 @@ router.put('/:taskId/progress', authenticateToken, async (req: AuthRequest, res:
   }
 });
 
-// Submit completed task
+// Submit completed task with comprehensive data
 router.put('/:taskId/submit', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     const { taskId } = req.params;
-    const { submission_notes, completed_items } = req.body;
+    const { 
+      progress, 
+      timeSpent, 
+      deliverables, 
+      notes, 
+      quality_rating,
+      completedAt,
+      submission_notes,
+      completed_items 
+    } = req.body;
+    
     const userId = req.user?._id;
+
+    console.log('📝 Task submission received:', {
+      taskId,
+      userId: userId?.toString(),
+      progress,
+      timeSpent,
+      deliverablesCount: deliverables?.length || 0,
+      hasNotes: !!notes
+    });
 
     const task = await Task.findOne({ 
       _id: taskId, 
@@ -432,34 +451,83 @@ router.put('/:taskId/submit', authenticateToken, async (req: AuthRequest, res: R
       });
     }
 
-    // Update task with submission
-    task.status = 'under_review';
-    task.progress = 100;
-    task.submissionNotes = submission_notes;
+    // Update task with comprehensive submission data
+    task.status = progress >= 100 ? 'under_review' : 'in_progress';
+    task.progress = progress || 100;
+    task.actualHours = timeSpent ? (timeSpent / 60) : task.actualHours; // Convert minutes to hours
+    task.submissionNotes = notes || submission_notes || '';
     task.submittedAt = new Date();
-    task.completedAt = new Date();
+    
+    if (progress >= 100) {
+      task.completedAt = new Date();
+    }
 
-    // Store completed items (in a real system, this would be more structured)
-    if (completed_items) {
-      task.submissionFiles = completed_items.map((item: any) => JSON.stringify(item));
+    // Store deliverables and files
+    if (deliverables && deliverables.length > 0) {
+      task.submissionFiles = deliverables.map((item: any) => {
+        if (item.type === 'file') {
+          return JSON.stringify({
+            type: 'file',
+            name: item.name,
+            size: item.size,
+            timestamp: new Date().toISOString()
+          });
+        } else if (item.type === 'text') {
+          return JSON.stringify({
+            type: 'text',
+            key: item.key,
+            value: item.value,
+            timestamp: item.timestamp || new Date().toISOString()
+          });
+        }
+        return JSON.stringify(item);
+      });
+    }
+
+    // Store quality rating if provided
+    if (quality_rating) {
+      task.qualityRating = quality_rating;
+    }
+
+    // Calculate total earnings if task is completed
+    if (progress >= 100 && task.hourlyRate && task.actualHours) {
+      task.totalEarnings = task.hourlyRate * task.actualHours;
     }
 
     await task.save();
 
+    // Populate the task for response
+    await task.populate('assignedTo', 'name email');
+    await task.populate('createdBy', 'name email');
+
+    console.log('✅ Task submission saved:', {
+      taskId: task._id,
+      status: task.status,
+      progress: task.progress,
+      totalEarnings: task.totalEarnings
+    });
+
     res.json({
       success: true,
-      message: 'Task submitted successfully! Pending review.',
+      message: progress >= 100 
+        ? 'Task submitted successfully! Pending review.' 
+        : 'Progress updated successfully.',
       task: {
         id: task._id,
         status: task.status,
-        submitted_at: task.submittedAt
+        progress: task.progress,
+        submitted_at: task.submittedAt,
+        completed_at: task.completedAt,
+        total_earnings: task.totalEarnings,
+        actual_hours: task.actualHours
       }
     });
   } catch (error) {
-    console.error('Error submitting task:', error);
+    console.error('❌ Error submitting task:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to submit task'
+      message: 'Failed to submit task',
+      error: process.env.NODE_ENV === 'development' ? (error as any)?.message : undefined
     });
   }
 });
@@ -1250,6 +1318,109 @@ router.patch('/debug/add-images/:taskId', async (req: Request, res: Response) =>
       success: false,
       message: 'Failed to add images',
       error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Admin: Review and approve/reject task submission
+router.put('/:taskId/review', authenticateToken, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const { taskId } = req.params;
+    const { action, feedback, rating } = req.body;
+    const adminId = req.user?._id;
+
+    console.log('📋 Admin reviewing task:', { taskId, action, feedback, rating });
+
+    if (!['approve', 'reject'].includes(action)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Action must be either "approve" or "reject"'
+      });
+    }
+
+    const task = await Task.findById(taskId)
+      .populate('assignedTo', 'name email')
+      .populate('createdBy', 'name email');
+
+    if (!task) {
+      return res.status(404).json({
+        success: false,
+        message: 'Task not found'
+      });
+    }
+
+    if (task.status !== 'under_review') {
+      return res.status(400).json({
+        success: false,
+        message: 'Task is not under review'
+      });
+    }
+
+    // Update task based on admin decision
+    task.status = action === 'approve' ? 'completed' : 'rejected';
+    task.reviewedBy = new mongoose.Types.ObjectId(adminId);
+    task.reviewedAt = new Date();
+    task.reviewFeedback = feedback || '';
+    task.qualityRating = rating || 0;
+
+    // If approved, calculate final earnings
+    if (action === 'approve' && task.actualHours && task.hourlyRate) {
+      task.totalEarnings = task.actualHours * task.hourlyRate;
+    } else if (action === 'reject') {
+      task.totalEarnings = 0; // No payment for rejected work
+    }
+
+    await task.save();
+
+    console.log('✅ Task review completed:', {
+      taskId: task._id,
+      status: task.status,
+      totalEarnings: task.totalEarnings
+    });
+
+    res.json({
+      success: true,
+      message: `Task ${action}d successfully`,
+      task: {
+        id: task._id,
+        status: task.status,
+        reviewedBy: adminId,
+        reviewedAt: task.reviewedAt,
+        feedback: task.reviewFeedback,
+        rating: task.qualityRating,
+        totalEarnings: task.totalEarnings
+      }
+    });
+  } catch (error) {
+    console.error('❌ Error reviewing task:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to review task',
+      error: process.env.NODE_ENV === 'development' ? (error as any)?.message : undefined
+    });
+  }
+});
+
+// Admin: Get tasks pending review
+router.get('/admin/pending-review', authenticateToken, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const tasks = await Task.find({ status: 'under_review' })
+      .populate('assignedTo', 'name email avatar')
+      .populate('createdBy', 'name email')
+      .sort({ submittedAt: 1 }); // Oldest submissions first
+
+    console.log('📋 Found pending review tasks:', tasks.length);
+
+    res.json({
+      success: true,
+      tasks: tasks,
+      count: tasks.length
+    });
+  } catch (error) {
+    console.error('❌ Error fetching pending review tasks:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch pending review tasks'
     });
   }
 });

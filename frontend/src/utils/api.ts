@@ -258,3 +258,40 @@ export const apiClient = {
     return response.json();
   },
 };
+
+// Task Management Functions
+export const submitTask = async (taskId: string, submissionData: any, token?: string) => {
+  try {
+    console.log('📝 Submitting task:', { taskId, submissionData });
+    
+    const response = await apiClient.put(
+      API_ENDPOINTS.TASKS.SUBMIT(taskId),
+      submissionData,
+      token
+    );
+    
+    console.log('✅ Task submission response:', response);
+    return response;
+  } catch (error) {
+    console.error('❌ Task submission error:', error);
+    throw error;
+  }
+};
+
+export const updateTaskProgress = async (taskId: string, progressData: any, token?: string) => {
+  try {
+    console.log('📈 Updating task progress:', { taskId, progressData });
+    
+    const response = await apiClient.put(
+      API_ENDPOINTS.TASKS.UPDATE_PROGRESS(taskId),
+      progressData,
+      token
+    );
+    
+    console.log('✅ Progress update response:', response);
+    return response;
+  } catch (error) {
+    console.error('❌ Progress update error:', error);
+    throw error;
+  }
+};
