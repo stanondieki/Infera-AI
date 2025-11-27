@@ -148,7 +148,19 @@ export function AdminTasks({ onBack, accessToken }: AdminTasksProps) {
       return;
     }
     try {
+      const finalAssignedTo = createTaskForm.assignedTo && createTaskForm.assignedTo.trim() !== '' ? createTaskForm.assignedTo : null;
       console.log('🔑 Creating task with token:', finalToken ? 'Present' : 'Missing');
+      console.log('👤 assignedTo value:', JSON.stringify(finalAssignedTo), 'type:', typeof finalAssignedTo);
+      
+      const requestBody = {
+        ...createTaskForm,
+        estimatedHours: Number(createTaskForm.estimatedHours),
+        hourlyRate: Number(createTaskForm.hourlyRate),
+        deadline: new Date(createTaskForm.deadline),
+        assignedTo: finalAssignedTo
+      };
+      
+      console.log('📤 Request body:', JSON.stringify(requestBody, null, 2));
       
       const response = await fetch('https://inferaai-hfh4hmd4frcee8e9.centralindia-01.azurewebsites.net/api/tasks/create', {
         method: 'POST',
@@ -156,13 +168,7 @@ export function AdminTasks({ onBack, accessToken }: AdminTasksProps) {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${finalToken}`
         },
-        body: JSON.stringify({
-          ...createTaskForm,
-          estimatedHours: Number(createTaskForm.estimatedHours),
-          hourlyRate: Number(createTaskForm.hourlyRate),
-          deadline: new Date(createTaskForm.deadline),
-          assignedTo: createTaskForm.assignedTo && createTaskForm.assignedTo.trim() !== '' ? createTaskForm.assignedTo : null
-        })
+        body: JSON.stringify(requestBody)
       });
 
       console.log('📡 Task creation response status:', response.status);
