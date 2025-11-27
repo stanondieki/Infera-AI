@@ -85,6 +85,13 @@ router.post('/submit', applicationLimiter, validateApplication, async (req: Requ
     if (error && typeof error === 'object' && 'name' in error) {
       if (error.name === 'MongooseError' || error.name === 'MongoError') {
         console.error('🔌 MongoDB connection issue detected');
+        console.error('📊 Current DB state:', mongoose.connection.readyState);
+        console.error('🔗 MongoDB URI exists:', !!process.env.MONGODB_URI);
+        console.error('📧 SMTP config:', {
+          host: !!process.env.SMTP_HOST,
+          user: !!process.env.SMTP_USER,
+          pass: !!process.env.SMTP_PASS
+        });
       }
     }
     

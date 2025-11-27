@@ -147,10 +147,52 @@ router.get('/', optionalAuth, async (req: AuthRequest, res: Response) => {
       }
     });
   } catch (error) {
-    console.error('Get opportunities error:', error);
+    console.error('❌ Get opportunities error:', error);
+    console.error('💡 Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+    console.error('📊 Database connection state:', mongoose.connection.readyState);
+    
+    // Fallback data if database is having issues
+    const fallbackOpportunities = [
+      {
+        _id: 'fallback-1',
+        title: 'AI Data Analysis Project',
+        category: 'Data Science',
+        description: 'Analyze customer data using AI techniques',
+        experienceLevel: 'Intermediate',
+        hourlyRate: { min: 25, max: 50 },
+        estimatedHours: 40,
+        location: 'remote',
+        featured: true,
+        status: 'active',
+        publishedAt: new Date(),
+        views: 0,
+        applicants: []
+      },
+      {
+        _id: 'fallback-2', 
+        title: 'Web Development Task',
+        category: 'Web Development',
+        description: 'Build responsive web application',
+        experienceLevel: 'Beginner',
+        hourlyRate: { min: 20, max: 35 },
+        estimatedHours: 30,
+        location: 'remote',
+        featured: false,
+        status: 'active',
+        publishedAt: new Date(),
+        views: 0,
+        applicants: []
+      }
+    ];
+    
     res.status(500).json({
       success: false,
-      message: 'Server error'
+      message: 'Server error',
+      fallbackData: fallbackOpportunities,
+      debug: {
+        dbState: mongoose.connection.readyState,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      }
     });
   }
 });
