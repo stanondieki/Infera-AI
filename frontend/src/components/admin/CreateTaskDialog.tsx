@@ -147,7 +147,22 @@ export function CreateTaskDialog({ open, onClose, onTaskCreated, users }: Create
   const handleSubmit = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('token');
+      // Get token from infera_session like the browser console test
+      const inferaSession = localStorage.getItem('infera_session');
+      let token = null;
+      if (inferaSession) {
+        try {
+          const session = JSON.parse(inferaSession);
+          token = session.accessToken;
+        } catch (e) {
+          console.error('Error parsing infera_session:', e);
+        }
+      }
+      
+      if (!token) {
+        alert('❌ Authentication token not found. Please log in again.');
+        return;
+      }
       
       const response = await fetch(`${getApiUrl()}/tasks/create`, {
         method: 'POST',
