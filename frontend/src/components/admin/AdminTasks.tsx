@@ -6,6 +6,7 @@ import { Badge } from '../ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Textarea } from '../ui/textarea';
+import { useAuth } from '../../utils/auth';
 
 interface AdminTasksProps {
   onBack: () => void;
@@ -45,7 +46,9 @@ interface User {
 }
 
 export function AdminTasks({ onBack, accessToken }: AdminTasksProps) {
-  console.log('🔐 AdminTasks v2.0 - AccessToken:', accessToken ? 'Present' : 'Missing', 'Length:', accessToken?.length || 0);
+  const { accessToken: authToken } = useAuth();
+  const finalToken = authToken || accessToken; // Use auth hook token first, fallback to prop
+  console.log('🔐 AdminTasks v3.0 - Prop Token:', accessToken ? 'Present' : 'Missing', 'Auth Token:', authToken ? 'Present' : 'Missing', 'Final:', finalToken ? 'Present' : 'Missing');
   
   const [tasks, setTasks] = useState<Task[]>([]);
   const [users, setUsers] = useState<User[]>([]);
@@ -78,11 +81,11 @@ export function AdminTasks({ onBack, accessToken }: AdminTasksProps) {
 
   const loadTasks = async () => {
     try {
-      console.log('🔄 Loading tasks with token:', accessToken ? 'Present' : 'Missing');
+      console.log('🔄 Loading tasks with token:', finalToken ? 'Present' : 'Missing');
       
       const response = await fetch('https://inferaai-hfh4hmd4frcee8e9.centralindia-01.azurewebsites.net/api/tasks/admin/all', {
         headers: {
-          'Authorization': `Bearer ${accessToken}`,
+          'Authorization': `Bearer ${finalToken}`,
         }
       });
       
@@ -105,11 +108,11 @@ export function AdminTasks({ onBack, accessToken }: AdminTasksProps) {
 
   const loadUsers = async () => {
     try {
-      console.log('👥 Loading users with token:', accessToken ? 'Present' : 'Missing');
+      console.log('👥 Loading users with token:', finalToken ? 'Present' : 'Missing');
       
       const response = await fetch('https://inferaai-hfh4hmd4frcee8e9.centralindia-01.azurewebsites.net/api/users/assignable', {
         headers: {
-          'Authorization': `Bearer ${accessToken}`,
+          'Authorization': `Bearer ${finalToken}`,
           'Content-Type': 'application/json'
         }
       });
@@ -145,13 +148,13 @@ export function AdminTasks({ onBack, accessToken }: AdminTasksProps) {
       return;
     }
     try {
-      console.log('🔑 Creating task with token:', accessToken ? 'Present' : 'Missing');
+      console.log('🔑 Creating task with token:', finalToken ? 'Present' : 'Missing');
       
       const response = await fetch('https://inferaai-hfh4hmd4frcee8e9.centralindia-01.azurewebsites.net/api/tasks/create', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`
+          'Authorization': `Bearer ${finalToken}`
         },
         body: JSON.stringify({
           ...createTaskForm,
@@ -214,13 +217,13 @@ export function AdminTasks({ onBack, accessToken }: AdminTasksProps) {
 
   const assignTask = async (taskId: string, userId: string) => {
     try {
-      console.log('🎯 Assigning task [v2.0]:', accessToken ? 'Present' : 'Missing', 'Token length:', accessToken?.length || 0);
+      console.log('🎯 Assigning task [v3.0]:', finalToken ? 'Present' : 'Missing', 'Token length:', finalToken?.length || 0);
       
       const response = await fetch(`https://inferaai-hfh4hmd4frcee8e9.centralindia-01.azurewebsites.net/api/tasks/${taskId}/assign`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`
+          'Authorization': `Bearer ${finalToken}`
         },
         body: JSON.stringify({ userId })
       });
@@ -261,7 +264,7 @@ export function AdminTasks({ onBack, accessToken }: AdminTasksProps) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`
+          'Authorization': `Bearer ${finalToken}`
         },
         body: JSON.stringify({ category, taskCount: count, difficulty })
       });
