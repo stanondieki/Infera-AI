@@ -108,6 +108,24 @@ export function CreateTaskDialog({ open, onClose, onTaskCreated, users }: Create
   const handleSubmit = useCallback(async () => {
     if (!selectedTemplate) return;
 
+    // Final validation of all required fields
+    const allRequiredFields = selectedTemplate.fields.filter(f => f.required);
+    const missingFields: string[] = [];
+    
+    allRequiredFields.forEach(field => {
+      const value = formData[field.id];
+      if (!value || (typeof value === 'string' && value.trim() === '')) {
+        missingFields.push(field.label);
+      }
+    });
+
+    if (missingFields.length > 0) {
+      const errorMsg = `❌ Missing required fields: ${missingFields.join(', ')}`;
+      alert(errorMsg);
+      console.error('Missing required fields:', missingFields);
+      return;
+    }
+
     try {
       setLoading(true);
       
@@ -128,15 +146,28 @@ export function CreateTaskDialog({ open, onClose, onTaskCreated, users }: Create
         return;
       }
 
+      // Ensure all required fields are present
       const payload = {
         ...formData,
         type: selectedTemplate.id.toLowerCase().replace('_', '-'),
         category: selectedTemplate.id,
+        instructions: formData.instructions || '',
         requirements: Array.isArray(formData.requirements) ? formData.requirements : [],
         deliverables: Array.isArray(formData.deliverables) ? formData.deliverables : []
       };
 
-      console.log('🚀 Creating task with payload:', payload);
+      // Detailed logging for debugging
+      console.log('🚀 Creating task with payload:', {
+        ...payload,
+        instructions: payload.instructions || 'EMPTY',
+        instructionsLength: payload.instructions ? payload.instructions.length : 0
+      });
+
+      // Validate required fields before sending
+      if (!payload.instructions || payload.instructions.trim() === '') {
+        alert('❌ Instructions field is required but empty. Please fill in the task instructions.');
+        return;
+      }
 
       const response = await fetch(`${getApiUrl()}/tasks/create`, {
         method: 'POST',
