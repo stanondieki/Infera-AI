@@ -64,6 +64,11 @@ export function CreateTaskDialog({ open, onClose, onTaskCreated, users }: Create
         priority: 'medium'
       });
       setErrors([]);
+    } else {
+      // Reset when closed to prevent stale state
+      setStep(1);
+      setSelectedTemplate(null);
+      setErrors([]);
     }
   }, [open]);
 
@@ -342,7 +347,7 @@ export function CreateTaskDialog({ open, onClose, onTaskCreated, users }: Create
               >
                 <div className="flex items-start space-x-4">
                   <div className={`w-12 h-12 ${template.color} rounded-lg flex items-center justify-center text-white text-xl group-hover:scale-110 transition-transform`}>
-                    {template.icon}
+                    <span>{template.icon}</span>
                   </div>
                   <div className="flex-1">
                     <h4 className="font-semibold text-gray-900 mb-2">{template.name}</h4>
@@ -377,7 +382,7 @@ export function CreateTaskDialog({ open, onClose, onTaskCreated, users }: Create
       <div className="space-y-6">
         <div className="flex items-center space-x-4">
           <div className={`w-10 h-10 ${selectedTemplate.color} rounded-lg flex items-center justify-center text-white`}>
-            {selectedTemplate.icon}
+            <span>{selectedTemplate.icon}</span>
           </div>
           <div>
             <h3 className="font-semibold text-gray-900">{selectedTemplate.name}</h3>
