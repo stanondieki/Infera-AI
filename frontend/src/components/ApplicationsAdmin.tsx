@@ -253,7 +253,7 @@ export function ApplicationsAdmin({ onBack }: ApplicationsAdminProps) {
 
           <TabsContent value="tasks">
             {(() => {
-              console.log('🔑 ApplicationsAdmin - AccessToken:', accessToken ? 'Present' : 'Missing', 'Length:', accessToken?.length || 0);
+              console.log('🔑 ApplicationsAdmin v2.0 - AccessToken:', accessToken ? 'Present' : 'Missing', 'Length:', accessToken?.length || 0);
               return <AdminTasks onBack={onBack} accessToken={accessToken || ''} />;
             })()}
           </TabsContent>

@@ -45,7 +45,7 @@ interface User {
 }
 
 export function AdminTasks({ onBack, accessToken }: AdminTasksProps) {
-  console.log('🔐 AdminTasks - AccessToken:', accessToken ? 'Present' : 'Missing', 'Length:', accessToken?.length || 0);
+  console.log('🔐 AdminTasks v2.0 - AccessToken:', accessToken ? 'Present' : 'Missing', 'Length:', accessToken?.length || 0);
   
   const [tasks, setTasks] = useState<Task[]>([]);
   const [users, setUsers] = useState<User[]>([]);
@@ -214,7 +214,7 @@ export function AdminTasks({ onBack, accessToken }: AdminTasksProps) {
 
   const assignTask = async (taskId: string, userId: string) => {
     try {
-      console.log('🎯 Assigning task with token:', accessToken ? 'Present' : 'Missing');
+      console.log('🎯 Assigning task [v2.0]:', accessToken ? 'Present' : 'Missing', 'Token length:', accessToken?.length || 0);
       
       const response = await fetch(`https://inferaai-hfh4hmd4frcee8e9.centralindia-01.azurewebsites.net/api/tasks/${taskId}/assign`, {
         method: 'PUT',
