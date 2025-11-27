@@ -27,6 +27,7 @@ import { toast } from 'sonner';
 import { getTasks, submitTask, Task } from '../../utils/tasks';
 import { useAuth } from '../../utils/auth';
 import { apiClient, API_ENDPOINTS } from '../../utils/api';
+import { TaskWorkInterface } from '../tasks/TaskWorkInterface';
 
 export function MyTasks() {
   const { user, accessToken } = useAuth();
@@ -34,6 +35,8 @@ export function MyTasks() {
   const [loading, setLoading] = useState(true);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [showSubmitDialog, setShowSubmitDialog] = useState(false);
+  const [showWorkInterface, setShowWorkInterface] = useState(false);
+  const [workTask, setWorkTask] = useState<any>(null);
   const [statusFilter, setStatusFilter] = useState<string>('all');
 
   const [submitForm, setSubmitForm] = useState({
@@ -125,6 +128,37 @@ export function MyTasks() {
       submission_notes: task.submission_notes || '',
     });
     setShowSubmitDialog(true);
+  };
+
+  const startWork = async (task: Task) => {
+    if (!accessToken) {
+      toast.error('Authentication required');
+      return;
+    }
+    
+    try {
+      // Fetch full task details from backend
+      const response = await apiClient.get(`${API_ENDPOINTS.TASKS.GET}/${task.id}`, accessToken);
+      if (response.success && response.task) {
+        setWorkTask({
+          _id: response.task._id,
+          title: response.task.title,
+          description: response.task.description,
+          instructions: response.task.instructions,
+          type: response.task.type,
+          category: response.task.category,
+          categories: response.task.categories,
+          hourlyRate: response.task.hourlyRate,
+          estimatedHours: response.task.estimatedHours,
+          sampleData: response.task.sampleData,
+          datasetUrl: response.task.datasetUrl
+        });
+        setShowWorkInterface(true);
+      }
+    } catch (error) {
+      console.error('Error fetching task details:', error);
+      toast.error('Failed to load task details');
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -295,14 +329,27 @@ export function MyTasks() {
                         </div>
                       </div>
                       {task.status !== 'completed' && task.status !== 'rejected' && (
-                        <Button
-                          size="sm"
-                          onClick={() => openSubmitDialog(task)}
-                          className="gap-2"
-                        >
-                          <Upload className="h-4 w-4" />
-                          Update Progress
-                        </Button>
+                        <div className="flex space-x-2">
+                          {(task.category === 'data_labeling' || task.title.toLowerCase().includes('annotation') || task.title.toLowerCase().includes('classification')) && (
+                            <Button
+                              size="sm"
+                              onClick={() => startWork(task)}
+                              className="gap-2 bg-blue-500 hover:bg-blue-600"
+                            >
+                              <Briefcase className="h-4 w-4" />
+                              Start Work
+                            </Button>
+                          )}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => openSubmitDialog(task)}
+                            className="gap-2"
+                          >
+                            <Upload className="h-4 w-4" />
+                            Update Progress
+                          </Button>
+                        </div>
                       )}
                     </div>
 
@@ -397,6 +444,20 @@ export function MyTasks() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Task Work Interface */}
+      {showWorkInterface && workTask && (
+        <div className="fixed inset-0 z-50 bg-white">
+          <TaskWorkInterface 
+            task={workTask}
+            onBack={() => {
+              setShowWorkInterface(false);
+              setWorkTask(null);
+              loadTasks(); // Refresh tasks after work session
+            }}
+          />
+        </div>
+      )}
     </div>
   );
 }
