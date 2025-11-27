@@ -163,7 +163,7 @@ app.get('/health', async (req, res) => {
     healthStatus.database = dbState === 1 ? 'connected' : dbState === 2 ? 'connecting' : 'disconnected';
     
     // Test basic database query
-    if (dbState === 1) {
+    if (dbState === 1 && mongoose.connection.db) {
       await mongoose.connection.db.admin().ping();
       healthStatus.database = 'healthy';
     }
