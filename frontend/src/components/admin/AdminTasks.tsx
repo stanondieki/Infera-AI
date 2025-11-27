@@ -137,10 +137,7 @@ export function AdminTasks({ onBack, accessToken }: AdminTasksProps) {
       alert('Task description is required');
       return;
     }
-    if (!createTaskForm.assignedTo) {
-      alert('User assignment is required');
-      return;
-    }
+    // User assignment is now optional - tasks can be created as drafts
     if (createTaskForm.category === 'DATA_ANNOTATION' && !createTaskForm.imageUrl.trim() && !createTaskForm.datasetUrl.trim()) {
       alert('Image URL or Dataset URL is required for data annotation tasks');
       return;
@@ -159,7 +156,7 @@ export function AdminTasks({ onBack, accessToken }: AdminTasksProps) {
           estimatedHours: Number(createTaskForm.estimatedHours),
           hourlyRate: Number(createTaskForm.hourlyRate),
           deadline: new Date(createTaskForm.deadline),
-          assignedTo: createTaskForm.assignedTo || null
+          assignedTo: createTaskForm.assignedTo && createTaskForm.assignedTo.trim() !== '' ? createTaskForm.assignedTo : null
         })
       });
 
@@ -680,14 +677,13 @@ export function AdminTasks({ onBack, accessToken }: AdminTasksProps) {
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2">Assign to User *</label>
+              <label className="block text-sm font-medium mb-2">Assign to User</label>
               <select
                 value={createTaskForm.assignedTo}
                 onChange={(e) => setCreateTaskForm({...createTaskForm, assignedTo: e.target.value})}
                 className="w-full p-2 border border-gray-300 rounded-lg"
-                required
               >
-                <option value="">Select a user to assign...</option>
+                <option value="">Leave unassigned (draft)</option>
                 {users.map(user => (
                   <option key={user._id} value={user._id}>
                     {user.name} - {user.email} (Rating: {user.rating}/5)
@@ -711,7 +707,7 @@ export function AdminTasks({ onBack, accessToken }: AdminTasksProps) {
               <Button
                 type="button"
                 onClick={createTask}
-                disabled={!createTaskForm.title || !createTaskForm.description || !createTaskForm.type || !createTaskForm.assignedTo}
+                disabled={!createTaskForm.title || !createTaskForm.description || !createTaskForm.type}
                 className="w-full sm:w-auto"
               >
                 <Plus className="w-4 h-4 mr-2" />
