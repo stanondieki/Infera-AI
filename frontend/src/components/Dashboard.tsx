@@ -55,6 +55,7 @@ import {
   MoreVertical,
   ChevronRight,
   Shield,
+  Play,
   PlayCircle,
   PauseCircle,
   BarChart3,
