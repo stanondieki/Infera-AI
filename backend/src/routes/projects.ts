@@ -1,11 +1,71 @@
 import express, { Request, Response } from 'express';
 import mongoose from 'mongoose';
-import { Opportunity, IOpportunity } from '../models';
+import { Opportunity, IOpportunity, Task } from '../models';
 import { validateOpportunity } from '../middleware/validation';
 import { authenticateToken, requireAdmin, AuthRequest, optionalAuth } from '../middleware/auth';
 import { apiLimiter } from '../middleware/rateLimiter';
 
 const router = express.Router();
+
+// Get active projects for authenticated user
+router.get('/active', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?._id;
+    console.log('🔍 Fetching active projects for user:', userId);
+
+    // Get opportunities where user has tasks assigned
+    const userTasks = await Task.find({ assignedTo: userId })
+      .populate('opportunityId', 'title category')
+      .select('opportunityId status progress hourlyRate estimatedHours');
+
+    console.log('📋 Found user tasks:', userTasks.length);
+
+    // Group tasks by project/opportunity to calculate project stats
+    const projectStats: { [key: string]: any } = {};
+    
+    userTasks.forEach(task => {
+      if (task.opportunityId && typeof task.opportunityId === 'object') {
+        const opportunity = task.opportunityId as any; // Cast to access populated fields
+        const projectId = opportunity._id.toString();
+        if (!projectStats[projectId]) {
+          projectStats[projectId] = {
+            id: projectId,
+            name: opportunity.title || 'Untitled Project',
+            description: `Tasks related to ${opportunity.category || 'General'}`,
+            category: opportunity.category || 'General',
+            total_tasks: 0,
+            completed_tasks: 0,
+            total_earnings: 0,
+            status: 'active',
+            priority: 'medium'
+          };
+        }
+        
+        projectStats[projectId].total_tasks += 1;
+        if (task.status === 'completed' || task.status === 'approved') {
+          projectStats[projectId].completed_tasks += 1;
+          // Calculate earnings based on hourly rate and estimated hours
+          const earnings = (task.hourlyRate || 25) * (task.estimatedHours || 1);
+          projectStats[projectId].total_earnings += earnings;
+        }
+      }
+    });
+
+    const projects = Object.values(projectStats);
+    console.log('✅ Processed active projects:', projects.length);
+    
+    res.json({
+      success: true,
+      projects
+    });
+  } catch (error) {
+    console.error('❌ Get active projects error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
 
 // Get all opportunities (public endpoint with optional auth)
 router.get('/', optionalAuth, async (req: AuthRequest, res: Response) => {

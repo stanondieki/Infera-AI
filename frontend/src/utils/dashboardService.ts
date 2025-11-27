@@ -148,18 +148,41 @@ class DashboardService {
         return [];
       }
       
-      // Map backend task format to dashboard UserTask format
-      const mappedTasks = (data.tasks || []).map((task: any) => ({
-        id: task._id,
-        title: task.title,
-        description: task.description,
-        status: task.status,
-        priority: task.priority,
-        dueDate: task.deadline,
-        progress: task.progress || 0,
-        projectId: task._id,
-        projectName: task.title,
-      }));
+      // Map backend task format to dashboard UserTask format with complete data
+      const mappedTasks = (data.tasks || []).map((task: any) => {
+        // Calculate payment from available fields
+        let taskPayment = 0;
+        if (task.payment) {
+          taskPayment = task.payment;
+        } else if (task.hourlyRate && task.estimatedHours) {
+          taskPayment = Math.floor(task.hourlyRate * task.estimatedHours);
+        } else if (task.hourlyRate) {
+          taskPayment = task.hourlyRate;
+        }
+
+        return {
+          id: task._id,
+          title: task.title,
+          description: task.description,
+          status: task.status,
+          priority: task.priority,
+          dueDate: task.deadline,
+          progress: task.progress || 0,
+          projectId: task._id,
+          projectName: task.title,
+          // Additional fields needed for ActiveProjects
+          category: task.type || 'General',
+          difficulty: task.difficulty || 'medium',
+          estimatedTime: task.estimatedTime || (task.estimatedHours ? task.estimatedHours * 60 : 60),
+          estimatedHours: task.estimatedHours || 1,
+          hourlyRate: task.hourlyRate || 0,
+          payment: taskPayment,
+          instructions: task.instructions || '',
+          requirements: task.requirements || [],
+          deadline: task.deadline,
+          timeSpent: task.actualHours ? task.actualHours * 60 : 0,
+        };
+      });
       
       console.log('📋 Mapped tasks:', mappedTasks);
       return mappedTasks;

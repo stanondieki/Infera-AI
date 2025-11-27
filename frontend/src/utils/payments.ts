@@ -25,7 +25,7 @@ function getInitialPayments(): Payment[] {
     {
       id: '1',
       user_id: '1',
-      user_name: 'Demo User',
+      user_name: 'System User',
       amount: 427.50,
       currency: 'USD',
       status: 'completed',
@@ -63,9 +63,9 @@ function getInitialPayments(): Payment[] {
       created_at: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
     },
     {
-      id: '4',
+      id: '5',
       user_id: '1',
-      user_name: 'Demo User',
+      user_name: 'System User',
       amount: 495.00,
       currency: 'USD',
       status: 'completed',

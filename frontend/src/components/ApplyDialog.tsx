@@ -72,7 +72,7 @@ import {
 import { Progress } from "./ui/progress";
 import { Badge } from "./ui/badge";
 import { Separator } from "./ui/separator";
-import { Logo } from "./Logo";
+import { Logo, LogoSimple } from "./Logo";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 
@@ -921,7 +921,7 @@ export function ApplyDialog({ open, onOpenChange, onSwitchToSignIn }: ApplyDialo
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[700px] w-[95vw] p-0 gap-0 max-h-[85vh] h-[85vh] flex flex-col bg-white">
         <DialogHeader className="sr-only">
-          <DialogTitle>Apply to Infera AI</DialogTitle>
+          <DialogTitle>Apply to Taskify</DialogTitle>
           <DialogDescription>
             Join our community of experts and start earning today.
           </DialogDescription>
@@ -937,10 +937,10 @@ export function ApplyDialog({ open, onOpenChange, onSwitchToSignIn }: ApplyDialo
           <div className="relative bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 p-3 text-white flex-shrink-0">
             <div className="relative z-10">
               <div className="flex justify-center mb-1">
-                <Logo variant="white" size="sm" animated={false} />
+                <LogoSimple />
               </div>
               <div className="text-center mb-2">
-                <h2 className="text-lg font-bold mb-0.5">Join Infera AI</h2>
+                <h2 className="text-lg font-bold mb-0.5">Join Taskify</h2>
                 <p className="text-blue-100 text-xs mb-1">
                   Start your journey as an AI expert and earn while you learn
                 </p>
@@ -1331,7 +1331,7 @@ export function ApplyDialog({ open, onOpenChange, onSwitchToSignIn }: ApplyDialo
                               <Sparkles className="h-4 w-4 text-white" />
                             </div>
                             <div>
-                              <h4 className="font-semibold text-green-900 mb-1">Why Join Infera AI?</h4>
+                              <h4 className="font-semibold text-green-900 mb-1">Why Join Taskify?</h4>
                               <ul className="text-sm text-green-700 space-y-1">
                                 <li>• Earn $25-80+ per hour working on AI projects</li>
                                 <li>• Flexible schedule - work when you want</li>
@@ -1901,7 +1901,7 @@ export function ApplyDialog({ open, onOpenChange, onSwitchToSignIn }: ApplyDialo
                         </div>
 
                         <div className="space-y-2">
-                          <Label htmlFor="motivation" className="text-sm font-semibold text-gray-700">Why do you want to join Infera AI? * (Minimum 50 characters)</Label>
+                          <Label htmlFor="motivation" className="text-sm font-semibold text-gray-700">Why do you want to join Taskify? * (Minimum 50 characters)</Label>
                           <Textarea
                             id="motivation"
                             placeholder="What motivates you to work with AI? What are your goals?"

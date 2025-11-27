@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Play,
@@ -31,9 +31,10 @@ import { Badge } from '../ui/badge';
 import { Progress } from '../ui/progress';
 import { Label } from '../ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
-import { TaskWorkspace } from './TaskWorkspace';
+import TaskApp from '../tasks/TaskApp';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../ui/dialog';
 import { toast } from 'sonner';
+import { useAuth } from '../../utils/auth';
 
 interface Task {
   id: string;
@@ -73,15 +74,17 @@ interface ActiveProjectsProps {
 }
 
 export function ActiveProjects({ tasks: assignedTasks = [], onRefresh }: ActiveProjectsProps) {
+  const { accessToken, user } = useAuth();
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [workspaceOpen, setWorkspaceOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
-  const [activeFilter, setActiveFilter] = useState<'all' | 'in_progress' | 'available'>('all');
+  const [activeFilter, setActiveFilter] = useState<'all' | 'in_progress' | 'available' | 'completed'>('all');
+  const [showNewTaskSystem, setShowNewTaskSystem] = useState(false);
   
-  console.log('📋 ActiveProjects received tasks:', assignedTasks);
+  console.log('👤 Current user:', user?.email);
+  console.log('📋 ActiveProjects received tasks for user:', assignedTasks);
 
-  // Real projects data from backend
-  const [projects, setProjects] = useState<Project[]>([]);
+  // Loading state for projects (now generated from tasks)
   const [loadingProjects, setLoadingProjects] = useState(true);
   
   // Real tasks data from backend
@@ -89,74 +92,15 @@ export function ActiveProjects({ tasks: assignedTasks = [], onRefresh }: ActiveP
   const [loadingTasks, setLoadingTasks] = useState(true);
 
   useEffect(() => {
-    fetchActiveProjects();
     fetchUserTasks();
   }, []);
 
-  const fetchActiveProjects = async () => {
-    try {
-      let token = localStorage.getItem('accessToken');
-      
-      // Fallback to session-based token if direct token not found
-      if (!token) {
-        try {
-          const session = localStorage.getItem('infera_session');
-          if (session) {
-            const sessionData = JSON.parse(session);
-            token = sessionData.accessToken;
-          }
-        } catch (e) {
-          console.error('Error parsing session data:', e);
-        }
-      }
-      
-      if (!token) {
-        console.error('⚠️ No authentication token found - user needs to login');
-        setProjects([]);
-        setLoadingProjects(false);
-        return;
-      }
-      
-      console.log('🔑 Token found, fetching real projects...');
-      
-      const response = await fetch('http://localhost:5000/api/projects/active', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
-      console.log('📡 API Response status:', response.status);
-      const data = await response.json();
-      console.log('📋 API Response data:', data);
-      
-      if (data.success) {
-        console.log('✅ Fetched real projects:', data.projects);
-        setProjects(data.projects);
-      }
-      setLoadingProjects(false);
-    } catch (error) {
-      console.error('❌ Failed to fetch active projects:', error);
-      setProjects([]);
-      setLoadingProjects(false);
-    }
-  };
+
 
   const fetchUserTasks = async () => {
     try {
-      let token = localStorage.getItem('accessToken');
-      
-      // Fallback to session-based token if direct token not found
-      if (!token) {
-        try {
-          const session = localStorage.getItem('infera_session');
-          if (session) {
-            const sessionData = JSON.parse(session);
-            token = sessionData.accessToken;
-          }
-        } catch (e) {
-          console.error('Error parsing session data:', e);
-        }
-      }
+      // Use accessToken from auth context or fallback to localStorage
+      const token = accessToken || localStorage.getItem('token');
       
       if (!token) {
         console.error('⚠️ No authentication token found for tasks');
@@ -164,7 +108,8 @@ export function ActiveProjects({ tasks: assignedTasks = [], onRefresh }: ActiveP
         return;
       }
       
-      console.log('🔑 Fetching user tasks with token...');
+      console.log('🔑 Fetching user tasks with token:', token ? 'Present' : 'Missing');
+      console.log('📍 API endpoint:', 'http://localhost:5000/api/tasks/my-tasks');
       
       const response = await fetch('http://localhost:5000/api/tasks/my-tasks', {
         headers: {
@@ -218,9 +163,11 @@ export function ActiveProjects({ tasks: assignedTasks = [], onRefresh }: ActiveP
         setRealTasks(transformedTasks);
       }
       setLoadingTasks(false);
+      setLoadingProjects(false); // Set projects loading to false when tasks are loaded
     } catch (error) {
       console.error('❌ Failed to fetch user tasks:', error);
       setLoadingTasks(false);
+      setLoadingProjects(false);
     }
   };
 
@@ -238,9 +185,11 @@ export function ActiveProjects({ tasks: assignedTasks = [], onRefresh }: ActiveP
 
   const getStatusColor = (status: string) => {
     const colors = {
+      assigned: 'bg-blue-100 text-blue-800 border-blue-300',
       available: 'bg-blue-100 text-blue-800 border-blue-300',
       in_progress: 'bg-purple-100 text-purple-800 border-purple-300',
       submitted: 'bg-cyan-100 text-cyan-800 border-cyan-300',
+      under_review: 'bg-orange-100 text-orange-800 border-orange-300',
       completed: 'bg-green-100 text-green-800 border-green-300',
     };
     return colors[status as keyof typeof colors] || colors.available;
@@ -272,29 +221,140 @@ export function ActiveProjects({ tasks: assignedTasks = [], onRefresh }: ActiveP
     setDetailsOpen(true);
   };
 
-  const handleTaskComplete = (taskId: string) => {
-    toast.success('Task submitted successfully! Pending review.');
-    setWorkspaceOpen(false);
-    setSelectedTask(null);
+  const handleTaskComplete = async (taskId: string, submissionData?: any) => {
+    try {
+      const token = accessToken || localStorage.getItem('token');
+      if (!token) {
+        toast.error('Authentication required to submit task');
+        return;
+      }
+
+      console.log('📤 Submitting task completion:', { taskId, submissionData });
+
+      const response = await fetch(`http://localhost:5000/api/tasks/${taskId}/submit`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          submissionData: submissionData || {},
+          status: 'completed',
+          completedAt: new Date().toISOString()
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        toast.success('Task completed successfully! 🎉');
+        
+        // Refresh tasks to show updated status
+        if (onRefresh) {
+          await onRefresh();
+        }
+        
+        // Refresh the local task list
+        await fetchUserTasks();
+        
+      } else {
+        toast.error('Failed to submit task: ' + data.message);
+      }
+    } catch (error) {
+      console.error('❌ Error completing task:', error);
+      toast.error('Failed to submit task completion');
+    } finally {
+      setWorkspaceOpen(false);
+      setSelectedTask(null);
+    }
   };
 
-  // Use only real data - no mock data in production
-  const allTasks = realTasks.length > 0 ? realTasks : (assignedTasks.length > 0 ? assignedTasks : []);
+  // Use tasks from Dashboard first, then fall back to independently fetched tasks
+  console.log('🔍 Task Priority Check:', {
+    currentUser: user?.email,
+    assignedTasksCount: assignedTasks.length,
+    realTasksCount: realTasks.length,
+    assignedTasks: assignedTasks.map(t => ({ id: t.id, title: t.title, status: t.status })),
+    realTasks: realTasks.map(t => ({ id: t.id, title: t.title, status: t.status }))
+  });
+  
+  // Prioritize Dashboard tasks (should be user-specific), fall back to independently fetched
+  const allTasks = assignedTasks.length > 0 ? assignedTasks : realTasks;
+  
+  // Generate projects from real task data instead of separate API
+  const generatedProjects = React.useMemo(() => {
+    if (!allTasks.length) return [];
+    
+    // Group tasks by project_name or create generic project
+    const projectGroups = allTasks.reduce((acc: any, task) => {
+      const projectName = task.project_name || 'AI Training Tasks';
+      if (!acc[projectName]) {
+        acc[projectName] = {
+          id: projectName.toLowerCase().replace(/\s+/g, '_'),
+          name: projectName,
+          description: `Tasks related to ${projectName}`,
+          category: task.category || 'AI Training',
+          tasks: [],
+          total_earnings: 0,
+          status: 'active' as const,
+          priority: 'medium' as const
+        };
+      }
+      acc[projectName].tasks.push(task);
+      acc[projectName].total_earnings += task.payment || 0;
+      return acc;
+    }, {});
+    
+    // Convert to array and calculate stats
+    return Object.values(projectGroups).map((project: any) => ({
+      ...project,
+      total_tasks: project.tasks.length,
+      completed_tasks: project.tasks.filter((t: any) => 
+        ['completed', 'submitted', 'under_review'].includes(t.status)
+      ).length,
+      in_progress_tasks: project.tasks.filter((t: any) => t.status === 'in_progress').length,
+      available_tasks: project.tasks.filter((t: any) => 
+        ['assigned', 'available'].includes(t.status)
+      ).length
+    }));
+  }, [allTasks]);
+  
+  // Use generated projects from task data
+  const projects = generatedProjects;
+  
+  // Ensure we only show tasks for authenticated users
+  if (!user || !accessToken) {
+    console.log('⚠️ No authenticated user, showing empty task list');
+  }
   
   const filteredTasks = allTasks.filter((task) => {
     if (activeFilter === 'all') return true;
+    if (activeFilter === 'completed') {
+      return ['completed', 'submitted', 'under_review'].includes(task.status);
+    }
+    if (activeFilter === 'available') {
+      return ['assigned', 'available'].includes(task.status);
+    }
     return task.status === activeFilter;
   });
 
   // Calculate stats from the actual task data
-  const realActiveProjects = allTasks.filter((t) => t.status === 'assigned' || t.status === 'in_progress').length;
+  const realActiveProjects = allTasks.filter((t) => 
+    ['assigned', 'in_progress'].includes(t.status)
+  ).length;
   const realTasksInProgress = allTasks.filter((t) => t.status === 'in_progress').length;
-  const realTasksAvailable = allTasks.filter((t) => t.status === 'assigned' || t.status === 'available').length;
+  const realTasksAvailable = allTasks.filter((t) => 
+    ['assigned', 'available'].includes(t.status)
+  ).length;
+  const completedTasks = allTasks.filter((t) => 
+    ['completed', 'submitted', 'under_review'].includes(t.status)
+  ).length;
 
   const stats = {
     total_active: realActiveProjects,
     tasks_in_progress: realTasksInProgress,
     tasks_available: realTasksAvailable,
+    tasks_completed: completedTasks,
     total_earnings: allTasks.reduce((sum, task) => {
       const payment = task.payment || 0;
       if (payment === 0) {
@@ -315,8 +375,122 @@ export function ActiveProjects({ tasks: assignedTasks = [], onRefresh }: ActiveP
     return `${days}d remaining`;
   };
 
+  // Don't show any tasks if user is not authenticated
+  if (!user || !accessToken) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-xl shadow-lg p-8 max-w-md text-center">
+          <div className="text-6xl mb-4">🔒</div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Authentication Required</h2>
+          <p className="text-gray-600 mb-6">
+            Please sign in to view your assigned tasks.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show new modular task system instead of database tasks
+  if (showNewTaskSystem) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        {/* Header with switch back option */}
+        <div className="bg-white border-b border-gray-200 p-4">
+          <div className="flex items-center justify-between max-w-6xl mx-auto">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">My Active Work - AI Training Tasks</h2>
+              {user && (
+                <p className="text-sm text-gray-600">Tasks assigned to {user.email}</p>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  console.log('🔄 Manual refresh triggered');
+                  fetchUserTasks();
+                  if (onRefresh) onRefresh();
+                  toast.info('Refreshing tasks from database...');
+                }}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm"
+              >
+                🔄 Refresh Tasks
+              </button>
+              <button
+                onClick={() => setShowNewTaskSystem(true)}
+                className="text-sm text-purple-600 hover:text-purple-800 transition-colors"
+              >
+                View Demo Tasks →
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        {/* Full-screen TaskApp */}
+        <TaskApp
+          task={{}} // Empty task object since TaskApp doesn't need it
+          onSubmit={(submissionData: any) => {
+            console.log('Task completed:', submissionData);
+            toast.success('Task completed successfully!');
+          }}
+          onClose={() => {
+            // Optional: could switch back to task list or handle differently
+            console.log('TaskApp closed');
+          }}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
+      {/* Real Tasks Info */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="font-semibold text-blue-900">
+              Real Database Tasks: {realTasks.length} assigned
+            </h3>
+            <p className="text-blue-700 text-sm">
+              {loadingTasks ? 'Loading...' : `Tasks created by admin and assigned to you`}
+            </p>
+          </div>
+          <button
+            onClick={() => {
+              console.log('🔄 Refreshing tasks from database...');
+              fetchUserTasks();
+              toast.info('Refreshing tasks...');
+            }}
+            className="px-3 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
+          >
+            🔄 Refresh
+          </button>
+        </div>
+        {realTasks.length > 0 && (
+          <div className="mt-3 space-y-2">
+            {realTasks.slice(0, 3).map(task => (
+              <div key={task.id} className="text-sm text-blue-800">
+                • {task.title} - ${task.payment} ({task.status})
+              </div>
+            ))}
+            {realTasks.length > 3 && (
+              <div className="text-sm text-blue-600">
+                ... and {realTasks.length - 3} more tasks
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Header with switch to new system option */}
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-semibold text-gray-900">Database Tasks</h2>
+        <button
+          onClick={() => setShowNewTaskSystem(true)}
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+        >
+          Switch to New Task System →
+        </button>
+      </div>
 
       
       {/* Header Stats */}
@@ -512,6 +686,13 @@ export function ActiveProjects({ tasks: assignedTasks = [], onRefresh }: ActiveP
               >
                 Available
               </Button>
+              <Button
+                variant={activeFilter === 'completed' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setActiveFilter('completed')}
+              >
+                Completed ({completedTasks})
+              </Button>
             </div>
           </div>
         </CardHeader>
@@ -526,16 +707,18 @@ export function ActiveProjects({ tasks: assignedTasks = [], onRefresh }: ActiveP
                 className="group"
               >
                 <Card 
-                  className="border-2 hover:shadow-xl hover:border-blue-400 hover:scale-[1.01] transition-all duration-300 cursor-pointer relative overflow-hidden group"
+                  className={`border-2 transition-all duration-300 relative overflow-hidden group ${
+                    ['completed', 'submitted', 'under_review'].includes(task.status)
+                      ? 'opacity-75 cursor-default bg-green-50'
+                      : 'hover:shadow-xl hover:border-blue-400 hover:scale-[1.01] cursor-pointer'
+                  }`}
                   onClick={() => {
-                    if (task.status === 'available') {
+                    if (['completed', 'submitted', 'under_review'].includes(task.status)) {
+                      toast.info('This task has been completed and cannot be repeated!');
+                    } else if (task.status === 'assigned' || task.status === 'available') {
                       handleStartTask(task);
                     } else if (task.status === 'in_progress') {
                       handleContinueTask(task);
-                    } else if (task.status === 'submitted' || task.status === 'completed') {
-                      toast.info('This task has been completed!');
-                    } else {
-                      handleStartTask(task);
                     }
                   }}
                 >
@@ -627,6 +810,24 @@ export function ActiveProjects({ tasks: assignedTasks = [], onRefresh }: ActiveP
                           >
                             <ChevronRight className="h-4 w-4 mr-2" />
                             Continue
+                          </Button>
+                        )}
+                        {task.status === 'completed' && (
+                          <Button
+                            disabled
+                            className="bg-green-100 text-green-800 border-green-300 cursor-not-allowed"
+                          >
+                            <CheckCircle className="h-4 w-4 mr-2" />
+                            Completed ✓
+                          </Button>
+                        )}
+                        {(task.status === 'submitted' || task.status === 'under_review') && (
+                          <Button
+                            disabled
+                            className="bg-blue-100 text-blue-800 border-blue-300 cursor-not-allowed"
+                          >
+                            <Clock className="h-4 w-4 mr-2" />
+                            Under Review
                           </Button>
                         )}
                         <Button 
@@ -780,14 +981,19 @@ export function ActiveProjects({ tasks: assignedTasks = [], onRefresh }: ActiveP
         </DialogContent>
       </Dialog>
 
-      {/* Task Workspace Dialog */}
-      <TaskWorkspace
-        open={workspaceOpen}
-        onOpenChange={setWorkspaceOpen}
-        task={selectedTask}
-        onComplete={handleTaskComplete}
-        forceFullscreen={true}
-      />
+      {/* Full-Screen Task Workspace */}
+      {workspaceOpen && selectedTask && (
+        <div className="fixed inset-0 z-50 bg-white overflow-auto">
+          <TaskApp
+            task={selectedTask}
+            onSubmit={(submissionData: any) => {
+              console.log('Task submission data:', submissionData);
+              handleTaskComplete(selectedTask.id, submissionData);
+            }}
+            onClose={() => setWorkspaceOpen(false)}
+          />
+        </div>
+      )}
     </div>
   );
 }

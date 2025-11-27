@@ -43,7 +43,7 @@ export function Benefits() {
             More Reasons to Join Today
           </h2>
           <p className="text-base text-blue-100 max-w-2xl mx-auto font-light">
-            Experience the benefits that set Infera AI apart from other platforms
+            Experience the benefits that set Taskify apart from other platforms
           </p>
         </div>
 

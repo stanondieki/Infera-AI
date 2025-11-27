@@ -7,6 +7,142 @@ import { authenticateToken, AuthRequest } from '../middleware/auth';
 
 const router = express.Router();
 
+// Temporary debug endpoint to see current users (REMOVE IN PRODUCTION)
+router.get('/debug/users', async (req: Request, res: Response) => {
+  try {
+    const users = await User.find({}).select('name email role isActive createdAt updatedAt');
+    res.json({
+      success: true,
+      count: users.length,
+      users: users.map(user => ({
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        isActive: user.isActive,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt
+      }))
+    });
+  } catch (error) {
+    console.error('Debug users error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching users'
+    });
+  }
+});
+
+// Debug database info endpoint
+router.get('/debug/database-info', async (req: Request, res: Response) => {
+  try {
+    const mongoose = require('mongoose');
+    const db = mongoose.connection.db;
+    const dbName = db.databaseName;
+    
+    // Get collection names
+    const collections = await db.listCollections().toArray();
+    const collectionNames = collections.map((c: any) => c.name);
+    
+    // Get user count from different possible collections
+    const userCount = await User.countDocuments();
+    
+    res.json({
+      success: true,
+      database: {
+        name: dbName,
+        collections: collectionNames,
+        userCollection: 'users',
+        userCount: userCount,
+        connectionUri: process.env.MONGODB_URI?.replace(/:\/\/[^@]+@/, '://***:***@')
+      }
+    });
+  } catch (error) {
+    console.error('Database info error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching database info',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Debug endpoint to check production database users (temporary)
+router.get('/debug/production-users', async (req: Request, res: Response) => {
+  try {
+    const mongoose = require('mongoose');
+    
+    // Create a temporary connection to the production default database (without /infera_ai)
+    const productionUri = process.env.MONGODB_URI?.replace('/infera_ai', '') || '';
+    const tempConnection = await mongoose.createConnection(productionUri);
+    
+    // Get the User model on this connection
+    const TempUser = tempConnection.model('User', User.schema);
+    
+    // Get users from production default database
+    const productionUsers = await TempUser.find({}).select('name email role isActive createdAt');
+    
+    // Close temporary connection
+    await tempConnection.close();
+    
+    res.json({
+      success: true,
+      productionDatabase: {
+        userCount: productionUsers.length,
+        users: productionUsers.map((user: any) => ({
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          isActive: user.isActive,
+          createdAt: user.createdAt
+        }))
+      }
+    });
+  } catch (error) {
+    console.error('Production users check error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error checking production users',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Cleanup demo accounts (REMOVE IN PRODUCTION)
+router.delete('/debug/cleanup-demo', async (req: Request, res: Response) => {
+  try {
+    // Remove demo accounts created for testing
+    const result = await User.deleteMany({
+      email: { $in: ['demo@inferaai.com', 'test@inferaai.com'] }
+    });
+    
+    console.log(`🧹 Cleaned up ${result.deletedCount} demo accounts`);
+    
+    // Show remaining users
+    const remainingUsers = await User.find({}).select('name email role isActive createdAt');
+    
+    res.json({
+      success: true,
+      message: `Removed ${result.deletedCount} demo accounts`,
+      remainingUsers: remainingUsers.map(user => ({
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        isActive: user.isActive,
+        createdAt: user.createdAt
+      }))
+    });
+  } catch (error) {
+    console.error('Cleanup error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error cleaning up demo accounts'
+    });
+  }
+});
+
 // Generate JWT token
 const generateToken = (userId: string): string => {
   return jwt.sign(

@@ -33,7 +33,7 @@ function getInitialIssues(): Issue[] {
   return [
     {
       id: '1',
-      user_id: 'demo-user-1',
+      user_id: 'system-user-1',
       user_name: 'John Justice',
       task_id: '4',
       task_title: 'Content Moderation Review',
@@ -49,7 +49,7 @@ function getInitialIssues(): Issue[] {
     },
     {
       id: '2',
-      user_id: 'demo-user-1',
+      user_id: 'system-user-1',
       user_name: 'John Justice',
       project_id: '1',
       project_title: 'AI Training Dataset',

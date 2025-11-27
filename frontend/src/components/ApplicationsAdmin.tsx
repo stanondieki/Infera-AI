@@ -13,6 +13,7 @@ import { TaskManagement } from './admin/TaskManagement';
 import { PaymentTracking } from './admin/PaymentTracking';
 import { ApplicationsList } from './admin/ApplicationsList';
 import ProjectManagement from './admin/ProjectManagement';
+import { AdminTasks } from './admin/AdminTasks';
 import { useAuth } from '../utils/auth';
 import { Card, CardContent } from './ui/card';
 import { Button } from './ui/button';
@@ -251,7 +252,7 @@ export function ApplicationsAdmin({ onBack }: ApplicationsAdminProps) {
           </TabsContent>
 
           <TabsContent value="tasks">
-            <TaskManagement tasks={tasks} users={users} onRefresh={loadTasks} />
+            <AdminTasks onBack={onBack} accessToken={accessToken || ''} />
           </TabsContent>
 
           <TabsContent value="payments">

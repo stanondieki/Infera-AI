@@ -11,6 +11,7 @@ import { ProfileSettings } from './dashboard/ProfileSettings';
 import { ActiveProjects } from './dashboard/ActiveProjects';
 import { SecuritySessions } from './dashboard/SecuritySessions';
 import TaskManagement from './dashboard/TaskManagement';
+import { OutlierTaskWorkspace } from './dashboard/OutlierTaskWorkspace';
 import { getUnresolvedIssuesCount } from '../utils/issues';
 import { ViewProfileDialog } from './dashboard/ViewProfileDialog';
 import { InviteFriendsDialog } from './dashboard/InviteFriendsDialog';
@@ -185,6 +186,8 @@ export function Dashboard({ onBack }: DashboardProps) {
     pendingApplications: 0,
     approvedApplications: 0,
     rejectedApplications: 0,
+    successRate: 0,
+    achievements: 0,
   });
   const [userTasks, setUserTasks] = useState<any[]>([]);
   const [opportunities, setOpportunities] = useState<any[]>([]);
@@ -370,7 +373,7 @@ export function Dashboard({ onBack }: DashboardProps) {
         setAnimatedStats({
           earnings: Math.floor(totalEarnings * progress),
           tasks: Math.floor(completedTasks * progress),
-          rate: 0, // Will be calculated from real data later
+          rate: Math.floor((dashboardStats.successRate || 0) * progress),
         });
         
         if (step >= steps) {
@@ -378,7 +381,7 @@ export function Dashboard({ onBack }: DashboardProps) {
           setAnimatedStats({
             earnings: totalEarnings,
             tasks: completedTasks,
-            rate: 0,
+            rate: dashboardStats.successRate || 0,
           });
         }
       }, interval);
@@ -608,10 +611,45 @@ export function Dashboard({ onBack }: DashboardProps) {
       console.log('📊 Active tasks:', activeTasks);
       console.log('📊 Completed tasks:', completedTasks);
       
+      // Calculate total earnings from completed tasks
+      const totalEarnings = tasksData.reduce((sum: number, task: any) => {
+        if (['completed', 'submitted', 'under_review'].includes(task.status)) {
+          let taskPayment = 0;
+          if (task.payment) {
+            taskPayment = task.payment;
+          } else if (task.hourlyRate && task.estimatedHours) {
+            taskPayment = Math.floor(task.hourlyRate * task.estimatedHours);
+          } else if (task.hourlyRate) {
+            taskPayment = task.hourlyRate;
+          }
+          return sum + taskPayment;
+        }
+        return sum;
+      }, 0);
+
+      // Calculate success rate (completed vs total assigned tasks)
+      const totalAssignedTasks = tasksData.length;
+      const successfulTasks = tasksData.filter((task: any) => 
+        ['completed', 'submitted'].includes(task.status)
+      ).length;
+      const successRate = totalAssignedTasks > 0 ? Math.round((successfulTasks / totalAssignedTasks) * 100) : 0;
+
+      // Calculate achievements based on milestones
+      const achievements = [];
+      if (successfulTasks >= 1) achievements.push('First Task Completed');
+      if (successfulTasks >= 5) achievements.push('Task Master');
+      if (successfulTasks >= 10) achievements.push('Elite Contributor');
+      if (totalEarnings >= 50) achievements.push('First Earnings');
+      if (totalEarnings >= 200) achievements.push('High Earner');
+      if (successRate >= 90 && totalAssignedTasks >= 3) achievements.push('Quality Expert');
+
       const updatedStats = {
         ...statsData,
         activeProjects: activeTasks.length,
         completedTasks: completedTasks.length,
+        totalEarnings: totalEarnings,
+        successRate: successRate,
+        achievements: achievements.length,
       };
       
       console.log('📊 Updated stats with task counts:', updatedStats);
@@ -625,9 +663,43 @@ export function Dashboard({ onBack }: DashboardProps) {
       // Generate milestones from user progress
       generateMilestones(tasksData, completedTasks);
       
+      // Transform tasks from dashboard format to ActiveProjects format
+      const transformedTasks = tasksData.map((task: any) => {
+        // Calculate payment based on task data
+        let taskPayment = 0;
+        if (task.payment) {
+          taskPayment = task.payment;
+        } else if (task.hourlyRate && task.estimatedHours) {
+          taskPayment = Math.floor(task.hourlyRate * task.estimatedHours);
+        } else if (task.hourlyRate) {
+          taskPayment = task.hourlyRate;
+        }
+
+        return {
+          id: task.id || task._id,
+          project_id: task.projectId || task.id,
+          project_name: task.projectName || task.title,
+          title: task.title,
+          description: task.description,
+          category: task.category || 'General',
+          difficulty: task.difficulty || 'medium',
+          estimated_time: task.estimatedTime || (task.estimatedHours ? task.estimatedHours * 60 : 60),
+          payment: taskPayment,
+          status: task.status,
+          progress: task.progress || 0,
+          deadline: task.dueDate || task.deadline,
+          instructions: task.instructions || 'Complete the assigned task according to guidelines.',
+          requirements: task.requirements || ['Follow task guidelines', 'Submit quality work'],
+          started_at: task.startedAt,
+          time_spent: task.timeSpent || 0,
+        };
+      });
+      
+      console.log('🔄 Transformed tasks for ActiveProjects:', transformedTasks);
+
       setDashboardStats(updatedStats);
       setApplications(applicationsData);
-      setUserTasks(tasksData);
+      setUserTasks(transformedTasks);
       setOpportunities(opportunitiesData);
     } catch (error) {
       console.error('Error loading dashboard data:', error);
@@ -907,6 +979,10 @@ export function Dashboard({ onBack }: DashboardProps) {
                 <Briefcase className="h-3 w-3 sm:h-4 sm:w-4" />
                 <span className="hidden sm:inline">My Tasks</span>
               </TabsTrigger>
+              <TabsTrigger value="ai-tasks" className="gap-1 sm:gap-2 text-xs sm:text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-600 data-[state=active]:to-blue-600 data-[state=active]:text-white">
+                <Brain className="h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">AI Training</span>
+              </TabsTrigger>
               <TabsTrigger value="issues" className="gap-1 sm:gap-2 text-xs sm:text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-purple-600 data-[state=active]:text-white relative">
                 <AlertCircle className="h-3 w-3 sm:h-4 sm:w-4" />
                 <span className="hidden sm:inline">Issues</span>
@@ -1059,7 +1135,7 @@ export function Dashboard({ onBack }: DashboardProps) {
                   <CardContent>
                     <div className="text-2xl sm:text-3xl text-gray-900">{animatedStats.tasks}</div>
                     <p className="text-xs sm:text-sm text-gray-600 mt-2">
-                      Across {projects.length} projects
+                      Across {dashboardStats.activeProjects > 0 ? dashboardStats.activeProjects : 1} project{dashboardStats.activeProjects !== 1 ? 's' : ''}
                     </p>
                   </CardContent>
                 </Card>
@@ -1109,9 +1185,9 @@ export function Dashboard({ onBack }: DashboardProps) {
                     </motion.div>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl sm:text-3xl text-gray-900">12</div>
+                    <div className="text-2xl sm:text-3xl text-gray-900">{dashboardStats.achievements}</div>
                     <p className="text-xs sm:text-sm text-gray-600 mt-2">
-                      3 earned this month
+                      Based on your task performance
                     </p>
                   </CardContent>
                 </Card>
@@ -2392,6 +2468,36 @@ export function Dashboard({ onBack }: DashboardProps) {
           {/* My Tasks Tab */}
           <TabsContent value="tasks" className="space-y-6">
             <MyTasks />
+          </TabsContent>
+
+          {/* AI Training Tasks Tab */}
+          <TabsContent value="ai-tasks" className="space-y-6">
+            <OutlierTaskWorkspace 
+              tasks={userTasks.map(task => ({
+                ...task,
+                type: task.category as any,
+                category: 'computer_vision' as any,
+                requiredSkills: ['machine_learning', 'data_analysis'],
+                difficultyLevel: 'intermediate' as any,
+                taskData: {
+                  inputs: [],
+                  examples: [],
+                  guidelines: task.description || '',
+                  qualityMetrics: ['Accuracy', 'Completeness', 'Timeliness']
+                },
+                annotationGuidelines: task.description || '',
+                qualityStandards: ['High quality work', 'Follow guidelines', 'Meet deadlines'],
+                timeSpent: task.time_spent || 0,
+                estimatedTime: task.estimated_time || 60,
+                payment: task.payment || 0,
+                qualityScore: task.progress,
+                accuracyRate: undefined
+              }))}
+              onTaskUpdate={(taskId, updates) => {
+                console.log('Task update:', taskId, updates);
+                // Handle task updates here
+              }}
+            />
           </TabsContent>
 
           {/* My Issues Tab */}

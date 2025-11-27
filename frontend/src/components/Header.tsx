@@ -30,7 +30,7 @@ export function Header({ onSignInClick, onApplyClick, onDashboardClick }: Header
             onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
             className="hover:opacity-80 transition-opacity"
           >
-            <Logo size="md" />
+            <Logo />
           </button>
 
           {/* Desktop Navigation */}

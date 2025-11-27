@@ -48,20 +48,62 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   // Initialize auth state from storage
   useEffect(() => {
-    const initAuth = () => {
+    const initAuth = async () => {
       try {
         const savedSession = localStorage.getItem(SESSION_KEY);
         if (savedSession) {
           const session = JSON.parse(savedSession);
           if (session?.user && session?.accessToken) {
-            console.log('[AUTH] Session restored for:', session.user.email);
-            setUser(session.user);
-            setAccessToken(session.accessToken);
+            console.log('[AUTH] Session found for:', session.user.email);
+            console.log('[AUTH] Validating token...');
+            
+            // Validate token by calling /me endpoint
+            try {
+              const response = await apiClient.get(API_ENDPOINTS.AUTH.ME, session.accessToken);
+              if (response.success && response.user) {
+                console.log('[AUTH] Token valid, session restored');
+                setUser({
+                  id: response.user.id,
+                  email: response.user.email,
+                  name: response.user.name,
+                  role: response.user.role || 'user',
+                  isActive: response.user.isActive,
+                  avatar: response.user.avatar,
+                  createdAt: response.user.createdAt,
+                  phone: response.user.phone,
+                  location: response.user.location,
+                  bio: response.user.bio,
+                  jobTitle: response.user.jobTitle,
+                  company: response.user.company,
+                  website: response.user.website,
+                  timezone: response.user.timezone,
+                  language: response.user.language,
+                  skills: response.user.skills,
+                  languages: response.user.languages,
+                  github: response.user.github,
+                  linkedin: response.user.linkedin
+                });
+                setAccessToken(session.accessToken);
+              } else {
+                console.log('[AUTH] Token validation failed, clearing session');
+                localStorage.removeItem(SESSION_KEY);
+                localStorage.removeItem('accessToken');
+                localStorage.removeItem('infera_auth_state');
+              }
+            } catch (error: any) {
+              console.error('[AUTH] Token validation error:', error.message);
+              console.log('[AUTH] Clearing invalid session');
+              localStorage.removeItem(SESSION_KEY);
+              localStorage.removeItem('accessToken');
+              localStorage.removeItem('infera_auth_state');
+            }
           }
         }
       } catch (error) {
         console.error('[AUTH] Session restore failed:', error);
         localStorage.removeItem(SESSION_KEY);
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('infera_auth_state');
       } finally {
         setIsLoading(false);
       }
@@ -155,7 +197,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signOut = () => {
     console.log('[AUTH] Signing out');
+    
+    // Clear all stored authentication data
     localStorage.removeItem(SESSION_KEY);
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('infera_auth_state');
+    localStorage.removeItem('infera_session');
+    
     setUser(null);
     setAccessToken(null);
     

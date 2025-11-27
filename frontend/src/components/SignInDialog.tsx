@@ -11,7 +11,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { User } from "lucide-react";
 import { Mail, Lock, ArrowRight, Eye, EyeOff, Sparkles, Shield, CheckCircle } from "lucide-react";
 import { Separator } from "./ui/separator";
-import { Logo } from "./Logo";
+import { LogoSimple } from "./Logo";
 
 interface SignInDialogProps {
   open: boolean;
@@ -145,7 +145,7 @@ export function SignInDialog({ open, onOpenChange, onSignInSuccess, onSwitchToAp
                       <Shield className="h-6 w-6 text-white" />
                     </div>
                   ) : (
-                    <Logo variant="white" size="sm" animated={false} />
+                    <LogoSimple />
                   )}
                 </div>
                 <h2 className="text-xl font-semibold mb-1">

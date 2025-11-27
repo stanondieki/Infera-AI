@@ -434,4 +434,49 @@ router.get('/stats/overview', authenticateToken, requireAdmin, async (req: AuthR
   }
 });
 
+// Test email endpoint (for development/testing)
+router.post('/test-email', async (req: Request, res: Response) => {
+  try {
+    const { email } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email address is required'
+      });
+    }
+
+    // Create a test application object
+    const testApplication = {
+      firstName: 'Test',
+      lastName: 'User',
+      email: email,
+      expertise: 'AI Training',
+      experience: '2-5 years',
+      skills: ['Data Annotation', 'Content Moderation'],
+      hoursPerWeek: '20-30',
+      motivation: 'Testing the email system for Taskify platform.',
+      status: 'pending',
+      createdAt: new Date()
+    } as IApplication;
+
+    // Send test welcome email
+    const emailSent = await emailService.sendWelcomeEmail(testApplication, 'TestPassword123!');
+    
+    res.json({
+      success: true,
+      message: emailSent ? 'Test email sent successfully!' : 'Email sending failed, but no error thrown',
+      email: email,
+      emailSent: emailSent
+    });
+  } catch (error) {
+    console.error('Test email error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to send test email',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
 export default router;

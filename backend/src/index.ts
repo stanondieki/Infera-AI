@@ -74,10 +74,21 @@ const createInitialAdmin = async () => {
   try {
     const { User } = await import('./models');
     
+    // First, let's see what users exist
+    const allUsers = await User.find({}).select('name email role isActive createdAt');
+    console.log('📋 Current users in database:', allUsers.length);
+    allUsers.forEach(user => {
+      console.log(`  - ${user.email} (${user.role}) - Active: ${user.isActive} - Created: ${user.createdAt?.toISOString()?.split('T')[0] || 'Unknown'}`);
+    });
+    
+    // Only create admin if no admin exists AND no users exist at all
     const adminExists = await User.findOne({ role: 'admin' });
-    if (!adminExists) {
+    const totalUsers = await User.countDocuments();
+    
+    if (!adminExists && totalUsers === 0) {
+      console.log('🔧 No users found, creating initial admin user...');
       const adminUser = new User({
-        name: 'Admin User',
+        name: 'Admin User', 
         email: 'admin@inferaai.com',
         password: 'Admin123!',
         role: 'admin',
@@ -87,33 +98,14 @@ const createInitialAdmin = async () => {
       
       await adminUser.save();
       console.log('✅ Initial admin user created: admin@inferaai.com / Admin123!');
+    } else {
+      console.log(`ℹ️ Found ${totalUsers} existing users - using live accounts`);
     }
 
-    // Also create demo user
-    const demoExists = await User.findOne({ email: 'demo@inferaai.com' });
-    if (!demoExists) {
-      const demoUser = new User({
-        name: 'Demo User',
-        email: 'demo@inferaai.com',
-        password: 'Demo123!',
-        role: 'user',
-        isVerified: true,
-        isActive: true,
-        bio: 'Demo user account for testing the platform',
-        skills: ['JavaScript', 'Python', 'AI Training'],
-        languages: ['English'],
-        location: 'Remote',
-        totalEarnings: 1250.75,
-        completedTasks: 12,
-        rating: 4.8,
-        reviewCount: 15
-      });
-      
-      await demoUser.save();
-      console.log('✅ Demo user created: demo@inferaai.com / Demo123!');
-    }
+    // REMOVED: Demo user creation - using live accounts instead
+    
   } catch (error) {
-    console.error('Error creating initial users:', error);
+    console.error('Error checking/creating users:', error);
   }
 };
 
@@ -159,6 +151,7 @@ app.get('/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/applications', applicationRoutes);
 app.use('/api/opportunities', opportunityRoutes);
+app.use('/api/projects', opportunityRoutes); // Also mount under /projects for frontend compatibility
 app.use('/api/projects', projectsManagementRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/task-projects', taskProjectRoutes);

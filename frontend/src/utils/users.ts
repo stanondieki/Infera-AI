@@ -40,8 +40,8 @@ function getInitialUsers(): User[] {
   return [
     {
       id: '1',
-      email: 'demo@inferaai.com',
-      name: 'Demo User',
+      email: 'system@inferaai.com',
+      name: 'System User',
       role: 'user',
       isActive: true,
       hourly_rate: 45,
@@ -165,11 +165,20 @@ export async function getUsers(accessToken?: string): Promise<User[]> {
     
     return response.users || response || [];
   } catch (error: any) {
-    console.error('👥 Backend API error:', error.message);
-    console.log('Falling back to local storage');
+    console.warn('⚠️ Backend API error:', error.message);
+    
+    // If authentication failed, return empty array for live system
+    if (error.message.includes('Authentication failed') || 
+        error.message.includes('Access token required') ||
+        error.message.includes('User not found')) {
+      console.log('🔐 Authentication required to fetch live users');
+      return [];
+    }
+    
+    console.log('📝 Falling back to local storage as last resort');
   }
 
-  // Fallback to local storage
+  // Fallback to local storage only for development/offline mode
   return loadUsers();
 }
 

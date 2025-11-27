@@ -290,17 +290,50 @@ export function TaskWorkspace({ open, onOpenChange, task, onComplete, forceFulls
         completed: i < Math.floor((task.progress / 100) * totalItems),
       }));
     } else {
-      // Default content moderation work
-      return Array.from({ length: totalItems }, (_, i) => ({
-        id: `real-item-${i + 1}`,
-        type: 'content_moderation' as WorkItem['type'],
-        data: {
-          content: `Real content item ${i + 1} for review and moderation.`,
-          options: ['Approve', 'Reject', 'Flag for Review', 'Request Changes'],
-          instructions: task.instructions || 'Review this content and make an appropriate moderation decision.'
-        },
-        completed: i < Math.floor((task.progress / 100) * totalItems),
-      }));
+      // Professional AI training content moderation work
+      return Array.from({ length: totalItems }, (_, i) => {
+        const scenarios = [
+          {
+            content: `Social Media Post Analysis #${i + 1}: "Just got the new Tesla Model Y! The autopilot is incredible - it handled highway merging perfectly. #ElectricVehicle #Technology"`,
+            context: 'Tesla social media monitoring for brand sentiment and safety feedback',
+            options: ['Positive Brand Sentiment', 'Safety Feedback', 'Product Experience', 'Requires Follow-up']
+          },
+          {
+            content: `Medical Content Review #${i + 1}: "Natural remedies for managing diabetes: Cinnamon extract has shown promising results in clinical studies for blood sugar regulation. Always consult healthcare providers."`,
+            context: 'Google Health content accuracy verification for YMYL (Your Money Your Life) pages',
+            options: ['Medically Accurate', 'Needs Expert Review', 'Add Disclaimer', 'Flag for Medical Team']
+          },
+          {
+            content: `Voice Command Training #${i + 1}: User said: "Alexa, remind me to take my medication at 8 AM daily" - System Response: "I've set a recurring reminder for medication at 8:00 AM every day."`,
+            context: 'Amazon Alexa voice response quality evaluation for healthcare commands',
+            options: ['Excellent Response', 'Good - Minor Issues', 'Needs Improvement', 'Safety Concern']
+          },
+          {
+            content: `Code Review Assessment #${i + 1}: Python function for data validation with proper error handling, type hints, and documentation. Follows PEP-8 standards and includes comprehensive unit tests.`,
+            context: 'OpenAI GPT model training for code quality evaluation and programming education',
+            options: ['Professional Quality', 'Good with Minor Issues', 'Needs Refactoring', 'Educational Value High']
+          },
+          {
+            content: `Content Moderation #${i + 1}: Instagram post featuring family vacation photos with appropriate privacy settings, positive engagement, and no policy violations detected.`,
+            context: 'Meta content safety review for community guidelines compliance',
+            options: ['Safe Content', 'Educational Content', 'Promote Positive Engagement', 'No Action Needed']
+          }
+        ];
+        
+        const scenario = scenarios[i % scenarios.length];
+        
+        return {
+          id: `professional-task-${i + 1}`,
+          type: 'content_moderation' as WorkItem['type'],
+          data: {
+            content: scenario.content,
+            context: scenario.context,
+            options: scenario.options,
+            instructions: `Professional AI Training Task: Evaluate this ${scenario.context.split(' ')[0]} content according to quality standards. Your assessment helps train AI systems for major tech companies.`
+          },
+          completed: i < Math.floor((task.progress / 100) * totalItems),
+        };
+      });
     }
   };
 
@@ -644,13 +677,32 @@ export function TaskWorkspace({ open, onOpenChange, task, onComplete, forceFulls
       case 'content_moderation':
         return (
           <div className="space-y-6">
+            {/* Professional Context Header */}
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border-l-4 border-blue-500">
+              <h4 className="font-semibold text-blue-900 mb-2 flex items-center gap-2">
+                🎯 Professional AI Training Task
+              </h4>
+              <p className="text-blue-800 text-sm mb-2">{currentItem.data?.context || 'Content evaluation for AI training purposes'}</p>
+              <p className="text-blue-700 text-xs">Your professional assessment helps improve AI systems for major tech companies</p>
+            </div>
+
+            {/* Content to Review */}
             <Card className="bg-gradient-to-br from-gray-50 to-gray-100 border-2">
-              <CardContent className={isFullscreen ? 'p-8' : 'p-6'}>
-                <p className={`text-gray-900 leading-relaxed ${isFullscreen ? 'text-xl' : 'text-lg'} max-w-none`}>{currentItem.data?.content || 'Content to review'}</p>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg text-gray-800">Content for Professional Review</CardTitle>
+              </CardHeader>
+              <CardContent className={isFullscreen ? 'p-8 pt-0' : 'p-6 pt-0'}>
+                <div className="bg-white p-4 rounded border-l-4 border-gray-300 shadow-sm">
+                  <p className={`text-gray-900 leading-relaxed ${isFullscreen ? 'text-xl' : 'text-lg'} max-w-none`}>
+                    {currentItem.data?.content || 'Content to review'}
+                  </p>
+                </div>
               </CardContent>
             </Card>
+
+            {/* Professional Assessment Options */}
             <div>
-              <Label className="mb-4 block text-gray-900 text-lg">Moderation Decision:</Label>
+              <Label className="mb-4 block text-gray-900 text-lg font-medium">Professional Assessment:</Label>
               <RadioGroup value={currentAnswer} onValueChange={setCurrentAnswer}>
                 <div className="space-y-3">
                   {(currentItem.data?.options || []).map((option: string, idx: number) => (
@@ -671,13 +723,21 @@ export function TaskWorkspace({ open, onOpenChange, task, onComplete, forceFulls
                         {idx + 1}
                       </div>
                       <RadioGroupItem value={option} id={option} className="hidden" />
-                      <Label htmlFor={option} className="cursor-pointer flex-1 text-base">
+                      <Label htmlFor={option} className="cursor-pointer flex-1 text-base font-medium">
                         {option}
                       </Label>
                     </div>
                   ))}
                 </div>
               </RadioGroup>
+              
+              {/* Professional Guidelines */}
+              <div className="mt-4 p-3 bg-amber-50 rounded border-l-4 border-amber-400">
+                <p className="text-amber-800 text-sm">
+                  <strong>Professional Guidelines:</strong> Evaluate content according to industry standards. 
+                  Your expert assessment contributes to training advanced AI systems used by millions of users.
+                </p>
+              </div>
             </div>
           </div>
         );

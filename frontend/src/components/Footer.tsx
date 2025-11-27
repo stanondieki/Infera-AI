@@ -1,6 +1,6 @@
 import { Facebook, Twitter, Linkedin, Instagram } from "lucide-react";
 import { toast } from "sonner";
-import { Logo } from "./Logo";
+import { LogoSimple } from "./Logo";
 
 interface FooterProps {
   onApplyClick: () => void;
@@ -28,7 +28,7 @@ export function Footer({ onApplyClick, onAdminClick }: FooterProps) {
         <div className="grid md:grid-cols-4 gap-8 mb-8">
           <div>
             <div className="mb-4">
-              <Logo variant="white" size="md" />
+              <LogoSimple />
             </div>
             <p className="text-gray-400 mb-4">
               Empowering experts worldwide to shape the future of AI.

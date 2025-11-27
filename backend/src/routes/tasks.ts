@@ -4,8 +4,244 @@ import { Task, ITask, User, Opportunity } from '../models';
 import { validateTask } from '../middleware/validation';
 import { authenticateToken, requireAdmin, AuthRequest } from '../middleware/auth';
 import { apiLimiter } from '../middleware/rateLimiter';
+import { aiTrainingTaskTemplates, getRandomTaskTemplate, getTaskTemplatesByCategory } from '../data/outlierTaskTemplates';
 
 const router = express.Router();
+
+// Create Individual Task (Admin only)
+router.post('/create', authenticateToken, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const taskData = req.body;
+
+    // Validate required fields
+    if (!taskData.title || !taskData.description || !taskData.type || !taskData.category) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required fields: title, description, type, category'
+      });
+    }
+
+    // Create the task
+    const task = new Task({
+      title: taskData.title,
+      description: taskData.description,
+      type: taskData.type,
+      instructions: taskData.instructions || '',
+      requirements: taskData.requirements || [],
+      deliverables: taskData.deliverables || [],
+      estimatedHours: taskData.estimatedHours || 1,
+      deadline: taskData.deadline ? new Date(taskData.deadline) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      hourlyRate: taskData.hourlyRate || 15,
+      priority: taskData.priority || 'medium',
+      status: taskData.assignedTo ? 'assigned' : 'draft',
+      assignedTo: taskData.assignedTo || null,
+      createdBy: req.user!._id,
+      // AI Training specific fields
+      taskData: {
+        category: taskData.category,
+        difficultyLevel: taskData.taskData?.difficultyLevel || 'intermediate',
+        requiredSkills: taskData.taskData?.requiredSkills || [],
+        domainExpertise: taskData.taskData?.domainExpertise || '',
+        guidelines: taskData.taskData?.guidelines || '',
+        qualityMetrics: taskData.taskData?.qualityMetrics || [],
+        examples: taskData.taskData?.examples || [],
+        inputs: taskData.taskData?.inputs || [],
+        expectedOutput: taskData.taskData?.expectedOutput || '',
+        isQualityControl: taskData.taskData?.isQualityControl || false
+      },
+      qualityStandards: taskData.qualityStandards || [],
+      estimatedTime: taskData.estimatedTime || 60
+    });
+
+    await task.save();
+
+    // Populate the assignedTo field if present
+    await task.populate('assignedTo', 'name email');
+
+    res.status(201).json({
+      success: true,
+      message: 'Task created successfully',
+      task: task
+    });
+  } catch (error) {
+    console.error('Error creating task:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error during task creation',
+      error: (error as any)?.message || 'Unknown error'
+    });
+  }
+});
+
+// Create AI Training Tasks (Admin only)
+router.post('/create-ai-tasks', authenticateToken, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const { category, taskCount = 5, difficulty = 'intermediate' } = req.body;
+
+    if (!category) {
+      return res.status(400).json({
+        success: false,
+        message: 'Category is required'
+      });
+    }
+
+    // Get task templates for the category
+    const templates = getTaskTemplatesByCategory(category);
+    if (!templates || templates.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: `No templates found for category: ${category}`
+      });
+    }
+
+    // Get users who can be assigned tasks (non-admin users)
+    const users = await User.find({ role: { $ne: 'admin' } }).select('_id');
+    if (users.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No users available for task assignment'
+      });
+    }
+
+    const createdTasks = [];
+
+    for (let i = 0; i < taskCount; i++) {
+      // Select random template or filter by difficulty
+      const filteredTemplates = templates.filter(t => 
+        difficulty === 'all' || t.difficultyLevel === difficulty
+      );
+      const template = filteredTemplates[Math.floor(Math.random() * filteredTemplates.length)];
+      
+      // Assign to random user
+      const randomUser = users[Math.floor(Math.random() * users.length)];
+      
+      const task = new Task({
+        title: `${template.title} - Task #${i + 1}`,
+        description: template.taskData.guidelines,
+        type: template.type,
+        instructions: template.annotationGuidelines,
+        requirements: template.qualityStandards,
+        deliverables: template.taskData.qualityMetrics,
+        assignedTo: randomUser._id,
+        createdBy: req.user!._id,
+        estimatedHours: Math.ceil(template.estimatedTime / 60), // Convert minutes to hours
+        deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        hourlyRate: template.paymentPerTask,
+        status: 'assigned',
+        priority: 'medium',
+        // AI Training specific fields
+        taskData: {
+          category: template.category,
+          difficultyLevel: template.difficultyLevel,
+          requiredSkills: template.requiredSkills,
+          domainExpertise: (template as any).domainExpertise,
+          guidelines: template.taskData.guidelines,
+          qualityMetrics: template.taskData.qualityMetrics,
+          examples: template.taskData.examples || [],
+          inputs: [], // Will be populated with actual task inputs
+          expectedOutput: '', // Will be set for quality control tasks
+          isQualityControl: Math.random() < 0.1 // 10% chance for quality control
+        },
+        qualityStandards: template.qualityStandards,
+        estimatedTime: template.estimatedTime
+      });
+
+      await task.save();
+      createdTasks.push(task);
+    }
+
+    res.json({
+      success: true,
+      message: `${taskCount} AI training tasks created successfully`,
+      tasks: createdTasks,
+      category,
+      difficulty
+    });
+  } catch (error) {
+    console.error('Error creating AI training tasks:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error during AI task creation',
+      error: (error as any)?.message || 'Unknown error'
+    });
+  }
+});
+
+// Get all tasks for admin
+router.get('/admin/all', authenticateToken, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const tasks = await Task.find()
+      .populate('assignedTo', 'name email')
+      .populate('createdBy', 'name email')
+      .sort({ createdAt: -1 });
+
+    res.json({
+      success: true,
+      tasks: tasks
+    });
+  } catch (error) {
+    console.error('Error fetching admin tasks:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error during task retrieval',
+      error: (error as any)?.message || 'Unknown error'
+    });
+  }
+});
+
+// Assign task to user (Admin only)
+router.put('/:taskId/assign', authenticateToken, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const { taskId } = req.params;
+    const { assignedTo } = req.body;
+
+    if (!assignedTo) {
+      return res.status(400).json({
+        success: false,
+        message: 'assignedTo user ID is required'
+      });
+    }
+
+    // Verify the user exists
+    const user = await User.findById(assignedTo);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Update the task
+    const task = await Task.findByIdAndUpdate(
+      taskId,
+      { 
+        assignedTo: assignedTo,
+        status: 'assigned'
+      },
+      { new: true }
+    ).populate('assignedTo', 'name email');
+
+    if (!task) {
+      return res.status(404).json({
+        success: false,
+        message: 'Task not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Task assigned successfully',
+      task: task
+    });
+  } catch (error) {
+    console.error('Error assigning task:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error during task assignment',
+      error: (error as any)?.message || 'Unknown error'
+    });
+  }
+});
 
 // Create tasks from projects (Admin only)
 router.post('/create-from-project', authenticateToken, requireAdmin, async (req: AuthRequest, res: Response) => {
@@ -22,123 +258,30 @@ router.post('/create-from-project', authenticateToken, requireAdmin, async (req:
       });
     }
 
-    // Task templates based on project category (updated for Opportunity categories)
-    const taskTemplates: { [key: string]: any[] } = {
-      'Data Annotation': [
-        {
-          title: 'Image Classification - Batch #{batch}',
-          description: 'Classify {count} images into predefined categories',
-          type: 'data_annotation',
-          difficulty: ['medium', 'hard'],
-          estimatedHours: [1.5, 2.5],
-          instructions: 'Review each image carefully and assign the most appropriate category. Follow the provided guidelines for consistent classification.'
-        },
-        {
-          title: 'Object Detection - Batch #{batch}',
-          description: 'Draw bounding boxes around objects in images',  
-          type: 'data_annotation',
-          difficulty: ['hard', 'expert'],
-          estimatedHours: [2, 3],
-          instructions: 'Accurately identify and draw bounding boxes around all specified objects. Ensure precise boundaries and correct labeling.'
-        },
-        {
-          title: 'Text Sentiment Analysis - Set #{batch}',
-          description: 'Analyze sentiment of customer reviews and feedback',
-          type: 'data_annotation', 
-          difficulty: ['easy', 'medium'],
-          estimatedHours: [1, 1.5],
-          instructions: 'Read each text sample and classify the sentiment as positive, negative, or neutral. Consider context and tone.'
-        }
-      ],
-      'Content Creation': [
-        {
-          title: 'Content Review - Batch #{batch}',
-          description: 'Review and moderate user-generated content',
-          type: 'content_creation',
-          difficulty: ['easy', 'medium'],
-          estimatedHours: [1, 2],
-          instructions: 'Review content for policy violations, inappropriate material, and community guidelines compliance.'
-        }
-      ],
-      'AI/ML': [
-        {
-          title: 'Model Output Evaluation - Round #{batch}',
-          description: 'Evaluate AI model responses for quality and accuracy',
-          type: 'quality_assurance',
-          difficulty: ['medium', 'hard'],
-          estimatedHours: [2, 3],
-          instructions: 'Rate AI responses on accuracy, relevance, and helpfulness. Provide detailed feedback for improvement.'
-        }
-      ],
-      'Quality Assurance': [
-        {
-          title: 'QA Testing - Batch #{batch}',
-          description: 'Test software functionality and report issues',
-          type: 'quality_assurance',
-          difficulty: ['medium', 'hard'],
-          estimatedHours: [2, 4],
-          instructions: 'Thoroughly test the assigned features and document any bugs or issues found.'
-        }
-      ]
-    };
-
-    const templates = taskTemplates[project.category as string] || taskTemplates['Data Annotation'];
     const createdTasks = [];
 
     // Get users who can be assigned tasks (non-admin users)
     const users = await User.find({ role: { $ne: 'admin' } }).select('_id');
 
     for (let i = 0; i < taskCount; i++) {
-      const template = templates[Math.floor(Math.random() * templates.length)];
-      const difficulty = Array.isArray(template.difficulty) 
-        ? template.difficulty[Math.floor(Math.random() * template.difficulty.length)]
-        : template.difficulty;
-      const estimatedHours = Array.isArray(template.estimatedHours)
-        ? template.estimatedHours[Math.floor(Math.random() * template.estimatedHours.length)]
-        : template.estimatedHours;
-      
-      // Random batch numbers for realistic task names
-      const batchNum = Math.floor(Math.random() * 500) + 100;
-      const itemCount = Math.floor(Math.random() * 200) + 50;
-      
       // Assign to random user
       const randomUser = users[Math.floor(Math.random() * users.length)];
       
       const task = new Task({
-        title: template.title.replace('{batch}', batchNum).replace('{count}', itemCount),
-        description: template.description.replace('{count}', itemCount),
-        type: template.type,
+        title: `${project.title} - Task #${i + 1}`,
+        description: `Task for project: ${project.title}`,
+        type: 'data_annotation',
+        instructions: 'Complete the assigned task according to guidelines',
+        requirements: ['Complete assigned task according to guidelines'],
+        deliverables: ['Completed task with required outputs'],
         assignedTo: randomUser._id,
         createdBy: req.user!._id,
-        instructions: template.instructions,
-        requirements: [
-          'Attention to detail',
-          'Follow provided guidelines',
-          'Maintain consistency',
-          'Complete all items'
-        ],
-        deliverables: ['Completed annotations', 'Quality report'],
-        estimatedHours,
-        deadline: project.applicationDeadline || new Date(Date.now() + Math.floor(Math.random() * 7 + 1) * 24 * 60 * 60 * 1000),
-        priority: project.priority || ['low', 'medium', 'high'][Math.floor(Math.random() * 3)],
-        hourlyRate: project.hourlyRate?.min || Math.floor(Math.random() * 20) + 15,
-        status: Math.random() > 0.3 ? 'assigned' : 'available', // 70% assigned, 30% available
-        progress: Math.random() > 0.5 ? Math.floor(Math.random() * 80) : 0, // Some tasks have progress
-        // Additional fields for frontend compatibility
-        opportunityId: projectId, // Link to the opportunity (project)
-        project_id: projectId,
-        project_name: project.title,
-        category: project.category,
-        difficulty: difficulty,
-        estimated_time: Math.floor(estimatedHours * 60), // Convert to minutes
-        payment: Math.floor(estimatedHours * (project.hourlyRate?.min || 25))
+        estimatedHours: 2,
+        deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        hourlyRate: 15,
+        status: 'assigned',
+        priority: 'medium'
       });
-
-      // If task is in progress, set start time
-      if (task.progress > 0) {
-        task.startedAt = new Date(Date.now() - Math.floor(Math.random() * 2 * 60 * 60 * 1000)); // Started within last 2 hours
-        task.status = 'in_progress';
-      }
 
       await task.save();
       createdTasks.push(task);
@@ -359,7 +502,15 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res: Response) =>
 router.post('/:id/submit', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const { submissionNotes, submissionFiles, actualHours } = req.body;
+    const { 
+      submissionNotes, 
+      submissionFiles, 
+      actualHours, 
+      submissionData, 
+      answers, 
+      outputText, 
+      confidence 
+    } = req.body;
     const userId = req.user?._id;
 
     const task = await Task.findById(id);
@@ -386,10 +537,33 @@ router.post('/:id/submit', authenticateToken, async (req: AuthRequest, res: Resp
       });
     }
 
+    // Validate AI training task submission
+    if (task.taskData && task.taskData.category) {
+      // For AI training tasks, we need more detailed submission data
+      if (!answers && !outputText && !submissionData) {
+        return res.status(400).json({
+          success: false,
+          message: 'AI training tasks require detailed submission data (answers, outputText, or submissionData)'
+        });
+      }
+    }
+
     // Update task with submission
-    task.status = 'completed';
+    task.status = task.taskData?.isQualityControl ? 'under_review' : 'completed';
     task.submissionNotes = submissionNotes;
     task.submissionFiles = submissionFiles || [];
+    
+    // AI Training specific submission data
+    if (task.taskData) {
+      task.submissionData = {
+        answers: answers || {},
+        outputText: outputText || '',
+        confidence: confidence || 0,
+        submissionTime: new Date(),
+        timeSpent: actualHours ? actualHours * 60 : (task.estimatedTime || 60), // Convert to minutes
+        additionalData: submissionData || {}
+      };
+    }
     task.submittedAt = new Date();
     task.completedAt = new Date();
     task.progress = 100;
@@ -742,6 +916,283 @@ router.put('/:id/review', authenticateToken, requireAdmin, async (req: AuthReque
     res.status(500).json({
       success: false,
       message: 'Server error during task review'
+    });
+  }
+});
+
+// DEBUG: Clear all tasks (No auth - for testing only)
+router.delete('/debug/clear-all-public', async (req: Request, res: Response) => {
+  try {
+    const result = await Task.deleteMany({});
+    
+    console.log(`🗑️ Cleared ${result.deletedCount} tasks from database`);
+    
+    res.json({
+      success: true,
+      message: `Successfully deleted ${result.deletedCount} tasks`,
+      deletedCount: result.deletedCount
+    });
+  } catch (error) {
+    console.error('Error clearing tasks:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to clear tasks',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// DEBUG: Get all tasks (no auth required)
+router.get('/debug/all', async (req: Request, res: Response) => {
+  try {
+    const tasks = await Task.find()
+      .populate('assignedTo', 'name email')
+      .populate('createdBy', 'name email')
+      .sort({ createdAt: -1 });
+    
+    res.json({
+      success: true,
+      count: tasks.length,
+      tasks: tasks
+    });
+  } catch (error) {
+    console.error('Error fetching all tasks:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch tasks',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// DEBUG: Create diverse sample tasks (no auth required)
+router.post('/debug/create-diverse-tasks/:userId', async (req: Request, res: Response) => {
+  try {
+    const { userId } = req.params;
+    
+    const diverseTasks = [
+      {
+        title: "Computer Vision - Object Detection",
+        description: "Detect and classify vehicles in autonomous driving scenarios",
+        type: "computer_vision",
+        category: "computer_vision",
+        instructions: "Identify cars, trucks, motorcycles, and pedestrians in traffic images",
+        estimatedHours: 3,
+        hourlyRate: 22,
+        taskData: {
+          category: "COMPUTER_VISION",
+          difficultyLevel: "intermediate",
+          guidelines: "Use precise bounding boxes and accurate labels"
+        }
+      },
+      {
+        title: "NLP - Sentiment Analysis",
+        description: "Classify customer reviews for sentiment and emotion",
+        type: "nlp_text",
+        category: "nlp_text",
+        instructions: "Analyze text sentiment as positive, negative, or neutral",
+        estimatedHours: 2,
+        hourlyRate: 18,
+        taskData: {
+          category: "NLP_TEXT",
+          difficultyLevel: "beginner",
+          guidelines: "Consider context and nuanced language"
+        }
+      },
+      {
+        title: "Code Review - Bug Detection",
+        description: "Review AI-generated Python code for bugs and security issues",
+        type: "code_review",
+        category: "code_review",
+        instructions: "Identify logical errors, security vulnerabilities, and style issues",
+        estimatedHours: 4,
+        hourlyRate: 35,
+        taskData: {
+          category: "CODE_REVIEW",
+          difficultyLevel: "advanced",
+          guidelines: "Focus on functionality, security, and best practices"
+        }
+      },
+      {
+        title: "Math Reasoning - Problem Solving",
+        description: "Verify mathematical solutions and reasoning steps",
+        type: "math_reasoning",
+        category: "math_reasoning",
+        instructions: "Check mathematical proofs and problem-solving approaches",
+        estimatedHours: 2.5,
+        hourlyRate: 25,
+        taskData: {
+          category: "MATH_REASONING",
+          difficultyLevel: "intermediate",
+          guidelines: "Ensure logical consistency and mathematical accuracy"
+        }
+      },
+      {
+        title: "Content Moderation - Safety Review",
+        description: "Review user-generated content for policy violations",
+        type: "content_moderation",
+        category: "content_moderation",
+        instructions: "Identify harmful, offensive, or inappropriate content",
+        estimatedHours: 1.5,
+        hourlyRate: 20,
+        taskData: {
+          category: "CONTENT_MODERATION",
+          difficultyLevel: "intermediate",
+          guidelines: "Apply community guidelines consistently"
+        }
+      }
+    ];
+
+    const createdTasks = [];
+    const createdBy = await User.findOne({ role: 'admin' });
+
+    for (const taskTemplate of diverseTasks) {
+      const task = new Task({
+        ...taskTemplate,
+        assignedTo: userId,
+        createdBy: createdBy?._id,
+        status: 'assigned',
+        priority: 'medium',
+        deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        estimatedTime: taskTemplate.estimatedHours * 60
+      });
+
+      await task.save();
+      createdTasks.push(task);
+    }
+
+    res.json({
+      success: true,
+      message: `Created ${createdTasks.length} diverse AI training tasks`,
+      tasks: createdTasks
+    });
+  } catch (error) {
+    console.error('Error creating diverse tasks:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create diverse tasks',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// DEBUG: Add sample text data to NLP task (no auth required)
+router.patch('/debug/add-text/:taskId', async (req: Request, res: Response) => {
+  try {
+    const { taskId } = req.params;
+    
+    // Sample texts for NLP annotation
+    const sampleTexts = [
+      {
+        id: 'text1',
+        text: "I absolutely love the new iPhone 15! The camera quality is amazing and the battery life has improved significantly. Apple really outdid themselves this time. Worth every penny!",
+        content: "I absolutely love the new iPhone 15! The camera quality is amazing and the battery life has improved significantly. Apple really outdid themselves this time. Worth every penny!",
+        type: 'customer_review',
+        metadata: { category: 'technology', source: 'product_review' }
+      },
+      {
+        id: 'text2', 
+        text: "The service at this restaurant was terrible. Our waiter was rude and the food came out cold. I will never be coming back here again. Completely disappointed.",
+        content: "The service at this restaurant was terrible. Our waiter was rude and the food came out cold. I will never be coming back here again. Completely disappointed.",
+        type: 'customer_review',
+        metadata: { category: 'restaurant', source: 'review_site' }
+      },
+      {
+        id: 'text3',
+        text: "The weather today is quite pleasant. It's sunny with a gentle breeze and perfect temperature for a walk in the park. Great day to spend time outdoors.",
+        content: "The weather today is quite pleasant. It's sunny with a gentle breeze and perfect temperature for a walk in the park. Great day to spend time outdoors.",
+        type: 'social_media',
+        metadata: { category: 'general', source: 'social_platform' }
+      }
+    ];
+
+    const updatedTask = await Task.findByIdAndUpdate(
+      taskId,
+      {
+        $set: {
+          'taskData.inputs': sampleTexts,
+          'taskData.guidelines': 'Analyze the sentiment of each text. Identify emotional tone, opinion polarity, and key entities mentioned.',
+          'taskData.qualityMetrics': [
+            'Accurate sentiment classification',
+            'Proper entity recognition', 
+            'Consistent annotation standards',
+            'Contextual understanding'
+          ]
+        }
+      },
+      { new: true }
+    ).populate('assignedTo', 'name email');
+
+    res.json({
+      success: true,
+      message: 'Sample text data added to task',
+      task: updatedTask
+    });
+  } catch (error) {
+    console.error('Error adding text data:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to add text data',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// DEBUG: Add sample images to existing task (no auth required)
+router.patch('/debug/add-images/:taskId', async (req: Request, res: Response) => {
+  try {
+    const { taskId } = req.params;
+    
+    // Sample traffic images for annotation (using more reliable sources)
+    const sampleImages = [
+      {
+        id: 'img1',
+        url: 'https://picsum.photos/800/600?random=1',
+        filename: 'traffic_intersection_1.jpg',
+        description: 'Busy intersection with vehicles and pedestrians'
+      },
+      {
+        id: 'img2', 
+        url: 'https://picsum.photos/800/600?random=2',
+        filename: 'highway_traffic_2.jpg',
+        description: 'Highway with multiple vehicles'
+      },
+      {
+        id: 'img3',
+        url: 'https://picsum.photos/800/600?random=3', 
+        filename: 'city_street_3.jpg',
+        description: 'City street with cars and cyclists'
+      }
+    ];
+
+    const updatedTask = await Task.findByIdAndUpdate(
+      taskId,
+      {
+        $set: {
+          'taskData.inputs': sampleImages,
+          'taskData.guidelines': 'Annotate all vehicles, pedestrians, and cyclists in the images. Draw precise bounding boxes and label each object correctly.',
+          'taskData.qualityMetrics': [
+            'Accurate bounding box placement',
+            'Correct object classification', 
+            'Complete annotation coverage',
+            'Consistent labeling standards'
+          ]
+        }
+      },
+      { new: true }
+    ).populate('assignedTo', 'name email');
+
+    res.json({
+      success: true,
+      message: 'Sample images added to task',
+      task: updatedTask
+    });
+  } catch (error) {
+    console.error('Error adding images:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to add images',
+      error: error instanceof Error ? error.message : 'Unknown error'
     });
   }
 });

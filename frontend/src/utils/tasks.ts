@@ -139,7 +139,7 @@ function getInitialTasks(): Task[] {
     {
       id: '1',
       user_id: '1',
-      user_name: 'Demo User',
+      user_name: 'System User',
       title: 'AI Training Data Annotation',
       description: 'Annotate 500 images for object detection model training',
       category: 'data_labeling',
@@ -208,7 +208,7 @@ function getInitialTasks(): Task[] {
     {
       id: '5',
       user_id: '1',
-      user_name: 'Demo User',
+      user_name: 'System User',
       title: 'Market Research Analysis',
       description: 'Analyze competitor AI platforms and create comparison report',
       category: 'research',
@@ -304,8 +304,17 @@ export async function createTask(taskData: {
       estimatedHours: taskData.estimated_hours || 1, // Map estimated_hours to estimatedHours
       hourlyRate: taskData.hourly_rate || 25, // Map hourly_rate to hourlyRate
       instructions: taskData.description.length >= 20 ? taskData.description : taskData.description + ' Please complete this task according to the requirements.', // Ensure min 20 chars
-      requirements: ['Complete the task as described', 'Follow the provided instructions'], // Default requirements
-      deliverables: ['Task completion confirmation', 'Final deliverable submission'], // Default deliverables
+      requirements: [
+        'Complete the task as described',
+        'Follow the provided instructions',
+        'Ensure quality and attention to detail',
+        'Submit work before the deadline'
+      ], // Required array with meaningful requirements
+      deliverables: [
+        'Completed task deliverable',
+        'Quality assurance report',
+        'Final submission with notes'
+      ], // Required array with meaningful deliverables
     };
 
     console.log('🚀 Sending task data to backend:', JSON.stringify(backendTaskData, null, 2));

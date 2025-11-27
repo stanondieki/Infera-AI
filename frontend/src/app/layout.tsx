@@ -12,8 +12,13 @@ import { AuthProvider } from "../utils/auth";
 // });
 
 export const metadata: Metadata = {
-  title: "Infera AI - Shape the Future of Artificial Intelligence",
-  description: "Join Infera AI and help train the world's most advanced AI models. Work on your schedule, earn competitive rates, and contribute to cutting-edge technology.",
+  title: "Taskify - Professional Task Management & AI Training Platform",
+  description: "Join Taskify and work on professional AI training tasks. Complete projects on your schedule, earn competitive rates, and contribute to cutting-edge technology development.",
+  icons: {
+    icon: '/favicon.svg',
+    shortcut: '/favicon.svg',
+    apple: '/favicon.svg',
+  },
 };
 
 export default function RootLayout({

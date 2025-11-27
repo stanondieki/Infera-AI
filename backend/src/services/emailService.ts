@@ -44,14 +44,14 @@ class EmailService {
     <body>
       <div class="container">
         <div class="header">
-          <h1>🎉 Welcome to Infera AI!</h1>
+          <h1>🎉 Welcome to Taskify!</h1>
           <p>Your application has been submitted successfully</p>
         </div>
         
         <div class="content">
           <h2>Hello ${application.firstName} ${application.lastName},</h2>
           
-          <p>Congratulations! Your application to join Infera AI has been submitted successfully. We've also created your account so you can start exploring opportunities right away.</p>
+          <p>Congratulations! Your application to join Taskify has been submitted successfully. We've also created your account so you can start exploring opportunities right away.</p>
           
           <div class="credentials">
             <h3>Your Login Credentials:</h3>
@@ -86,13 +86,13 @@ class EmailService {
             <li>Access training materials</li>
           </ul>
           
-          <p>If you have any questions, feel free to reach out to our support team at <a href="mailto:support@inferaai.com">support@inferaai.com</a></p>
+          <p>If you have any questions, feel free to reach out to our support team at <a href="mailto:support@taskify.com">support@taskify.com</a></p>
           
-          <p>Best regards,<br>The Infera AI Team</p>
+          <p>Best regards,<br>The Taskify Team</p>
         </div>
         
         <div class="footer">
-          <p>© 2025 Infera AI. All rights reserved.</p>
+          <p>© 2025 Taskify. All rights reserved.</p>
           <p>This email was sent to ${application.email}</p>
         </div>
       </div>
@@ -101,9 +101,9 @@ class EmailService {
     `;
 
     const mailOptions = {
-      from: `"Infera AI" <${process.env.SMTP_USER}>`,
+      from: `"Taskify" <${process.env.SMTP_USER}>`,
       to: application.email,
-      subject: '🎉 Welcome to Infera AI - Your Account is Ready!',
+      subject: '🎉 Welcome to Taskify - Your Account is Ready!',
       html: emailHtml,
     };
 

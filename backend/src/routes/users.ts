@@ -64,6 +64,30 @@ router.get('/', authenticateToken, requireAdmin, async (req: AuthRequest, res: R
   }
 });
 
+// Get all users - alias for / route to handle frontend requests
+router.get('/all', authenticateToken, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const users = await User.find({})
+      .select('-password')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    console.log('👥 Found users:', users.length);
+    
+    res.json({
+      success: true,
+      users: users || []
+    });
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch users',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
 // Get user details (Admin only)
 router.get('/:id', authenticateToken, requireAdmin, async (req: AuthRequest, res: Response) => {
   try {

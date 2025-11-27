@@ -51,7 +51,7 @@ export function TaskManagement({ tasks, users, onRefresh }: TaskManagementProps)
     user_id: '',
     title: '',
     description: '',
-    category: 'data_labeling',
+    category: 'data_annotation',
     priority: 'medium',
     deadline: '',
     estimated_hours: '',
@@ -63,7 +63,7 @@ export function TaskManagement({ tasks, users, onRefresh }: TaskManagementProps)
       user_id: '',
       title: '',
       description: '',
-      category: 'data_labeling',
+      category: 'data_annotation',
       priority: 'medium',
       deadline: '',
       estimated_hours: '',
@@ -85,12 +85,20 @@ export function TaskManagement({ tasks, users, onRefresh }: TaskManagementProps)
         toast.error('Please select a user to assign the task to');
         return;
       }
-      if (!formData.title.trim()) {
-        toast.error('Please provide a task title');
+      if (!formData.title.trim() || formData.title.trim().length < 5) {
+        toast.error('Please provide a task title with at least 5 characters');
         return;
       }
       if (!formData.description.trim() || formData.description.trim().length < 20) {
         toast.error('Please provide a description with at least 20 characters');
+        return;
+      }
+      if (!formData.estimated_hours || parseFloat(formData.estimated_hours) < 0.5) {
+        toast.error('Please provide estimated hours (minimum 0.5 hours)');
+        return;
+      }
+      if (!formData.hourly_rate || parseFloat(formData.hourly_rate) < 5) {
+        toast.error('Please provide hourly rate (minimum $5)');
         return;
       }
 
@@ -482,12 +490,17 @@ export function TaskManagement({ tasks, users, onRefresh }: TaskManagementProps)
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="data_labeling">Data Labeling</SelectItem>
-                    <SelectItem value="content_moderation">Content Moderation</SelectItem>
-                    <SelectItem value="translation">Translation</SelectItem>
-                    <SelectItem value="transcription">Transcription</SelectItem>
-                    <SelectItem value="research">Research</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
+                    <SelectItem value="data_annotation">🖼️ Data Annotation</SelectItem>
+                    <SelectItem value="computer_vision">👁️ Computer Vision</SelectItem>
+                    <SelectItem value="nlp_text">📝 Text & NLP</SelectItem>
+                    <SelectItem value="code_review">💻 Code Review</SelectItem>
+                    <SelectItem value="multilingual">🌍 Multilingual</SelectItem>
+                    <SelectItem value="content_moderation">🛡️ Content Moderation</SelectItem>
+                    <SelectItem value="math_reasoning">🧮 Math & Reasoning</SelectItem>
+                    <SelectItem value="audio_speech">🎵 Audio & Speech</SelectItem>
+                    <SelectItem value="model_evaluation">⚡ Model Evaluation</SelectItem>
+                    <SelectItem value="research">🔬 Research</SelectItem>
+                    <SelectItem value="other">🔧 Other</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

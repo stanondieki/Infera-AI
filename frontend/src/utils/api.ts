@@ -126,6 +126,19 @@ export const apiClient = {
       console.error('📡 Network error:', error.message);
       console.error('📡 Full error:', error);
       
+      // Handle authentication errors
+      if (error.message.includes('User not found') || 
+          error.message.includes('Invalid token') ||
+          error.message.includes('Access token required')) {
+        console.warn('📡 Authentication error detected, clearing local storage');
+        // Clear all authentication data
+        localStorage.removeItem('infera_session');
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('infera_auth_state');
+        
+        throw new Error('Authentication failed - please sign in again');
+      }
+      
       // Re-throw with more specific error message
       if (error.name === 'TypeError' && error.message.includes('fetch')) {
         throw new Error('Network connection failed - please check if the backend server is running');
@@ -135,46 +148,69 @@ export const apiClient = {
   },
   
   post: async (url: string, data?: any, token?: string) => {
-    const fullUrl = url.startsWith('http') ? url : `${API_CONFIG.BASE_URL}${url}`;
-    console.log('📡 Making POST request to:', fullUrl);
-    console.log('📡 Request data:', { ...data, password: data?.password ? '***' : undefined });
-    
-    const headers: HeadersInit = {
-      'Content-Type': 'application/json',
-    };
-    
-    if (token) {
-      headers.Authorization = `Bearer ${token}`;
-    }
-    
-    const response = await fetch(fullUrl, {
-      method: 'POST',
-      headers,
-      body: data ? JSON.stringify(data) : undefined,
-    });
-    
-    console.log('📡 Response status:', response.status);
-    
-    if (!response.ok) {
-      let errorMessage = `HTTP error! status: ${response.status}`;
-      try {
-        const errorData = await response.json();
-        console.log('📡 Error response data:', errorData);
-        if (errorData.message) {
-          errorMessage = errorData.message;
-        }
-        if (errorData.errors && Array.isArray(errorData.errors)) {
-          errorMessage += '\nValidation errors: ' + errorData.errors.map((e: any) => e.msg).join(', ');
-        }
-      } catch (e) {
-        console.log('📡 Could not parse error response');
+    try {
+      const fullUrl = url.startsWith('http') ? url : `${API_CONFIG.BASE_URL}${url}`;
+      console.log('📡 Making POST request to:', fullUrl);
+      console.log('📡 Request data:', { ...data, password: data?.password ? '***' : undefined });
+      
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+      
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
       }
-      throw new Error(errorMessage);
+      
+      const response = await fetch(fullUrl, {
+        method: 'POST',
+        headers,
+        body: data ? JSON.stringify(data) : undefined,
+      });
+      
+      console.log('📡 Response status:', response.status);
+      
+      if (!response.ok) {
+        let errorMessage = `HTTP error! status: ${response.status}`;
+        try {
+          const errorData = await response.json();
+          console.log('📡 Error response data:', errorData);
+          if (errorData.message) {
+            errorMessage = errorData.message;
+          }
+          if (errorData.errors && Array.isArray(errorData.errors)) {
+            errorMessage += '\nValidation errors: ' + errorData.errors.map((e: any) => e.msg).join(', ');
+          }
+        } catch (e) {
+          console.log('📡 Could not parse error response');
+        }
+        throw new Error(errorMessage);
+      }
+      
+      const responseData = await response.json();
+      console.log('📡 Response data:', responseData);
+      return responseData;
+    } catch (error: any) {
+      console.error('📡 POST error:', error.message);
+      
+      // Handle authentication errors
+      if (error.message.includes('User not found') || 
+          error.message.includes('Invalid token') ||
+          error.message.includes('Access token required')) {
+        console.warn('📡 Authentication error detected, clearing local storage');
+        // Clear all authentication data
+        localStorage.removeItem('infera_session');
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('infera_auth_state');
+        
+        throw new Error('Authentication failed - please sign in again');
+      }
+      
+      // Re-throw with more specific error message
+      if (error.name === 'TypeError' && error.message.includes('fetch')) {
+        throw new Error('Network connection failed - please check if the backend server is running');
+      }
+      throw error;
     }
-    
-    const responseData = await response.json();
-    console.log('📡 Response data:', responseData);
-    return responseData;
   },
   
   put: async (url: string, data?: any, token?: string) => {
