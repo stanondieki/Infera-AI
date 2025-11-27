@@ -157,8 +157,12 @@ app.get('/health', async (req, res) => {
       nodeEnv: process.env.NODE_ENV || 'development',
       port: PORT,
       mongoUri: process.env.MONGODB_URI ? 'configured' : 'missing',
+      jwtSecret: process.env.JWT_SECRET ? 'configured' : 'missing',
       smtpConfigured: !!(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS),
       frontendUrl: process.env.FRONTEND_URL || 'not set'
+    },
+    cors: {
+      allowedOrigins: allowedOrigins
     }
   };
 
