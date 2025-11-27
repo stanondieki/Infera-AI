@@ -8,6 +8,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Textarea } from '../ui/textarea';
 import { useAuth } from '../../utils/auth';
 
+// Get API base URL from environment or fallback to production
+const getApiUrl = () => {
+  return process.env.NEXT_PUBLIC_API_URL || 'https://inferaai-hfh4hmd4frcee8e9.centralindia-01.azurewebsites.net/api';
+};
+
 interface AdminTasksProps {
   onBack: () => void;
   accessToken: string;
@@ -35,13 +40,10 @@ interface Task {
 }
 
 interface User {
-  _id: string;
+  id: string;
   name: string;
   email: string;
   role: string;
-  skills: string[];
-  completedTasks: number;
-  rating: number;
   isActive: boolean;
 }
 
@@ -83,7 +85,7 @@ export function AdminTasks({ onBack, accessToken }: AdminTasksProps) {
     try {
       console.log('🔄 Loading tasks with token:', finalToken ? 'Present' : 'Missing');
       
-      const response = await fetch('https://inferaai-hfh4hmd4frcee8e9.centralindia-01.azurewebsites.net/api/tasks/admin/all', {
+      const response = await fetch(`${getApiUrl()}/tasks/admin/all`, {
         headers: {
           'Authorization': `Bearer ${finalToken}`,
         }
@@ -110,7 +112,7 @@ export function AdminTasks({ onBack, accessToken }: AdminTasksProps) {
     try {
       console.log('👥 Loading users with token:', finalToken ? 'Present' : 'Missing');
       
-      const response = await fetch('https://inferaai-hfh4hmd4frcee8e9.centralindia-01.azurewebsites.net/api/users/assignable', {
+      const response = await fetch(`${getApiUrl()}/users/assignable`, {
         headers: {
           'Authorization': `Bearer ${finalToken}`,
           'Content-Type': 'application/json'
@@ -149,8 +151,7 @@ export function AdminTasks({ onBack, accessToken }: AdminTasksProps) {
     }
     try {
       const finalAssignedTo = createTaskForm.assignedTo && createTaskForm.assignedTo.trim() !== '' ? createTaskForm.assignedTo : null;
-      console.log('🔑 Creating task with token:', finalToken ? 'Present' : 'Missing');
-      console.log('👤 assignedTo value:', JSON.stringify(finalAssignedTo), 'type:', typeof finalAssignedTo);
+      console.log('🔑 Creating task with assignedTo:', finalAssignedTo);
       
       const requestBody = {
         ...createTaskForm,
@@ -160,9 +161,9 @@ export function AdminTasks({ onBack, accessToken }: AdminTasksProps) {
         assignedTo: finalAssignedTo
       };
       
-      console.log('📤 Request body:', JSON.stringify(requestBody, null, 2));
+
       
-      const response = await fetch('https://inferaai-hfh4hmd4frcee8e9.centralindia-01.azurewebsites.net/api/tasks/create', {
+      const response = await fetch(`${getApiUrl()}/tasks/create`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -202,7 +203,7 @@ export function AdminTasks({ onBack, accessToken }: AdminTasksProps) {
           
           // Show success message
           if (newTask.assignedTo) {
-            const assignedUser = users.find(u => u._id === newTask.assignedTo);
+            const assignedUser = users.find(u => u.id === newTask.assignedTo);
             alert(`✅ Task created and assigned to ${assignedUser?.name || 'user'}!`);
           } else {
             alert('✅ Task created successfully! You can assign it to a user from the task list.');
@@ -225,7 +226,7 @@ export function AdminTasks({ onBack, accessToken }: AdminTasksProps) {
     try {
       console.log('🎯 Assigning task [v3.0]:', finalToken ? 'Present' : 'Missing', 'Token length:', finalToken?.length || 0);
       
-      const response = await fetch(`https://inferaai-hfh4hmd4frcee8e9.centralindia-01.azurewebsites.net/api/tasks/${taskId}/assign`, {
+      const response = await fetch(`${getApiUrl()}/tasks/${taskId}/assign`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -248,7 +249,7 @@ export function AdminTasks({ onBack, accessToken }: AdminTasksProps) {
           setShowAssignDialog(false);
           setSelectedTask(null);
           
-          const assignedUser = users.find(u => u._id === userId);
+          const assignedUser = users.find(u => u.id === userId);
           alert(`✅ Task assigned to ${assignedUser?.name || 'user'} successfully!`);
         } else {
           alert(`Failed to assign task: ${responseData.message}`);
@@ -694,8 +695,8 @@ export function AdminTasks({ onBack, accessToken }: AdminTasksProps) {
               >
                 <option value="">Leave unassigned (draft)</option>
                 {users.map(user => (
-                  <option key={user._id} value={user._id}>
-                    {user.name} - {user.email} (Rating: {user.rating}/5)
+                  <option key={user.id} value={user.id}>
+                    {user.name} - {user.email}
                   </option>
                 ))}
               </select>
@@ -753,8 +754,8 @@ export function AdminTasks({ onBack, accessToken }: AdminTasksProps) {
                 >
                   <option value="">Choose a user...</option>
                   {users.map(user => (
-                    <option key={user._id} value={user._id}>
-                      {user.name} - {user.email} (Rating: {user.rating}/5)
+                    <option key={user.id} value={user.id}>
+                      {user.name} - {user.email}
                     </option>
                   ))}
                 </select>
@@ -857,14 +858,14 @@ const UserManagement = ({ users, onUsersUpdated }: { users: User[], onUsersUpdat
       <CardContent>
         <div className="space-y-4">
           {users.map(user => (
-            <div key={user._id} className="flex items-center justify-between p-4 border rounded-lg">
+            <div key={user.id} className="flex items-center justify-between p-4 border rounded-lg">
               <div>
                 <h4 className="font-medium">{user.name}</h4>
                 <p className="text-sm text-gray-600">{user.email}</p>
                 <div className="flex items-center gap-2 mt-1">
                   <Badge variant="secondary">{user.role}</Badge>
-                  <span className="text-sm">Completed: {user.completedTasks}</span>
-                  <span className="text-sm">Rating: {user.rating}/5</span>
+                  <span className="text-sm">Status: {user.isActive ? 'Active' : 'Inactive'}</span>
+                  <span className="text-sm">Role: {user.role}</span>
                 </div>
               </div>
               <div className="flex items-center gap-2">
