@@ -79,8 +79,8 @@ export function CreateTaskDialog({ open, onClose, onTaskCreated, users }: Create
     setErrors([]);
   }, []);
 
-  const validateCurrentStep = useCallback((): boolean => {
-    if (!selectedTemplate) return false;
+  const validateCurrentStep = useCallback((): { isValid: boolean; errors: string[] } => {
+    if (!selectedTemplate) return { isValid: false, errors: [] };
     
     const stepFields = selectedTemplate.fields.filter(field => {
       if (step === 2) return field.section === 'basic';
@@ -97,20 +97,13 @@ export function CreateTaskDialog({ open, onClose, onTaskCreated, users }: Create
       }
     });
 
-    setErrors(stepErrors);
-    return stepErrors.length === 0;
+    return { isValid: stepErrors.length === 0, errors: stepErrors };
   }, [selectedTemplate, step, formData]);
 
-  const nextStep = useCallback(() => {
-    if (validateCurrentStep()) {
-      setStep(step + 1);
-    }
-  }, [step, validateCurrentStep]);
-
   const prevStep = useCallback(() => {
-    setStep(step - 1);
+    setStep(prev => prev - 1);
     setErrors([]);
-  }, [step]);
+  }, []);
 
   const handleSubmit = useCallback(async () => {
     if (!selectedTemplate) return;
@@ -411,7 +404,27 @@ export function CreateTaskDialog({ open, onClose, onTaskCreated, users }: Create
   };
 
   const isLastStep = step === 5;
-  const canProceed = step === 1 ? selectedTemplate !== null : validateCurrentStep();
+  
+  // Memoize validation result to prevent infinite re-renders
+  const canProceed = React.useMemo(() => {
+    if (step === 1) return selectedTemplate !== null;
+    
+    if (!selectedTemplate) return false;
+    
+    const stepFields = selectedTemplate.fields.filter(field => {
+      if (step === 2) return field.section === 'basic';
+      if (step === 3) return field.section === 'content';
+      if (step === 4) return field.section === 'requirements';
+      if (step === 5) return field.section === 'payment';
+      return false;
+    });
+
+    return stepFields.every(field => {
+      if (!field.required) return true;
+      const value = formData[field.id];
+      return value && value !== '';
+    });
+  }, [step, selectedTemplate, formData]);
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -467,7 +480,14 @@ export function CreateTaskDialog({ open, onClose, onTaskCreated, users }: Create
           <div className="flex space-x-2">
             {step < 5 && selectedTemplate && (
               <Button 
-                onClick={nextStep} 
+                onClick={() => {
+                  const validation = validateCurrentStep();
+                  if (validation.isValid) {
+                    setStep(prev => prev + 1);
+                  } else {
+                    setErrors(validation.errors);
+                  }
+                }} 
                 disabled={!canProceed || loading}
                 className="bg-blue-500 hover:bg-blue-600"
               >
