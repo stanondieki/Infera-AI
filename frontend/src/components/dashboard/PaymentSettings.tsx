@@ -146,6 +146,20 @@ export function PaymentSettings() {
         </CardDescription>
       </CardHeader>
       <CardContent>
+        {/* Payment Schedule Notice */}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+          <div className="flex items-start gap-3">
+            <DollarSign className="h-5 w-5 text-blue-600 mt-0.5" />
+            <div>
+              <h4 className="font-semibold text-blue-900 mb-1">Payment Schedule</h4>
+              <ul className="text-sm text-blue-800 space-y-1">
+                <li>• <strong>Monthly Processing:</strong> All payments processed on the 29th of each month</li>
+                <li>• <strong>Processing Time:</strong> 1-2 business days to complete and reflect in your account</li>
+                <li>• <strong>Minimum Payout:</strong> $50 minimum balance required for payment</li>
+              </ul>
+            </div>
+          </div>
+        </div>
         {paymentMethod ? (
           <div className="space-y-4">
             <div className="flex items-center justify-between">

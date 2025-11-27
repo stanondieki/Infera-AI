@@ -92,8 +92,11 @@ export function Footer({ onApplyClick, onAdminClick }: FooterProps) {
             </span>
           </p>
           <div className="flex gap-6 flex-wrap justify-center">
-            <button onClick={() => handleComingSoon('Privacy Policy')} className="text-gray-400 hover:text-blue-400 transition-colors text-sm">Privacy Policy</button>
-            <button onClick={() => handleComingSoon('Terms of Service')} className="text-gray-400 hover:text-blue-400 transition-colors text-sm">Terms of Service</button>
+            <a href="/privacy" className="text-gray-400 hover:text-blue-400 transition-colors text-sm">Privacy Policy</a>
+            <a href="/terms" className="text-gray-400 hover:text-blue-400 transition-colors text-sm">Terms & Conditions</a>
+            <span className="text-gray-500 text-xs">
+              Payments processed monthly on 29th
+            </span>
           </div>
         </div>
       </div>

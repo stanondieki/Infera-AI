@@ -26,6 +26,7 @@ import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Separator } from './ui/separator';
 import { useProfileImage } from '../utils/profileImage';
 import { dashboardService } from '../utils/dashboardService';
+import { PaymentReminder } from './PaymentReminder';
 import { ScrollArea } from './ui/scroll-area';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { Calendar } from './ui/calender';
@@ -1322,6 +1323,15 @@ export function Dashboard({ onBack }: DashboardProps) {
                 </Card>
               </motion.div>
             </div>
+
+            {/* Payment Schedule Reminder */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: 0.2 }}
+            >
+              <PaymentReminder variant="banner" />
+            </motion.div>
 
             {/* Active Projects and Milestones */}
             <div className="grid lg:grid-cols-3 gap-3 sm:gap-6">
