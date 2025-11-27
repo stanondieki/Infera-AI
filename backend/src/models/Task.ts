@@ -75,7 +75,7 @@ const TaskSchema = new Schema<ITask>({
   assignedTo: {
     type: Schema.Types.ObjectId,
     ref: 'User',
-    required: true
+    required: false
   },
   createdBy: {
     type: Schema.Types.ObjectId,
