@@ -172,7 +172,7 @@ export function TaskManagement({ tasks, users, onRefresh }: TaskManagementProps)
 
   const fetchProjects = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/projects/admin', {
+      const response = await fetch('https://inferaai-hfh4hmd4frcee8e9.centralindia-01.azurewebsites.net/api/projects/admin', {
         headers: {
           'Authorization': `Bearer ${accessToken}`
         }
@@ -193,7 +193,7 @@ export function TaskManagement({ tasks, users, onRefresh }: TaskManagementProps)
     }
 
     try {
-      const response = await fetch('http://localhost:5000/api/tasks/create-from-project', {
+      const response = await fetch('https://inferaai-hfh4hmd4frcee8e9.centralindia-01.azurewebsites.net/api/tasks/create-from-project', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

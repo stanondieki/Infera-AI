@@ -78,7 +78,7 @@ export function AdminTasks({ onBack, accessToken }: AdminTasksProps) {
     try {
       console.log('🔄 Loading tasks with token:', accessToken ? 'Present' : 'Missing');
       
-      const response = await fetch('http://localhost:5000/api/tasks/admin/all', {
+      const response = await fetch('https://inferaai-hfh4hmd4frcee8e9.centralindia-01.azurewebsites.net/api/tasks/admin/all', {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
         }
@@ -105,9 +105,10 @@ export function AdminTasks({ onBack, accessToken }: AdminTasksProps) {
     try {
       console.log('👥 Loading users with token:', accessToken ? 'Present' : 'Missing');
       
-      const response = await fetch('http://localhost:5000/api/users/all', {
+      const response = await fetch('https://inferaai-hfh4hmd4frcee8e9.centralindia-01.azurewebsites.net/api/users/assignable', {
         headers: {
-          'Authorization': `Bearer ${accessToken}`
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
         }
       });
       
@@ -147,7 +148,7 @@ export function AdminTasks({ onBack, accessToken }: AdminTasksProps) {
     try {
       console.log('🔑 Creating task with token:', accessToken ? 'Present' : 'Missing');
       
-      const response = await fetch('http://localhost:5000/api/tasks/create', {
+      const response = await fetch('https://inferaai-hfh4hmd4frcee8e9.centralindia-01.azurewebsites.net/api/tasks/create', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -217,7 +218,7 @@ export function AdminTasks({ onBack, accessToken }: AdminTasksProps) {
       const token = localStorage.getItem('token');
       console.log('🎯 Assigning task with token:', token ? 'Present' : 'Missing');
       
-      const response = await fetch(`http://localhost:5000/api/tasks/${taskId}/assign`, {
+      const response = await fetch(`https://inferaai-hfh4hmd4frcee8e9.centralindia-01.azurewebsites.net/api/tasks/${taskId}/assign`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

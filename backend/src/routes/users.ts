@@ -88,6 +88,42 @@ router.get('/all', authenticateToken, requireAdmin, async (req: AuthRequest, res
   }
 });
 
+// Get assignable users for task creation (Admin only)
+router.get('/assignable', authenticateToken, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    console.log('🔍 Fetching assignable users for task creation...');
+    
+    const users = await User.find({ 
+      isActive: true,
+      role: { $in: ['user', 'admin'] }
+    })
+      .select('_id name email role isActive')
+      .sort({ name: 1 })
+      .lean();
+
+    console.log('👥 Found assignable users:', users.length);
+    console.log('📋 Users list:', users.map(u => `${u.name} (${u.email})`));
+    
+    res.json({
+      success: true,
+      users: users.map(user => ({
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        isActive: user.isActive
+      }))
+    });
+  } catch (error) {
+    console.error('❌ Error fetching assignable users:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch assignable users',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
 // Get user details (Admin only)
 router.get('/:id', authenticateToken, requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
