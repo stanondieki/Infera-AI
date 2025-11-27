@@ -190,6 +190,18 @@ export async function getOpportunities(category?: string, featured?: boolean): P
     };
   } catch (error: any) {
     console.log('Backend API error:', error.message);
+    
+    // Check if error response contains fallback data and debug info
+    if (error.response?.data?.fallbackData) {
+      console.log('🔍 Debug information from backend:', error.response.data.debug);
+      console.log('📊 Using backend-provided fallback data');
+      
+      return {
+        opportunities: error.response.data.fallbackData,
+        total: error.response.data.fallbackData.length
+      };
+    }
+    
     console.log('Falling back to hardcoded data');
     
     // Filter fallback data based on parameters
