@@ -80,6 +80,14 @@ export const TASK_CATEGORIES: TaskTemplate[] = [
         section: 'basic'
       },
       {
+        id: 'instructions',
+        label: 'Task Instructions',
+        type: 'textarea',
+        required: true,
+        placeholder: 'Detailed step-by-step instructions for workers...',
+        section: 'basic'
+      },
+      {
         id: 'annotationType',
         label: 'Annotation Type',
         type: 'select',
