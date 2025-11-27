@@ -34,6 +34,30 @@ router.post('/create', authenticateToken, requireAdmin, async (req: AuthRequest,
       });
     }
 
+    // Validate and convert assignedTo to ObjectId if provided
+    let assignedToId = null;
+    if (taskData.assignedTo && taskData.assignedTo !== '') {
+      try {
+        // Check if it's a valid ObjectId string
+        if (mongoose.Types.ObjectId.isValid(taskData.assignedTo)) {
+          assignedToId = new mongoose.Types.ObjectId(taskData.assignedTo);
+          console.log('✅ Valid assignedTo ObjectId:', assignedToId);
+        } else {
+          console.log('❌ Invalid assignedTo ObjectId format:', taskData.assignedTo);
+          return res.status(400).json({
+            success: false,
+            message: 'Invalid user ID format for assignedTo field'
+          });
+        }
+      } catch (error) {
+        console.log('❌ Error converting assignedTo to ObjectId:', error);
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid user ID for assignedTo field'
+        });
+      }
+    }
+
     // Create the task
     const task = new Task({
       title: taskData.title,
@@ -46,8 +70,8 @@ router.post('/create', authenticateToken, requireAdmin, async (req: AuthRequest,
       deadline: taskData.deadline ? new Date(taskData.deadline) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       hourlyRate: taskData.hourlyRate || 15,
       priority: taskData.priority || 'medium',
-      status: taskData.assignedTo ? 'assigned' : 'draft',
-      assignedTo: taskData.assignedTo || null,
+      status: assignedToId ? 'assigned' : 'draft',
+      assignedTo: assignedToId,
       createdBy: req.user!._id,
       // AI Training specific fields
       taskData: {
