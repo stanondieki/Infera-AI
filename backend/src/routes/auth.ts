@@ -302,10 +302,26 @@ router.post('/login', authLimiter, validateUserLogin, async (req: Request, res: 
       accessToken: token
     });
   } catch (error) {
-    console.error('Login error:', error);
+    console.error('❌ Login error:', error);
+    
+    // More detailed error logging
+    if (error instanceof Error) {
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+    }
+    
+    // Check database connection
+    const mongoose = require('mongoose');
+    console.error('📊 DB connection state during login:', mongoose.connection.readyState);
+    console.error('🔐 JWT_SECRET exists:', !!process.env.JWT_SECRET);
+    
     res.status(500).json({ 
       success: false, 
-      message: 'Server error during login' 
+      message: 'Server error during login',
+      ...(process.env.NODE_ENV === 'development' && { 
+        error: error instanceof Error ? error.message : 'Unknown error',
+        dbState: mongoose.connection.readyState
+      })
     });
   }
 });
