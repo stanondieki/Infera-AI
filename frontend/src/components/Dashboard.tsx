@@ -193,6 +193,7 @@ export function Dashboard({ onBack }: DashboardProps) {
   const [opportunities, setOpportunities] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [projects, setProjects] = useState<any[]>([]);
+  const [activeTasks, setActiveTasks] = useState<any[]>([]);
   const [activities, setActivities] = useState<any[]>([]);
   const [skills, setSkills] = useState<any[]>([]);
   const [milestones, setMilestones] = useState<any[]>([]);
@@ -697,6 +698,13 @@ export function Dashboard({ onBack }: DashboardProps) {
       
       console.log('🔄 Transformed tasks for ActiveProjects:', transformedTasks);
 
+      // Set active tasks for Active Projects section
+      const activeTasksOnly = transformedTasks.filter((task: any) => 
+        task.status === 'assigned' || task.status === 'in_progress'
+      );
+      setActiveTasks(activeTasksOnly);
+      console.log('📋 Set active tasks for overview:', activeTasksOnly);
+
       setDashboardStats(updatedStats);
       setApplications(applicationsData);
       setUserTasks(transformedTasks);
@@ -753,11 +761,15 @@ export function Dashboard({ onBack }: DashboardProps) {
   const getProjectStatusIcon = (status: string) => {
     switch (status) {
       case 'active':
-        return <PlayCircle className="h-4 w-4 text-green-600" />;
+      case 'assigned':
+        return <PlayCircle className="h-4 w-4 text-yellow-600" />;
+      case 'in_progress':
+        return <Play className="h-4 w-4 text-blue-600" />;
       case 'paused':
         return <PauseCircle className="h-4 w-4 text-yellow-600" />;
       case 'completed':
-        return <CheckCircle2 className="h-4 w-4 text-blue-600" />;
+      case 'submitted':
+        return <CheckCircle2 className="h-4 w-4 text-green-600" />;
       default:
         return <Clock className="h-4 w-4 text-gray-600" />;
     }
@@ -1322,9 +1334,9 @@ export function Dashboard({ onBack }: DashboardProps) {
                   </Button>
                 </div>
                 
-                {projects
-                  .filter(p => p.status === 'active')
-                  .map((project, index) => (
+                {activeTasks
+                  .slice(0, 3)
+                  .map((task, index) => (
                     <motion.div
                       key={project.id}
                       initial={{ opacity: 0, y: 20 }}
@@ -1339,32 +1351,35 @@ export function Dashboard({ onBack }: DashboardProps) {
                               <div className="flex items-start justify-between mb-4">
                                 <div className="flex-grow">
                                   <div className="flex items-center gap-2 mb-2 flex-wrap">
-                                    {getProjectStatusIcon(project.status)}
+                                    {getProjectStatusIcon(task.status)}
                                     <h3 className="text-base sm:text-lg text-gray-900 group-hover:text-blue-600 transition-colors">
-                                      {project.title}
+                                      {task.title}
                                     </h3>
                                     <Badge className="bg-gradient-to-r from-blue-600 to-purple-600 text-white border-0 text-xs">
-                                      ${project.hourlyRate}/hr
+                                      ${task.payment}
                                     </Badge>
                                   </div>
-                                  <p className="text-xs sm:text-sm text-gray-600 mb-3">{project.description}</p>
+                                  <p className="text-xs sm:text-sm text-gray-600 mb-3">{task.description}</p>
                                   <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs sm:text-sm">
                                     <Badge variant="outline" className="gap-1">
                                       <Code className="h-3 w-3" />
-                                      {project.category}
+                                      {task.category}
                                     </Badge>
                                     <span className="text-xs text-gray-600 flex items-center gap-1">
                                       <CalendarIcon className="h-3 w-3" />
-                                      Due {formatDate(project.deadline)}
+                                      Due {task.deadline ? formatDate(task.deadline) : 'No deadline'}
                                     </span>
-                                    <span className="text-xs text-green-600 flex items-center gap-1">
-                                      <DollarSign className="h-3 w-3" />
-                                      ${project.earnings.toLocaleString()} earned
+                                    <span className="text-xs text-blue-600 flex items-center gap-1">
+                                      <Clock className="h-3 w-3" />
+                                      {task.estimated_time} mins
                                     </span>
-                                    <span className="text-xs text-purple-600 flex items-center gap-1">
-                                      <Star className="h-3 w-3 fill-purple-600" />
-                                      {project.quality}% quality
-                                    </span>
+                                    <Badge className={`text-xs ${
+                                      task.status === 'assigned' ? 'bg-yellow-100 text-yellow-800' :
+                                      task.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
+                                      'bg-gray-100 text-gray-800'
+                                    }`}>
+                                      {task.status.replace('_', ' ').toUpperCase()}
+                                    </Badge>
                                   </div>
                                 </div>
                                 <motion.div
@@ -1377,16 +1392,16 @@ export function Dashboard({ onBack }: DashboardProps) {
                               <div className="space-y-2">
                                 <div className="flex items-center justify-between text-sm">
                                   <span className="text-gray-600">
-                                    {project.tasksCompleted} / {project.totalTasks} tasks
+                                    Task Progress
                                   </span>
-                                  <span className="text-gray-900">{project.progress}%</span>
+                                  <span className="text-gray-900">{task.progress || 0}%</span>
                                 </div>
                                 <div className="relative">
-                                  <Progress value={project.progress} className="h-3" />
+                                  <Progress value={task.progress || 0} className="h-3" />
                                   <motion.div
                                     className="absolute top-0 left-0 h-3 rounded-full bg-gradient-to-r from-blue-600 to-purple-600"
                                     initial={{ width: 0 }}
-                                    animate={{ width: `${project.progress}%` }}
+                                    animate={{ width: `${task.progress || 0}%` }}
                                     transition={{ duration: 1, delay: index * 0.2 }}
                                   />
                                 </div>
@@ -1397,19 +1412,19 @@ export function Dashboard({ onBack }: DashboardProps) {
                         <DialogContent className="max-w-2xl">
                           <DialogHeader>
                             <DialogTitle className="flex items-center gap-2">
-                              {getProjectStatusIcon(project.status)}
-                              {project.title}
+                              {getProjectStatusIcon(task.status)}
+                              {task.title}
                             </DialogTitle>
-                            <DialogDescription>{project.description}</DialogDescription>
+                            <DialogDescription>{task.description}</DialogDescription>
                           </DialogHeader>
                           <div className="space-y-6">
                             <div className="grid grid-cols-2 gap-4">
                               <div className="space-y-2">
                                 <p className="text-sm text-gray-600">Progress</p>
                                 <div className="space-y-1">
-                                  <Progress value={project.progress} className="h-2" />
+                                  <Progress value={task.progress || 0} className="h-2" />
                                   <p className="text-xs text-gray-500">
-                                    {project.tasksCompleted} of {project.totalTasks} tasks completed ({project.progress}%)
+                                    Task progress: {task.progress || 0}%
                                   </p>
                                 </div>
                               </div>
@@ -1422,14 +1437,14 @@ export function Dashboard({ onBack }: DashboardProps) {
                                       cy="50%"
                                       innerRadius="60%"
                                       outerRadius="100%"
-                                      data={[{ name: 'Quality', value: project.quality, fill: '#10b981' }]}
+                                      data={[{ name: 'Quality', value: 95, fill: '#10b981' }]}
                                       startAngle={90}
                                       endAngle={-270}
                                     >
                                       <RadialBar dataKey="value" cornerRadius={10} />
                                     </RadialBarChart>
                                   </ResponsiveContainer>
-                                  <span className="text-2xl text-gray-900">{project.quality}%</span>
+                                  <span className="text-2xl text-gray-900">95%</span>
                                 </div>
                               </div>
                             </div>
@@ -1438,16 +1453,16 @@ export function Dashboard({ onBack }: DashboardProps) {
                             
                             <div className="grid grid-cols-3 gap-4">
                               <div>
-                                <p className="text-sm text-gray-600 mb-1">Earnings</p>
-                                <p className="text-xl text-green-600">${project.earnings.toLocaleString()}</p>
+                                <p className="text-sm text-gray-600 mb-1">Payment</p>
+                                <p className="text-xl text-green-600">${task.payment}</p>
                               </div>
                               <div>
-                                <p className="text-sm text-gray-600 mb-1">Hourly Rate</p>
-                                <p className="text-xl text-blue-600">${project.hourlyRate}/hr</p>
+                                <p className="text-sm text-gray-600 mb-1">Estimated Time</p>
+                                <p className="text-xl text-blue-600">{task.estimated_time} mins</p>
                               </div>
                               <div>
-                                <p className="text-sm text-gray-600 mb-1">Time Spent</p>
-                                <p className="text-xl text-purple-600">{project.timeSpent}</p>
+                                <p className="text-sm text-gray-600 mb-1">Status</p>
+                                <Badge className="text-base px-3 py-1">{task.status.replace('_', ' ').toUpperCase()}</Badge>
                               </div>
                             </div>
                             
@@ -1457,10 +1472,12 @@ export function Dashboard({ onBack }: DashboardProps) {
                               <p className="text-sm text-gray-600 mb-2">Deadline</p>
                               <div className="flex items-center gap-2 text-gray-900">
                                 <CalendarIcon className="h-4 w-4" />
-                                <span>{formatDate(project.deadline)}</span>
-                                <Badge variant="outline" className="ml-auto">
-                                  {Math.ceil((new Date(project.deadline).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))} days left
-                                </Badge>
+                                <span>{task.deadline ? formatDate(task.deadline) : 'No deadline set'}</span>
+                                {task.deadline && (
+                                  <Badge variant="outline" className="ml-auto">
+                                    {Math.ceil((new Date(task.deadline).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))} days left
+                                  </Badge>
+                                )}
                               </div>
                             </div>
                             
