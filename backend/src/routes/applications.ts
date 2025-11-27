@@ -73,10 +73,28 @@ router.post('/submit', applicationLimiter, validateApplication, async (req: Requ
       }
     });
   } catch (error) {
-    console.error('Application submission error:', error);
+    console.error('❌ Application submission error:', error);
+    
+    // More detailed error logging
+    if (error instanceof Error) {
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+    }
+    
+    // Check if it's a MongoDB connection error
+    if (error && typeof error === 'object' && 'name' in error) {
+      if (error.name === 'MongooseError' || error.name === 'MongoError') {
+        console.error('🔌 MongoDB connection issue detected');
+      }
+    }
+    
     res.status(500).json({
       success: false,
-      message: 'Server error during application submission'
+      message: 'Server error during application submission',
+      ...(process.env.NODE_ENV === 'development' && { 
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined 
+      })
     });
   }
 });

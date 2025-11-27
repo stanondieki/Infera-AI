@@ -140,13 +140,57 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Rate limiting
 app.use(generalLimiter);
 
-// Health check
-app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
-    message: 'Infera AI Backend API is running!',
-    timestamp: new Date().toISOString()
-  });
+// Health check with database and email connectivity
+app.get('/health', async (req, res) => {
+  const healthStatus = {
+    status: 'OK',
+    message: 'Taskify Backend API is running!',
+    timestamp: new Date().toISOString(),
+    database: 'unknown',
+    email: 'unknown',
+    environment: {
+      nodeEnv: process.env.NODE_ENV || 'development',
+      port: PORT,
+      mongoUri: process.env.MONGODB_URI ? 'configured' : 'missing',
+      smtpConfigured: !!(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS),
+      frontendUrl: process.env.FRONTEND_URL || 'not set'
+    }
+  };
+
+  try {
+    // Test database connection
+    const dbState = mongoose.connection.readyState;
+    healthStatus.database = dbState === 1 ? 'connected' : dbState === 2 ? 'connecting' : 'disconnected';
+    
+    // Test basic database query
+    if (dbState === 1) {
+      await mongoose.connection.db.admin().ping();
+      healthStatus.database = 'healthy';
+    }
+  } catch (error) {
+    console.error('Health check - Database error:', error);
+    healthStatus.database = 'error';
+    healthStatus.status = 'WARNING';
+  }
+
+  try {
+    // Test email configuration (don't actually send email)
+    if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+      healthStatus.email = 'configured';
+    } else {
+      healthStatus.email = 'not configured';
+      if (healthStatus.status !== 'ERROR') healthStatus.status = 'WARNING';
+    }
+  } catch (error) {
+    console.error('Health check - Email error:', error);
+    healthStatus.email = 'error';
+    healthStatus.status = 'WARNING';
+  }
+
+  const statusCode = healthStatus.status === 'OK' ? 200 : 
+                     healthStatus.status === 'WARNING' ? 200 : 500;
+  
+  res.status(statusCode).json(healthStatus);
 });
 
 // Routes
