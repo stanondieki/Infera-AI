@@ -38,6 +38,11 @@ export function UniversalTaskWorker({ task, onComplete, onBack }: UniversalTaskW
   const [files, setFiles] = useState<File[]>([]);
   const [textResponses, setTextResponses] = useState<{[key: string]: string}>({});
   const [submitting, setSubmitting] = useState(false);
+  
+  // Food classification states
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [confidence, setConfidence] = useState(95);
 
   useEffect(() => {
     setStartTime(new Date());
@@ -264,52 +269,194 @@ export function UniversalTaskWorker({ task, onComplete, onBack }: UniversalTaskW
     }
 
     // Data Annotation Tasks
-    if (type.includes('data_annotation') || type.includes('annotation')) {
+    if (type.includes('data_annotation') || type.includes('annotation') || task.title?.toLowerCase().includes('classification')) {
+      // Food images for the Food Classification task
+      const FOOD_IMAGES = [
+        {
+          url: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=500&h=400&fit=crop',
+          description: 'Margherita Pizza - Classic Italian pizza with tomato, mozzarella, and fresh basil'
+        },
+        {
+          url: 'https://images.unsplash.com/photo-1571091718767-18b5b1457add?w=500&h=400&fit=crop',
+          description: 'Grilled Salmon - Fresh salmon fillet with herbs and vegetables'
+        },
+        {
+          url: 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=500&h=400&fit=crop',
+          description: 'Chocolate Cake - Rich chocolate layer cake with berries'
+        },
+        {
+          url: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=500&h=400&fit=crop',
+          description: 'Caesar Salad - Fresh romaine lettuce with croutons and parmesan'
+        },
+        {
+          url: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=500&h=400&fit=crop',
+          description: 'Beef Burger - Classic burger with lettuce, tomato, and cheese'
+        }
+      ];
+
+      const FOOD_CATEGORIES = ['pizza', 'burger', 'salad', 'pasta', 'seafood', 'dessert', 'soup', 'sandwich', 'meat', 'vegetarian', 'other'];
+
+
+
+      const currentImage = FOOD_IMAGES[currentImageIndex];
+      const isLastImage = currentImageIndex === FOOD_IMAGES.length - 1;
+
+      const saveCurrentAnnotation = () => {
+        if (!selectedCategory) {
+          toast.error('Please select a category before saving');
+          return;
+        }
+
+        const annotation = {
+          imageIndex: currentImageIndex + 1,
+          imageUrl: currentImage.url,
+          description: currentImage.description,
+          category: selectedCategory,
+          confidence: confidence,
+          timestamp: new Date().toISOString()
+        };
+
+        // Add to text responses for submission
+        const existingAnnotations = textResponses['annotations'] ? JSON.parse(textResponses['annotations'] || '[]') : [];
+        const updatedAnnotations = existingAnnotations.filter((a: any) => a.imageIndex !== annotation.imageIndex);
+        updatedAnnotations.push(annotation);
+        
+        handleTextResponse('annotations', JSON.stringify(updatedAnnotations, null, 2));
+
+        toast.success(`Annotation saved for Image ${currentImageIndex + 1}`);
+
+        // Move to next image if available
+        if (!isLastImage) {
+          setCurrentImageIndex(prev => prev + 1);
+          setSelectedCategory('');
+          setConfidence(95);
+        }
+      };
+
       return (
         <div className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Image className="w-5 h-5" />
-                Data Annotation Task
+              <CardTitle className="flex items-center gap-2 justify-between">
+                <div className="flex items-center gap-2">
+                  <Image className="w-5 h-5" />
+                  Food Classification Task
+                </div>
+                <Badge variant="secondary">
+                  Image {currentImageIndex + 1} of {FOOD_IMAGES.length}
+                </Badge>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <p className="text-sm text-gray-600">{task.instructions}</p>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h4 className="font-medium text-blue-900 mb-2">Instructions:</h4>
+                <p className="text-sm text-blue-800">{task.instructions}</p>
+              </div>
               
-              {task.imageUrl && (
-                <div className="border rounded-lg p-4">
-                  <img 
-                    src={task.imageUrl} 
-                    alt="Annotation target"
-                    className="max-w-full h-auto rounded"
+              {/* Current Image Display */}
+              <div className="border rounded-lg p-4 bg-gray-50">
+                <img 
+                  src={currentImage.url} 
+                  alt={currentImage.description}
+                  className="w-full max-w-md mx-auto h-64 object-cover rounded-lg border shadow-sm"
+                />
+                <p className="text-center text-sm text-gray-600 mt-3 font-medium">
+                  {currentImage.description}
+                </p>
+              </div>
+
+              {/* Category Selection */}
+              <div>
+                <label className="block text-sm font-medium mb-3">Select Food Category:</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {FOOD_CATEGORIES.map(category => (
+                    <button
+                      key={category}
+                      onClick={() => setSelectedCategory(category)}
+                      className={`p-3 rounded-lg border text-sm font-medium transition-all ${
+                        selectedCategory === category
+                          ? 'bg-blue-500 text-white border-blue-500'
+                          : 'bg-white text-gray-700 border-gray-300 hover:border-blue-300'
+                      }`}
+                    >
+                      {category.charAt(0).toUpperCase() + category.slice(1)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Confidence Level */}
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  Confidence Level: {confidence}%
+                </label>
+                <input
+                  type="range"
+                  min="50"
+                  max="100"
+                  step="5"
+                  value={confidence}
+                  onChange={(e) => setConfidence(parseInt(e.target.value))}
+                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                />
+                <div className="flex justify-between text-xs text-gray-500 mt-1">
+                  <span>50%</span>
+                  <span>75%</span>
+                  <span>100%</span>
+                </div>
+              </div>
+
+              {/* Navigation and Save */}
+              <div className="flex items-center justify-between pt-4">
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setCurrentImageIndex(Math.max(0, currentImageIndex - 1))}
+                    disabled={currentImageIndex === 0}
+                  >
+                    ← Previous
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => setCurrentImageIndex(Math.min(FOOD_IMAGES.length - 1, currentImageIndex + 1))}
+                    disabled={isLastImage}
+                  >
+                    Next →
+                  </Button>
+                </div>
+                
+                <Button
+                  onClick={saveCurrentAnnotation}
+                  disabled={!selectedCategory}
+                  className="bg-green-500 hover:bg-green-600"
+                >
+                  💾 Save Classification
+                </Button>
+              </div>
+
+              {/* Progress */}
+              <div className="bg-gray-50 rounded-lg p-4">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm font-medium">Progress</span>
+                  <span className="text-sm text-gray-600">
+                    {Math.round(((currentImageIndex + (selectedCategory ? 1 : 0)) / FOOD_IMAGES.length) * 100)}%
+                  </span>
+                </div>
+                <Progress value={(currentImageIndex + (selectedCategory ? 1 : 0)) / FOOD_IMAGES.length * 100} />
+              </div>
+
+              {/* Annotation Results Display */}
+              {textResponses['annotations'] && (
+                <div>
+                  <label className="block text-sm font-medium mb-2">Saved Classifications:</label>
+                  <Textarea
+                    value={textResponses['annotations'] || ''}
+                    readOnly
+                    rows={6}
+                    className="w-full bg-gray-50 text-sm font-mono"
                   />
                 </div>
               )}
-
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">Annotation Results:</label>
-                  <Textarea
-                    value={textResponses['annotations'] || ''}
-                    onChange={(e) => handleTextResponse('annotations', e.target.value)}
-                    placeholder="Provide your annotations, labels, or classifications..."
-                    rows={4}
-                    className="w-full"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-2">Upload Annotation Files:</label>
-                  <Input
-                    type="file"
-                    multiple
-                    accept=".json,.csv,.txt,.xml"
-                    onChange={handleFileUpload}
-                    className="w-full"
-                  />
-                </div>
-              </div>
             </CardContent>
           </Card>
         </div>
