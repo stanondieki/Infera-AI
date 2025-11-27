@@ -349,46 +349,110 @@ export function UniversalTaskWorker({ task, onComplete, onBack }: UniversalTaskW
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <h4 className="font-medium text-blue-900 mb-2">Instructions:</h4>
-                <p className="text-sm text-blue-800">{task.instructions}</p>
+                <h4 className="font-medium text-blue-900 mb-3">📋 Instructions:</h4>
+                <div className="space-y-2 text-sm text-blue-800">
+                  {task.instructions?.split(/\d+\./).filter(Boolean).map((instruction: string, index: number) => (
+                    <div key={index} className="flex items-start space-x-2">
+                      <span className="font-semibold text-blue-600 min-w-[20px]">{index + 1}.</span>
+                      <span className="flex-1">{instruction.trim()}</span>
+                    </div>
+                  )) || (
+                    <div className="space-y-1">
+                      <div className="flex items-start space-x-2">
+                        <span className="font-semibold text-blue-600">1.</span>
+                        <span>Look at each food image carefully</span>
+                      </div>
+                      <div className="flex items-start space-x-2">
+                        <span className="font-semibold text-blue-600">2.</span>
+                        <span>Identify the MAIN dish/food item (ignore sides unless specified)</span>
+                      </div>
+                      <div className="flex items-start space-x-2">
+                        <span className="font-semibold text-blue-600">3.</span>
+                        <span>Select the most appropriate category from the provided list</span>
+                      </div>
+                      <div className="flex items-start space-x-2">
+                        <span className="font-semibold text-blue-600">4.</span>
+                        <span>If multiple foods are present, choose the dominant/primary item</span>
+                      </div>
+                      <div className="flex items-start space-x-2">
+                        <span className="font-semibold text-blue-600">5.</span>
+                        <span>If unsure, select "Other" and add a note</span>
+                      </div>
+                      <div className="flex items-start space-x-2">
+                        <span className="font-semibold text-blue-600">6.</span>
+                        <span>Ensure image quality is good enough for classification</span>
+                      </div>
+                      <div className="flex items-start space-x-2">
+                        <span className="font-semibold text-blue-600">7.</span>
+                        <span>Flag any inappropriate or unclear images</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
               
               {/* Current Image Display */}
-              <div className="border rounded-lg p-4 bg-gray-50">
-                <img 
-                  src={currentImage.url} 
-                  alt={currentImage.description}
-                  className="w-full max-w-md mx-auto h-64 object-cover rounded-lg border shadow-sm"
-                />
-                <p className="text-center text-sm text-gray-600 mt-3 font-medium">
+              <div className="border-2 border-gray-300 rounded-lg p-6 bg-white">
+                <div className="text-center mb-4">
+                  <h4 className="text-lg font-semibold text-gray-800 mb-2">
+                    🖼️ Image {currentImageIndex + 1} of {FOOD_IMAGES.length}
+                  </h4>
+                </div>
+                <div className="flex justify-center mb-4">
+                  <img 
+                    src={currentImage.url} 
+                    alt={currentImage.description}
+                    className="max-w-full h-80 object-cover rounded-lg border-2 border-gray-200 shadow-lg"
+                    onError={(e) => {
+                      console.error('Image failed to load:', currentImage.url);
+                      const target = e.target as HTMLImageElement;
+                      target.src = 'https://via.placeholder.com/500x400/f0f0f0/666666?text=Food+Image+' + (currentImageIndex + 1);
+                    }}
+                    onLoad={() => console.log('Image loaded successfully:', currentImage.url)}
+                  />
+                </div>
+                <p className="text-center text-gray-700 font-medium bg-gray-50 p-3 rounded-lg">
                   {currentImage.description}
                 </p>
               </div>
 
               {/* Category Selection */}
-              <div>
-                <label className="block text-sm font-medium mb-3">Select Food Category:</label>
-                <div className="grid grid-cols-3 gap-2">
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                <label className="block text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                  🏷️ Select Food Category:
+                  {selectedCategory && (
+                    <Badge className="ml-2 bg-green-100 text-green-800">
+                      {selectedCategory.charAt(0).toUpperCase() + selectedCategory.slice(1)} Selected
+                    </Badge>
+                  )}
+                </label>
+                <div className="grid grid-cols-3 gap-3">
                   {FOOD_CATEGORIES.map(category => (
                     <button
                       key={category}
                       onClick={() => setSelectedCategory(category)}
-                      className={`p-3 rounded-lg border text-sm font-medium transition-all ${
+                      className={`p-4 rounded-lg border-2 text-sm font-medium transition-all transform hover:scale-105 ${
                         selectedCategory === category
-                          ? 'bg-blue-500 text-white border-blue-500'
-                          : 'bg-white text-gray-700 border-gray-300 hover:border-blue-300'
+                          ? 'bg-blue-500 text-white border-blue-500 shadow-lg'
+                          : 'bg-white text-gray-700 border-gray-300 hover:border-blue-400 hover:bg-blue-50'
                       }`}
                     >
                       {category.charAt(0).toUpperCase() + category.slice(1)}
                     </button>
                   ))}
                 </div>
+                {!selectedCategory && (
+                  <p className="text-sm text-red-600 mt-2 flex items-center">
+                    <AlertCircle className="w-4 h-4 mr-1" />
+                    Please select a category to continue
+                  </p>
+                )}
               </div>
 
               {/* Confidence Level */}
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  Confidence Level: {confidence}%
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                <label className="block text-lg font-semibold text-gray-800 mb-3">
+                  🎯 Confidence Level: <span className="text-blue-600">{confidence}%</span>
                 </label>
                 <input
                   type="range"
@@ -397,12 +461,15 @@ export function UniversalTaskWorker({ task, onComplete, onBack }: UniversalTaskW
                   step="5"
                   value={confidence}
                   onChange={(e) => setConfidence(parseInt(e.target.value))}
-                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                  className="w-full h-3 bg-gray-300 rounded-lg appearance-none cursor-pointer slider"
+                  style={{
+                    background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${(confidence-50)/50*100}%, #d1d5db ${(confidence-50)/50*100}%, #d1d5db 100%)`
+                  }}
                 />
-                <div className="flex justify-between text-xs text-gray-500 mt-1">
-                  <span>50%</span>
-                  <span>75%</span>
-                  <span>100%</span>
+                <div className="flex justify-between text-sm text-gray-600 mt-2">
+                  <span>🔴 Low (50%)</span>
+                  <span>🟡 Medium (75%)</span>
+                  <span>🟢 High (100%)</span>
                 </div>
               </div>
 
