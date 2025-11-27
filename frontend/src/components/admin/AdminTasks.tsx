@@ -45,6 +45,8 @@ interface User {
 }
 
 export function AdminTasks({ onBack, accessToken }: AdminTasksProps) {
+  console.log('🔐 AdminTasks - AccessToken:', accessToken ? 'Present' : 'Missing', 'Length:', accessToken?.length || 0);
+  
   const [tasks, setTasks] = useState<Task[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
