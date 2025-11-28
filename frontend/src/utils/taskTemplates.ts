@@ -479,6 +479,14 @@ export const TASK_CATEGORIES: TaskTemplate[] = [
         section: 'basic'
       },
       {
+        id: 'instructions',
+        label: 'Task Instructions',
+        type: 'textarea',
+        required: true,
+        placeholder: 'Detailed methodology and submission requirements...',
+        section: 'requirements'
+      },
+      {
         id: 'researchType',
         label: 'Research Type',
         type: 'select',
