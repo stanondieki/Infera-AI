@@ -87,7 +87,7 @@ function ResetPasswordContent() {
                   type={showPassword ? "text" : "password"}
                   placeholder="••••••••"
                   value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewPassword(e.target.value)}
                   className="pl-9 pr-9"
                   required
                 />
@@ -115,7 +115,7 @@ function ResetPasswordContent() {
                   type={showConfirmPassword ? "text" : "password"}
                   placeholder="••••••••"
                   value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setConfirmPassword(e.target.value)}
                   className="pl-9 pr-9"
                   required
                 />
