@@ -1,6 +1,7 @@
-import type { NextConfig } from "next";
-
-const nextConfig: NextConfig = {
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  // Fix workspace root detection
+  output: 'standalone',
   eslint: {
     // Disable ESLint during builds to avoid warnings spam
     ignoreDuringBuilds: true,
@@ -32,4 +33,4 @@ const nextConfig: NextConfig = {
   transpilePackages: [],
 };
 
-export default nextConfig;
+module.exports = nextConfig;
