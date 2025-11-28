@@ -5,5 +5,3 @@ export { default as Opportunity, IOpportunity } from './Opportunity';
 export { Task, ITask } from './Task';
 export { UserSession, IUserSession } from './UserSession';
 export { SecurityEvent, ISecurityEvent } from './SecurityEvent';
-export { UserSession, IUserSession } from './UserSession';
-export { SecurityEvent, ISecurityEvent } from './SecurityEvent';
