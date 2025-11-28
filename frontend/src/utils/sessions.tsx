@@ -78,7 +78,7 @@ function detectOS(userAgent: string): string {
 }
 
 function getInitialSessions(userId: string): Session[] {
-  const userAgent = navigator.userAgent;
+  const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : 'Server';
   const deviceType = detectDeviceType(userAgent);
   const browser = detectBrowser(userAgent);
   const os = detectOS(userAgent);
@@ -150,7 +150,7 @@ function getInitialLoginHistory(userId: string): LoginAttempt[] {
       country: 'United States',
       ip_address: '192.168.1.1',
       timestamp: new Date().toISOString(),
-      user_agent: navigator.userAgent,
+      user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : 'Server',
     },
     {
       id: '2',
@@ -180,7 +180,7 @@ function getInitialLoginHistory(userId: string): LoginAttempt[] {
       country: 'United States',
       ip_address: '192.168.1.1',
       timestamp: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-      user_agent: navigator.userAgent,
+      user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : 'Server',
     },
     {
       id: '4',
@@ -211,7 +211,7 @@ function getInitialLoginHistory(userId: string): LoginAttempt[] {
       country: 'United States',
       ip_address: '192.168.1.1',
       timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-      user_agent: navigator.userAgent,
+      user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : 'Server',
     },
     {
       id: '6',

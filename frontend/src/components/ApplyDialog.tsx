@@ -223,7 +223,7 @@ export function ApplyDialog({ open, onOpenChange, onSwitchToSignIn }: ApplyDialo
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [suggestions, setSuggestions] = useState<{ [key: string]: string[] }>({});
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
   const [profileStrength, setProfileStrength] = useState(0);
   const [marketData, setMarketData] = useState<LiveMarketData | null>(null);
   const [completionTime, setCompletionTime] = useState<number>(0);
