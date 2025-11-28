@@ -1,12 +1,13 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  output: 'standalone',
   trailingSlash: false,
   generateEtags: false,
   poweredByHeader: false,
-  turbopack: {
-    root: process.cwd()
+  output: 'export',
+  distDir: '.next',
+  images: {
+    unoptimized: true
   }
 };
 
