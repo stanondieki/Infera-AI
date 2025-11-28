@@ -7,7 +7,7 @@ import { Label } from "./ui/label";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useAuth } from "../utils/auth";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from 'framer-motion';
 import { User } from "lucide-react";
 import { Mail, Lock, ArrowRight, Eye, EyeOff, Sparkles, Shield, CheckCircle } from "lucide-react";
 import { Separator } from "./ui/separator";

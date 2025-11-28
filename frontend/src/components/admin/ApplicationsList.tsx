@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Search, Download, Clock, CheckCircle, XCircle, Eye, FileText } from 'lucide-react';
+import { Search, Download, Clock, CheckCircle, XCircle, FileText } from 'lucide-react';
 import { Input } from '../ui/input';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';

@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Plus, Users, Settings, BarChart3, Calendar, Search, X, DollarSign, Clock, Eye, CheckCircle, XCircle } from 'lucide-react';
+import { Plus, Users, BarChart3, Calendar, Search, DollarSign, Eye } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
-import { Textarea } from '../ui/textarea';
 import { useAuth } from '../../utils/auth';
 import { TaskReviewDialog } from './TaskReviewDialog';
 import { CreateTaskDialog } from './CreateTaskDialogFixed';

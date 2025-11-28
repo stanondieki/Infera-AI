@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Badge } from '../../components/ui/badge';
 import { Alert, AlertDescription } from '../../components/ui/alert';
-import { Separator } from '../../components/ui/separator';
 
 export default function TermsAndConditions() {
   return (

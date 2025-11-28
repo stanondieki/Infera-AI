@@ -3,10 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus,
   Search,
-  Filter,
   MoreHorizontal,
   Edit,
-  Trash2,
   Eye,
   Calendar,
   DollarSign,
@@ -19,7 +17,7 @@ import {
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
+import { Card, CardContent } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
 import { Label } from '../ui/label';

@@ -9,10 +9,6 @@ interface PaymentReminderProps {
 }
 
 export function PaymentReminder({ variant = 'default', className = '' }: PaymentReminderProps) {
-  const getCurrentMonth = () => {
-    return new Date().toLocaleString('default', { month: 'long' });
-  };
-
   const getNextPaymentDate = () => {
     const now = new Date();
     const currentMonth = now.getMonth();

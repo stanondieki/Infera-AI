@@ -110,52 +110,7 @@ export function ImageBoundingBox({ task, onComplete, onBack }: ImageBoundingBoxP
     return () => clearInterval(timer);
   }, [startTime]);
 
-  // Get images from REAL task data ONLY - no mock data
-  const getTaskImages = () => {
-    console.log('🖼️ Loading task images from live data:', task);
-    
-    // Only use real task data - no fallbacks
-    if (!task?.taskData?.inputs || !Array.isArray(task.taskData.inputs) || task.taskData.inputs.length === 0) {
-      console.error('❌ No images found in task data. Task must have images in taskData.inputs');
-      return [];
-    }
-    
-    console.log('✅ Using live task images:', task.taskData.inputs);
-    return task.taskData.inputs.map((input: any, index: number) => ({
-      id: input.id || `task_image_${index}`,
-      image: input.url,
-      title: input.filename || `${task.title} - Image ${index + 1}`,
-      description: input.description || task.description,
-      requiredObjects: task.taskData.qualityMetrics || ['Objects as specified in task'],
-      safetyNotes: task.instructions || 'Follow task guidelines',
-      qualityThreshold: 95
-    }));
-  };
-
-  const scenarios = getTaskImages();
-  const currentScenario = scenarios[currentImage];
-
-  // Show error if no images are available
-  if (!scenarios || scenarios.length === 0) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-xl shadow-lg p-8 max-w-md text-center">
-          <div className="text-6xl mb-4">📷</div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">No Images Available</h2>
-          <p className="text-gray-600 mb-6">
-            This task doesn't have any images to annotate. Please contact the administrator.
-          </p>
-          <button 
-            onClick={onBack}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            Back to Tasks
-          </button>
-        </div>
-      </div>
-    );
-  }
-
+  // Canvas drawing effect
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -192,6 +147,31 @@ export function ImageBoundingBox({ task, onComplete, onBack }: ImageBoundingBoxP
     }
   }, [boxes, currentBox, selectedLabel]);
 
+  // Get images from REAL task data ONLY - no mock data
+  const getTaskImages = () => {
+    console.log('🖼️ Loading task images from live data:', task);
+    
+    // Only use real task data - no fallbacks
+    if (!task?.taskData?.inputs || !Array.isArray(task.taskData.inputs) || task.taskData.inputs.length === 0) {
+      console.error('❌ No images found in task data. Task must have images in taskData.inputs');
+      return [];
+    }
+    
+    console.log('✅ Using live task images:', task.taskData.inputs);
+    return task.taskData.inputs.map((input: any, index: number) => ({
+      id: input.id || `task_image_${index}`,
+      image: input.url,
+      title: input.filename || `${task.title} - Image ${index + 1}`,
+      description: input.description || task.description,
+      requiredObjects: task.taskData.qualityMetrics || ['Objects as specified in task'],
+      safetyNotes: task.instructions || 'Follow task guidelines',
+      qualityThreshold: 95
+    }));
+  };
+
+  const scenarios = getTaskImages();
+  const currentScenario = scenarios[currentImage];
+
   const getLabelColor = (labelId: string) => {
     const label = labels.find(l => l.id === labelId);
     return label?.color || '#6b7280';
@@ -202,6 +182,27 @@ export function ImageBoundingBox({ task, onComplete, onBack }: ImageBoundingBoxP
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
+
+  // Show error if no images are available
+  if (!scenarios || scenarios.length === 0) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-xl shadow-lg p-8 max-w-md text-center">
+          <div className="text-6xl mb-4">📷</div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">No Images Available</h2>
+          <p className="text-gray-600 mb-6">
+            This task doesn't have any images to annotate. Please contact the administrator.
+          </p>
+          <button 
+            onClick={onBack}
+            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Back to Tasks
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;

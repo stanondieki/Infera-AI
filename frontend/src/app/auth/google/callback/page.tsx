@@ -1,10 +1,9 @@
 "use client";
 
 import { useEffect, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 
 function GoogleCallbackContent() {
-  const router = useRouter();
   const searchParams = useSearchParams();
 
   useEffect(() => {

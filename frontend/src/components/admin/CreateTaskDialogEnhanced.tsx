@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Calendar, DollarSign, Clock, User, FileText, ChevronLeft, ChevronRight, Info, CheckCircle, Sparkles } from 'lucide-react';
+import { X, DollarSign, Clock, User, FileText, Sparkles, Info, CheckCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Badge } from '../ui/badge';
