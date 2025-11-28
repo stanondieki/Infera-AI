@@ -14,6 +14,7 @@ import projectsManagementRoutes from './routes/projectsManagement';
 import taskRoutes from './routes/tasks';
 import taskProjectRoutes from './routes/taskProjects';
 import userRoutes from './routes/users';
+import sessionsRoutes from './routes/sessions';
 
 // Load environment variables
 dotenv.config();
@@ -211,6 +212,7 @@ app.use('/api/projects', projectsManagementRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/task-projects', taskProjectRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/sessions', sessionsRoutes);
 
 // Global error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

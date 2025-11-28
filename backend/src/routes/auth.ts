@@ -144,9 +144,14 @@ router.delete('/debug/cleanup-demo', async (req: Request, res: Response) => {
 });
 
 // Generate JWT token
-const generateToken = (userId: string): string => {
+const generateToken = (userId: string, sessionId?: string): string => {
+  const payload: any = { userId };
+  if (sessionId) {
+    payload.sessionId = sessionId;
+  }
+  
   return jwt.sign(
-    { userId },
+    payload,
     process.env.JWT_SECRET || 'your-secret-key',
     { expiresIn: '7d' }
   );
@@ -269,8 +274,10 @@ router.post('/login', authLimiter, validateUserLogin, async (req: Request, res: 
     user.lastLoginDate = new Date();
     await user.save();
 
-    // Generate token
-    const token = generateToken(user._id.toString());
+    // Generate token and create session
+    const { createUserSession } = await import('./sessions');
+    const sessionId = await createUserSession(user._id.toString(), req);
+    const token = generateToken(user._id.toString(), sessionId);
 
     // Prepare user response
     const userResponse = {

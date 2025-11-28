@@ -18,7 +18,7 @@ export const authenticateToken = async (req: AuthRequest, res: Response, next: N
       });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as { userId: string };
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as { userId: string; sessionId?: string };
     
     console.log('🔍 Auth Debug - Decoded JWT:', decoded);
     console.log('🔍 Auth Debug - Looking for userId:', decoded.userId);
@@ -45,6 +45,18 @@ export const authenticateToken = async (req: AuthRequest, res: Response, next: N
     }
 
     req.user = user;
+    
+    // Update session activity if sessionId is present
+    if (decoded.sessionId) {
+      try {
+        const { updateSessionActivity } = await import('../routes/sessions');
+        await updateSessionActivity(decoded.sessionId);
+      } catch (error) {
+        // Don't fail the request if session update fails
+        console.warn('Failed to update session activity:', error);
+      }
+    }
+    
     next();
   } catch (error) {
     console.error('Auth middleware error:', error);

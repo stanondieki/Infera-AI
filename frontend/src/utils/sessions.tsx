@@ -1,6 +1,7 @@
-import { projectId, publicAnonKey } from './supabase/info';
-
-const API_URL = `https://${projectId}.supabase.co/functions/v1/server`;
+// Get API base URL from environment or fallback to production
+const getApiUrl = () => {
+  return process.env.NEXT_PUBLIC_API_URL || 'https://inferaai-hfh4hmd4frcee8e9.centralindia-01.azurewebsites.net/api';
+};
 
 export interface Session {
   id: string;
@@ -312,22 +313,62 @@ function saveLoginHistory(userId: string, history: LoginAttempt[]): void {
   }
 }
 
+function loadSecurityEvents(userId: string): SecurityEvent[] {
+  try {
+    const stored = localStorage.getItem(`${SECURITY_EVENTS_STORAGE_KEY}_${userId}`);
+    if (stored) {
+      return JSON.parse(stored);
+    }
+  } catch (error) {
+    console.error('Error loading security events:', error);
+  }
+  return getInitialSecurityEvents(userId);
+}
+
+function saveSecurityEvents(userId: string, events: SecurityEvent[]): void {
+  try {
+    localStorage.setItem(`${SECURITY_EVENTS_STORAGE_KEY}_${userId}`, JSON.stringify(events));
+  } catch (error) {
+    console.error('Error saving security events:', error);
+  }
+}
+
 export async function getSessions(userId: string): Promise<Session[]> {
   try {
-    const response = await fetch(`${API_URL}/sessions?user_id=${userId}`, {
+    // Get token from infera_session
+    const inferaSession = localStorage.getItem('infera_session');
+    let token = null;
+    if (inferaSession) {
+      try {
+        const session = JSON.parse(inferaSession);
+        token = session.accessToken;
+      } catch (e) {
+        console.error('Error parsing infera_session:', e);
+      }
+    }
+
+    if (!token) {
+      console.log('No authentication token found, using local storage');
+      return loadSessions(userId);
+    }
+
+    const response = await fetch(`${getApiUrl()}/sessions`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${publicAnonKey}`,
+        'Authorization': `Bearer ${token}`,
       },
     });
 
     if (response.ok) {
       const data = await response.json();
+      console.log('✅ Sessions fetched from API:', data.sessions?.length || 0);
       return data.sessions || [];
+    } else {
+      console.log('API error, using local storage:', response.status);
     }
   } catch (error) {
-    console.log('API unavailable, using local storage');
+    console.log('API unavailable, using local storage:', error);
   }
 
   return loadSessions(userId);
@@ -335,19 +376,39 @@ export async function getSessions(userId: string): Promise<Session[]> {
 
 export async function revokeSession(userId: string, sessionId: string): Promise<void> {
   try {
-    const response = await fetch(`${API_URL}/sessions/${sessionId}`, {
+    // Get token from infera_session
+    const inferaSession = localStorage.getItem('infera_session');
+    let token = null;
+    if (inferaSession) {
+      try {
+        const session = JSON.parse(inferaSession);
+        token = session.accessToken;
+      } catch (e) {
+        console.error('Error parsing infera_session:', e);
+      }
+    }
+
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const response = await fetch(`${getApiUrl()}/sessions/${sessionId}`, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${publicAnonKey}`,
+        'Authorization': `Bearer ${token}`,
       },
     });
 
     if (response.ok) {
+      console.log('✅ Session revoked via API');
       return;
+    } else {
+      throw new Error(`Failed to revoke session: ${response.status}`);
     }
   } catch (error) {
-    console.log('API unavailable, using local storage');
+    console.error('Error revoking session:', error);
+    throw error;
   }
 
   // Fallback to local storage
@@ -358,44 +419,78 @@ export async function revokeSession(userId: string, sessionId: string): Promise<
 
 export async function revokeAllSessions(userId: string, exceptCurrent: boolean = true): Promise<void> {
   try {
-    const response = await fetch(`${API_URL}/sessions/revoke-all`, {
-      method: 'POST',
+    // Get token from infera_session
+    const inferaSession = localStorage.getItem('infera_session');
+    let token = null;
+    if (inferaSession) {
+      try {
+        const session = JSON.parse(inferaSession);
+        token = session.accessToken;
+      } catch (e) {
+        console.error('Error parsing infera_session:', e);
+      }
+    }
+
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const response = await fetch(`${getApiUrl()}/sessions/revoke-all`, {
+      method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${publicAnonKey}`,
+        'Authorization': `Bearer ${token}`,
       },
-      body: JSON.stringify({ user_id: userId, except_current: exceptCurrent }),
     });
 
     if (response.ok) {
+      console.log('✅ All sessions revoked via API');
       return;
+    } else {
+      throw new Error(`Failed to revoke sessions: ${response.status}`);
     }
   } catch (error) {
-    console.log('API unavailable, using local storage');
+    console.error('Error revoking all sessions:', error);
+    throw error;
   }
-
-  // Fallback to local storage
-  const sessions = loadSessions(userId);
-  const filteredSessions = exceptCurrent ? sessions.filter(s => s.is_current) : [];
-  saveSessions(userId, filteredSessions);
 }
 
-export async function getLoginHistory(userId: string, limit: number = 50): Promise<LoginAttempt[]> {
+export async function getLoginHistory(userId: string): Promise<LoginAttempt[]> {
   try {
-    const response = await fetch(`${API_URL}/login-history?user_id=${userId}&limit=${limit}`, {
+    // Get token from infera_session
+    const inferaSession = localStorage.getItem('infera_session');
+    let token = null;
+    if (inferaSession) {
+      try {
+        const session = JSON.parse(inferaSession);
+        token = session.accessToken;
+      } catch (e) {
+        console.error('Error parsing infera_session:', e);
+      }
+    }
+
+    if (!token) {
+      console.log('No authentication token found, using local storage');
+      return loadLoginHistory(userId);
+    }
+
+    const response = await fetch(`${getApiUrl()}/sessions/login-history`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${publicAnonKey}`,
+        'Authorization': `Bearer ${token}`,
       },
     });
 
     if (response.ok) {
       const data = await response.json();
-      return data.history || [];
+      console.log('✅ Login history fetched from API:', data.loginHistory?.length || 0);
+      return data.loginHistory || [];
+    } else {
+      console.log('API error, using local storage:', response.status);
     }
   } catch (error) {
-    console.log('API unavailable, using local storage');
+    console.log('API unavailable, using local storage:', error);
   }
 
   return loadLoginHistory(userId);
@@ -403,20 +498,40 @@ export async function getLoginHistory(userId: string, limit: number = 50): Promi
 
 export async function getSecurityEvents(userId: string): Promise<SecurityEvent[]> {
   try {
-    const response = await fetch(`${API_URL}/security-events?user_id=${userId}`, {
+    // Get token from infera_session
+    const inferaSession = localStorage.getItem('infera_session');
+    let token = null;
+    if (inferaSession) {
+      try {
+        const session = JSON.parse(inferaSession);
+        token = session.accessToken;
+      } catch (e) {
+        console.error('Error parsing infera_session:', e);
+      }
+    }
+
+    if (!token) {
+      console.log('No authentication token found, using local storage');
+      return loadSecurityEvents(userId);
+    }
+
+    const response = await fetch(`${getApiUrl()}/sessions/security-events`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${publicAnonKey}`,
+        'Authorization': `Bearer ${token}`,
       },
     });
 
     if (response.ok) {
       const data = await response.json();
-      return data.events || [];
+      console.log('✅ Security events fetched from API:', data.securityEvents?.length || 0);
+      return data.securityEvents || [];
+    } else {
+      console.log('API error, using local storage:', response.status);
     }
   } catch (error) {
-    console.log('API unavailable, using local storage');
+    console.log('API unavailable, using local storage:', error);
   }
 
   // Fallback
