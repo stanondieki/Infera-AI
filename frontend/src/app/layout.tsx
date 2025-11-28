@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 // import { Inter } from "next/font/google";
 import { Toaster } from "sonner";
-import "./globals.css";
+// import "./globals.css";
 import { AuthProvider } from "../utils/auth";
 import { DebugPanel } from "../components/DebugPanel";
 
@@ -34,6 +34,7 @@ export default function RootLayout({
           href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700&display=swap"
           rel="stylesheet"
         />
+        <script src="https://cdn.tailwindcss.com"></script>
       </head>
       <body className="font-sans antialiased bg-white">
         <AuthProvider>
