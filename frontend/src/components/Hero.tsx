@@ -112,7 +112,7 @@ export function Hero({ onGetStartedClick, onLearnMoreClick }: HeroProps) {
               transition={{ duration: 0.6, delay: 0.4 }}
               className="text-xl text-gray-600 max-w-xl leading-relaxed"
             >
-              Join Infera AI and help train the world's most advanced AI models. 
+              Join Taskify and help train the world's most advanced AI models. 
               Work on your schedule, earn competitive rates, and contribute to 
               cutting-edge technology.
             </motion.p>

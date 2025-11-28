@@ -39,6 +39,9 @@ export interface IUser extends Document {
   resetPasswordToken?: string;
   resetPasswordExpires?: Date;
   
+  // OAuth
+  googleId?: string;
+  
   // Timestamps
   joinedDate: Date;
   lastLoginDate?: Date;
@@ -67,7 +70,10 @@ const UserSchema = new Schema<IUser>({
   },
   password: {
     type: String,
-    required: [true, 'Password is required'],
+    required: function(this: IUser): boolean {
+      // Password is required only if no OAuth ID is present
+      return !this.googleId;
+    },
     minlength: [6, 'Password must be at least 6 characters'],
     select: false // Don't include password in queries by default
   },
@@ -158,6 +164,13 @@ const UserSchema = new Schema<IUser>({
   resetPasswordToken: String,
   resetPasswordExpires: Date,
   
+  // OAuth
+  googleId: {
+    type: String,
+    unique: true,
+    sparse: true // Allows multiple null values
+  },
+  
   // Timestamps
   joinedDate: {
     type: Date,
@@ -174,7 +187,8 @@ UserSchema.index({ isActive: 1 });
 
 // Hash password before saving
 UserSchema.pre('save', async function(next) {
-  if (!this.isModified('password')) return next();
+  // Only hash password if it's modified and exists
+  if (!this.isModified('password') || !this.password) return next();
   
   try {
     const salt = await bcrypt.genSalt(12);

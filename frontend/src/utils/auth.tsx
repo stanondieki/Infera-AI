@@ -32,6 +32,9 @@ interface AuthContextType {
   accessToken: string | null;
   signIn: (email: string, password: string) => Promise<User>;
   signUp: (email: string, password: string, name: string) => Promise<User>;
+  signInWithGoogle: () => Promise<User>;
+  forgotPassword: (email: string) => Promise<void>;
+  resetPassword: (token: string, newPassword: string) => Promise<void>;
   signOut: () => void;
   isLoading: boolean;
   isAuthenticated: boolean;
@@ -39,7 +42,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const SESSION_KEY = 'infera_session';
+const SESSION_KEY = 'taskify_session';
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -195,6 +198,145 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const signInWithGoogle = async (): Promise<User> => {
+    try {
+      console.log('[AUTH] Initiating Google Sign-In');
+      
+      // Check if Google OAuth is configured
+      const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+      if (!googleClientId || googleClientId === 'your_google_client_id_here') {
+        throw new Error('Google OAuth is not configured. Please set up Google OAuth credentials.');
+      }
+      
+      // Create Google OAuth popup
+      const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
+        `client_id=${googleClientId}&` +
+        `redirect_uri=${encodeURIComponent(window.location.origin + '/auth/google/callback')}&` +
+        `response_type=code&` +
+        `scope=openid email profile&` +
+        `access_type=offline`;
+
+      // Open popup window
+      const popup = window.open(
+        googleAuthUrl,
+        'google-signin',
+        'width=500,height=600,scrollbars=yes,resizable=yes'
+      );
+
+      if (!popup) {
+        throw new Error('Popup blocked. Please allow popups for this site.');
+      }
+
+      // Wait for callback
+      return new Promise((resolve, reject) => {
+        const interval = setInterval(() => {
+          try {
+            if (popup.closed) {
+              clearInterval(interval);
+              reject(new Error('Sign-in was cancelled'));
+              return;
+            }
+
+            // Check if we've been redirected to our callback
+            const url = popup.location.href;
+            if (url.includes('/auth/google/callback')) {
+              const urlParams = new URLSearchParams(new URL(url).search);
+              const code = urlParams.get('code');
+              const error = urlParams.get('error');
+
+              popup.close();
+              clearInterval(interval);
+
+              if (error) {
+                reject(new Error('Google sign-in failed'));
+                return;
+              }
+
+              if (code) {
+                // Exchange code for user data via backend
+                apiClient.post(API_ENDPOINTS.AUTH.GOOGLE, { code })
+                  .then(response => {
+                    if (response.success && response.user && response.accessToken) {
+                      const userData: User = {
+                        id: response.user.id || response.user._id,
+                        email: response.user.email,
+                        name: response.user.name,
+                        role: response.user.role || 'user',
+                        isActive: response.user.isActive,
+                        avatar: response.user.avatar,
+                        createdAt: response.user.createdAt,
+                      };
+
+                      setUser(userData);
+                      setAccessToken(response.accessToken);
+                      resolve(userData);
+                    } else {
+                      reject(new Error('Invalid response from server'));
+                    }
+                  })
+                  .catch(err => reject(err));
+              }
+            }
+          } catch (e) {
+            // Cross-origin error - expected until redirect
+          }
+        }, 1000);
+
+        // Timeout after 5 minutes
+        setTimeout(() => {
+          clearInterval(interval);
+          if (!popup.closed) {
+            popup.close();
+          }
+          reject(new Error('Sign-in timeout'));
+        }, 300000);
+      });
+
+    } catch (error: any) {
+      console.error('[AUTH] Google Sign-In failed:', error);
+      throw new Error(error.message || 'Google Sign-In failed. Please try again.');
+    }
+  };
+
+  const forgotPassword = async (email: string): Promise<void> => {
+    try {
+      console.log('[AUTH] Sending password reset email to:', email);
+      
+      const response = await apiClient.post(API_ENDPOINTS.AUTH.FORGOT_PASSWORD, {
+        email
+      });
+
+      if (!response.success) {
+        throw new Error(response.message || 'Failed to send password reset email');
+      }
+
+      console.log('[AUTH] Password reset email sent successfully');
+    } catch (error: any) {
+      console.error('[AUTH] Forgot password failed:', error);
+      throw new Error(error.message || 'Failed to send password reset email. Please try again.');
+    }
+  };
+
+  const resetPassword = async (token: string, newPassword: string): Promise<void> => {
+    try {
+      console.log('[AUTH] Resetting password with token');
+      
+      const response = await apiClient.post(API_ENDPOINTS.AUTH.RESET_PASSWORD, {
+        token,
+        newPassword
+      });
+
+      if (!response.success) {
+        throw new Error(response.message || 'Failed to reset password');
+      }
+
+      console.log('[AUTH] Password reset successfully');
+    } catch (error: any) {
+      console.error('[AUTH] Reset password failed:', error);
+      throw new Error(error.message || 'Failed to reset password. Please try again.');
+    }
+  };
+
   const signOut = () => {
     console.log('[AUTH] Signing out');
     
@@ -203,6 +345,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     localStorage.removeItem('accessToken');
     localStorage.removeItem('infera_auth_state');
     localStorage.removeItem('infera_session');
+    localStorage.removeItem('taskify_session');
     
     setUser(null);
     setAccessToken(null);
@@ -222,6 +365,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         accessToken,
         signIn,
         signUp,
+        signInWithGoogle,
+        forgotPassword,
+        resetPassword,
         signOut,
         isLoading,
         isAuthenticated,

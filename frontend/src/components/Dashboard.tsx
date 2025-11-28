@@ -406,7 +406,7 @@ export function Dashboard({ onBack }: DashboardProps) {
       // Fallback to session-based token if direct token not found
       if (!token) {
         try {
-          const session = localStorage.getItem('infera_session');
+          const session = localStorage.getItem('taskify_session');
           if (session) {
             const sessionData = JSON.parse(session);
             token = sessionData.accessToken;
@@ -840,13 +840,10 @@ export function Dashboard({ onBack }: DashboardProps) {
       <div className="bg-white/80 backdrop-blur-xl border-b border-gray-200/50 sticky top-0 z-50 shadow-sm">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-14 sm:h-16">
-            <div className="flex items-center gap-2 sm:gap-4">
-              <Button variant="ghost" onClick={onBack} className="gap-1 sm:gap-2 hover:bg-blue-50 transition-colors h-8 sm:h-10 px-2 sm:px-4">
-                <ArrowLeft className="h-4 w-4" />
-                <span className="hidden sm:inline">Infera AI</span>
+            <div className="flex items-center">
+              <Button variant="ghost" onClick={onBack} className="hover:bg-blue-50 transition-colors h-8 sm:h-10 px-2 sm:px-4">
+                <span className="text-gray-900 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent font-semibold text-lg sm:text-xl">Dashboard</span>
               </Button>
-              <Separator orientation="vertical" className="h-6 hidden sm:block" />
-              <h1 className="text-gray-900 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Dashboard</h1>
             </div>
 
             <div className="flex items-center gap-1 sm:gap-3">
@@ -921,35 +918,35 @@ export function Dashboard({ onBack }: DashboardProps) {
                     <span className="hidden sm:inline">{user.name}</span>
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuLabel>
+                <DropdownMenuContent align="end" className="w-56 bg-white/95 backdrop-blur-md border shadow-lg">
+                  <DropdownMenuLabel className="bg-gradient-to-r from-blue-50 to-purple-50">
                     <div>
-                      <p className="text-sm">{user.name}</p>
-                      <p className="text-xs text-gray-500">{user.email}</p>
+                      <p className="text-sm font-medium text-gray-900">{user.name}</p>
+                      <p className="text-xs text-gray-600">{user.email}</p>
                       <Badge className="mt-1 bg-gradient-to-r from-purple-600 to-pink-600 text-white text-xs">
                         Premium Member
                       </Badge>
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem className="gap-2" onClick={() => setViewProfileOpen(true)}>
+                  <DropdownMenuItem className="gap-2 text-gray-700 hover:bg-blue-50 hover:text-blue-700" onClick={() => setViewProfileOpen(true)}>
                     <Eye className="h-4 w-4" />
                     View Profile
                   </DropdownMenuItem>
-                  <DropdownMenuItem className="gap-2" onClick={() => setActiveTab('settings')}>
+                  <DropdownMenuItem className="gap-2 text-gray-700 hover:bg-blue-50 hover:text-blue-700" onClick={() => setActiveTab('settings')}>
                     <User className="h-4 w-4" />
                     Profile Settings
                   </DropdownMenuItem>
-                  <DropdownMenuItem className="gap-2" onClick={() => setActiveTab('settings')}>
+                  <DropdownMenuItem className="gap-2 text-gray-700 hover:bg-blue-50 hover:text-blue-700" onClick={() => setActiveTab('settings')}>
                     <Settings className="h-4 w-4" />
                     Account Settings
                   </DropdownMenuItem>
-                  <DropdownMenuItem className="gap-2" onClick={() => setActiveTab('skills')}>
+                  <DropdownMenuItem className="gap-2 text-gray-700 hover:bg-blue-50 hover:text-blue-700" onClick={() => setActiveTab('skills')}>
                     <Trophy className="h-4 w-4" />
                     Achievements
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleSignOut} className="text-red-600 gap-2">
+                  <DropdownMenuItem onClick={handleSignOut} className="text-red-600 hover:bg-red-50 hover:text-red-700 gap-2">
                     <LogOut className="h-4 w-4" />
                     Sign Out
                   </DropdownMenuItem>

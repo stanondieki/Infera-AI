@@ -22,7 +22,7 @@ interface SignInDialogProps {
 }
 
 export function SignInDialog({ open, onOpenChange, onSignInSuccess, onSwitchToApply, isAdminSignIn = false }: SignInDialogProps) {
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, signInWithGoogle, forgotPassword } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
@@ -32,6 +32,23 @@ export function SignInDialog({ open, onOpenChange, onSignInSuccess, onSwitchToAp
   const [loading, setLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
+
+  const handleForgotPassword = async () => {
+    if (!email) {
+      toast.error("Please enter your email address first");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await forgotPassword(email);
+      toast.success("Password reset link sent to your email!");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to send password reset email");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -108,14 +125,30 @@ export function SignInDialog({ open, onOpenChange, onSignInSuccess, onSwitchToAp
   };
 
   const handleGoogleSignIn = async () => {
-    toast.info("Google Sign-In will be available soon!");
-    // In a real implementation, this would trigger Google OAuth
-    // const { data, error } = await supabase.auth.signInWithOAuth({
-    //   provider: 'google',
-    //   options: {
-    //     redirectTo: `${window.location.origin}/auth/callback`
-    //   }
-    // });
+    // Check if Google OAuth is configured
+    const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+    if (!googleClientId || googleClientId === 'your_google_client_id_here') {
+      toast.error("Google Sign-In is not configured yet. Please use email sign-in for now.", {
+        description: "Contact support to enable Google Sign-In"
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const userData = await signInWithGoogle();
+      toast.success("Successfully signed in with Google!");
+      onOpenChange(false);
+      setEmail("");
+      setPassword("");
+      if (onSignInSuccess) {
+        setTimeout(() => onSignInSuccess(userData), 500);
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Google Sign-In failed. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -179,8 +212,15 @@ export function SignInDialog({ open, onOpenChange, onSignInSuccess, onSwitchToAp
                     <Button
                       type="button"
                       variant="outline"
-                      className="w-full h-11 border-2 hover:bg-gray-50 transition-all"
+                      className={`w-full h-11 border-2 transition-all ${
+                        !process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || 
+                        process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID === 'your_google_client_id_here'
+                          ? 'opacity-50 cursor-not-allowed'
+                          : 'hover:bg-gray-50'
+                      }`}
                       onClick={handleGoogleSignIn}
+                      disabled={!process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || 
+                        process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID === 'your_google_client_id_here'}
                     >
                     <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24">
                     <path
@@ -281,7 +321,7 @@ export function SignInDialog({ open, onOpenChange, onSignInSuccess, onSwitchToAp
                     <button
                       type="button"
                       className="text-xs text-blue-600 hover:text-blue-700 hover:underline"
-                      onClick={() => toast.info("Password reset feature coming soon!")}
+                      onClick={handleForgotPassword}
                     >
                       Forgot password?
                     </button>

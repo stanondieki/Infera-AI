@@ -78,7 +78,7 @@ export function WhyChoose() {
             Why Choose Us
           </div>
           <h2 className="text-3xl lg:text-4xl font-normal text-gray-800 mb-4">
-            Why Choose <span className="bg-gradient-to-r from-blue-500 to-purple-600 bg-clip-text text-transparent font-medium">Infera AI?</span>
+            Why Choose <span className="bg-gradient-to-r from-blue-500 to-purple-600 bg-clip-text text-transparent font-medium">Taskify?</span>
           </h2>
           <p className="text-base text-gray-500 max-w-2xl mx-auto leading-relaxed">
             Join the leading platform for AI training and unlock opportunities that match your expertise and lifestyle
