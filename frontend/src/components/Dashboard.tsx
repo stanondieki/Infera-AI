@@ -20,7 +20,7 @@ import { ReportDialog } from './dashboard/ReportDialog';
 import { MilestoneDialog } from './dashboard/MilestoneDialog';
 import { CourseDialog } from './dashboard/CourseDialog';
 import { ChallengeDialog } from './dashboard/ChallengeDialog';
-import { ProjectDetailsDialog } from './dashboard/ProjectDetailsDialog';
+
 import { Progress } from './ui/progress';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Separator } from './ui/separator';
@@ -119,21 +119,7 @@ interface Application {
   status: string;
 }
 
-interface Project {
-  id: string;
-  title: string;
-  description: string;
-  category: string;
-  progress: number;
-  status: 'active' | 'paused' | 'completed';
-  hourlyRate: number;
-  tasksCompleted: number;
-  totalTasks: number;
-  deadline: string;
-  earnings: number;
-  quality: number;
-  timeSpent: string;
-}
+
 
 interface Activity {
   id: string;
@@ -194,7 +180,7 @@ export function Dashboard({ onBack }: DashboardProps) {
   const [userTasks, setUserTasks] = useState<any[]>([]);
   const [opportunities, setOpportunities] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [projects, setProjects] = useState<any[]>([]);
+
   const [activeTasks, setActiveTasks] = useState<any[]>([]);
   const [activities, setActivities] = useState<any[]>([]);
   const [skills, setSkills] = useState<any[]>([]);
@@ -203,7 +189,7 @@ export function Dashboard({ onBack }: DashboardProps) {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
-  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [animatedStats, setAnimatedStats] = useState({
     earnings: 0,
@@ -215,14 +201,7 @@ export function Dashboard({ onBack }: DashboardProps) {
   const [notificationsDialogOpen, setNotificationsDialogOpen] = useState(false);
   const [selectedTimeRange, setSelectedTimeRange] = useState('Last 6 Months');
   const [searchQuery, setSearchQuery] = useState('');
-  const [projectFilters, setProjectFilters] = useState({
-    active: true,
-    paused: false,
-    completed: true,
-    aiTraining: true,
-    dataAnnotation: true,
-    contentModeration: true,
-  });
+
   const [showReportDialog, setShowReportDialog] = useState(false);
   const [selectedMilestone, setSelectedMilestone] = useState<Milestone | null>(null);
   const [milestoneDialogOpen, setMilestoneDialogOpen] = useState(false);
@@ -230,7 +209,7 @@ export function Dashboard({ onBack }: DashboardProps) {
   const [courseDialogOpen, setCourseDialogOpen] = useState(false);
   const [selectedChallenge, setSelectedChallenge] = useState<string | null>(null);
   const [challengeDialogOpen, setChallengeDialogOpen] = useState(false);
-  const [projectDetailsOpen, setProjectDetailsOpen] = useState(false);
+
 
   // Real earnings data will be calculated from user's actual data
 
@@ -253,7 +232,7 @@ export function Dashboard({ onBack }: DashboardProps) {
 
   // Milestones - will be calculated based on user's real progress
 
-  // Projects data will be fetched from API
+
 
   // Activities will be fetched from API or generated from user actions
 
@@ -399,64 +378,7 @@ export function Dashboard({ onBack }: DashboardProps) {
     loadDashboardData();
   }, [user, accessToken]); // Re-run when user OR token changes
 
-  const loadActiveProjects = async () => {
-    try {
-      let token = localStorage.getItem('token') || accessToken;
-      
-      // Fallback to session-based token if direct token not found
-      if (!token) {
-        try {
-          const session = localStorage.getItem('taskify_session');
-          if (session) {
-            const sessionData = JSON.parse(session);
-            token = sessionData.accessToken;
-          }
-        } catch (e) {
-          console.error('Error parsing session data:', e);
-        }
-      }
 
-      if (!token) {
-        console.warn('No token available for projects');
-        return;
-      }
-
-      const response = await fetch('http://localhost:5000/api/projects/active', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        console.log('📋 Active projects data:', data);
-        
-        if (data.success && data.projects) {
-          // Transform projects to match Dashboard interface
-          const transformedProjects = data.projects.map((project: any) => ({
-            id: project.id,
-            title: project.name,
-            description: project.description,
-            category: project.category,
-            progress: project.total_tasks > 0 ? Math.round((project.completed_tasks / project.total_tasks) * 100) : 0,
-            status: 'active',
-            hourlyRate: 0, // Will be calculated from tasks
-            tasksCompleted: project.completed_tasks,
-            totalTasks: project.total_tasks,
-            deadline: project.deadline || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-            earnings: project.total_earnings || 0,
-            quality: 95, // Default quality score
-            timeSpent: '2h 30m', // Will be calculated from actual time data
-          }));
-
-          setProjects(transformedProjects);
-          console.log('✅ Set projects:', transformedProjects);
-        }
-      }
-    } catch (error) {
-      console.error('Error loading active projects:', error);
-    }
-  };
 
   const generateActivities = (tasksData: any[]) => {
     try {
@@ -552,13 +474,13 @@ export function Dashboard({ onBack }: DashboardProps) {
           completed: totalEarnings >= 1000
         },
         {
-          id: 'projects-milestone',
-          title: 'Project Expert',
-          description: 'Work on 3 different projects',
-          progress: Math.min(projects.length, 3),
+          id: 'variety-milestone',
+          title: 'Task Variety Expert',
+          description: 'Complete tasks in 3 different categories',
+          progress: 2, // Approximate based on task variety
           target: 3,
           reward: 'Expert Status',
-          completed: projects.length >= 3
+          completed: false
         },
         {
           id: 'quality-milestone',
@@ -657,8 +579,7 @@ export function Dashboard({ onBack }: DashboardProps) {
       
       console.log('📊 Updated stats with task counts:', updatedStats);
       
-      // Fetch active projects from the new endpoint
-      await loadActiveProjects();
+
       
       // Generate activities from user tasks
       generateActivities(tasksData);
@@ -970,10 +891,7 @@ export function Dashboard({ onBack }: DashboardProps) {
                 <PlayCircle className="h-3 w-3 sm:h-4 sm:w-4" />
                 <span className="hidden sm:inline">Active Work</span>
               </TabsTrigger>
-              <TabsTrigger value="projects" className="gap-1 sm:gap-2 text-xs sm:text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-purple-600 data-[state=active]:text-white">
-                <Briefcase className="h-3 w-3 sm:h-4 sm:w-4" />
-                <span className="hidden sm:inline">Projects</span>
-              </TabsTrigger>
+
               <TabsTrigger value="performance" className="gap-1 sm:gap-2 text-xs sm:text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-purple-600 data-[state=active]:text-white">
                 <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4" />
                 <span className="hidden sm:inline">Performance</span>
@@ -986,14 +904,8 @@ export function Dashboard({ onBack }: DashboardProps) {
                 <Trophy className="h-3 w-3 sm:h-4 sm:w-4" />
                 <span className="hidden sm:inline">Leaderboard</span>
               </TabsTrigger>
-              <TabsTrigger value="tasks" className="gap-1 sm:gap-2 text-xs sm:text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-purple-600 data-[state=active]:text-white">
-                <Briefcase className="h-3 w-3 sm:h-4 sm:w-4" />
-                <span className="hidden sm:inline">My Tasks</span>
-              </TabsTrigger>
-              <TabsTrigger value="ai-tasks" className="gap-1 sm:gap-2 text-xs sm:text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-600 data-[state=active]:to-blue-600 data-[state=active]:text-white">
-                <Brain className="h-3 w-3 sm:h-4 sm:w-4" />
-                <span className="hidden sm:inline">AI Training</span>
-              </TabsTrigger>
+
+
               <TabsTrigger value="issues" className="gap-1 sm:gap-2 text-xs sm:text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-purple-600 data-[state=active]:text-white relative">
                 <AlertCircle className="h-3 w-3 sm:h-4 sm:w-4" />
                 <span className="hidden sm:inline">Issues</span>
@@ -1003,10 +915,7 @@ export function Dashboard({ onBack }: DashboardProps) {
                   </Badge>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="security" className="gap-1 sm:gap-2 text-xs sm:text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-purple-600 data-[state=active]:text-white">
-                <Shield className="h-3 w-3 sm:h-4 sm:w-4" />
-                <span className="hidden sm:inline">Security</span>
-              </TabsTrigger>
+
               <TabsTrigger value="settings" className="gap-1 sm:gap-2 text-xs sm:text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-purple-600 data-[state=active]:text-white">
                 <Settings className="h-3 w-3 sm:h-4 sm:w-4" />
                 <span className="hidden sm:inline">
@@ -1606,8 +1515,8 @@ export function Dashboard({ onBack }: DashboardProps) {
             </div>
           </TabsContent>
 
-          {/* Projects Tab */}
-          <TabsContent value="projects" className="space-y-4 sm:space-y-6">
+          {/* Performance Tab */}
+          <TabsContent value="performance" className="space-y-4 sm:space-y-6">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div>
                 <h2 className="text-xl sm:text-2xl text-gray-900">My Projects</h2>
@@ -1663,119 +1572,7 @@ export function Dashboard({ onBack }: DashboardProps) {
               </div>
             </div>
 
-            <div className="grid gap-3 sm:gap-6">
-              {projects.map((project, index) => (
-                <motion.div
-                  key={project.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, delay: index * 0.1 }}
-                  whileHover={{ y: -5 }}
-                >
-                  <Card className="hover:shadow-2xl transition-all bg-white/80 backdrop-blur-xl border-gray-200/50">
-                    <CardContent className="p-4 sm:p-6">
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="flex-grow">
-                          <div className="flex items-center gap-2 sm:gap-3 mb-2 flex-wrap">
-                            {getProjectStatusIcon(project.status)}
-                            <h3 className="text-base sm:text-xl text-gray-900">{project.title}</h3>
-                            <Badge className={`${getStatusColor(project.status)} border text-xs`}>
-                              {project.status.charAt(0).toUpperCase() + project.status.slice(1)}
-                            </Badge>
-                          </div>
-                          <p className="text-sm sm:text-base text-gray-600 mb-4">{project.description}</p>
-                          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
-                            <div className="flex items-center gap-2 text-sm">
-                              <div className="h-10 w-10 rounded-lg bg-green-100 flex items-center justify-center">
-                                <DollarSign className="h-5 w-5 text-green-600" />
-                              </div>
-                              <div>
-                                <p className="text-xs text-gray-500">Rate</p>
-                                <p className="text-gray-900">${project.hourlyRate}/hr</p>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2 text-sm">
-                              <div className="h-10 w-10 rounded-lg bg-blue-100 flex items-center justify-center">
-                                <CalendarIcon className="h-5 w-5 text-blue-600" />
-                              </div>
-                              <div>
-                                <p className="text-xs text-gray-500">Deadline</p>
-                                <p className="text-gray-900">{formatDate(project.deadline).split(',')[0]}</p>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2 text-sm">
-                              <div className="h-10 w-10 rounded-lg bg-purple-100 flex items-center justify-center">
-                                <CheckCircle2 className="h-5 w-5 text-purple-600" />
-                              </div>
-                              <div>
-                                <p className="text-xs text-gray-500">Tasks</p>
-                                <p className="text-gray-900">{project.tasksCompleted}/{project.totalTasks}</p>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2 text-sm">
-                              <div className="h-10 w-10 rounded-lg bg-yellow-100 flex items-center justify-center">
-                                <Star className="h-5 w-5 text-yellow-600 fill-yellow-600" />
-                              </div>
-                              <div>
-                                <p className="text-xs text-gray-500">Quality</p>
-                                <p className="text-gray-900">{project.quality}%</p>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="outline" size="icon">
-                              <MoreVertical className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem className="gap-2">
-                              <Eye className="h-4 w-4" />
-                              View Details
-                            </DropdownMenuItem>
-                            <DropdownMenuItem className="gap-2">
-                              <Download className="h-4 w-4" />
-                              Download Report
-                            </DropdownMenuItem>
-                            {project.status === 'active' && (
-                              <DropdownMenuItem className="gap-2">
-                                <PauseCircle className="h-4 w-4" />
-                                Pause Project
-                              </DropdownMenuItem>
-                            )}
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem className="gap-2 text-red-600">
-                              <AlertCircle className="h-4 w-4" />
-                              Report Issue
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-gray-600">Overall Progress</span>
-                          <span className="text-gray-900 flex items-center gap-2">
-                            {project.progress}%
-                            <Badge className="bg-green-100 text-green-800 text-xs">
-                              ${project.earnings.toLocaleString()}
-                            </Badge>
-                          </span>
-                        </div>
-                        <div className="relative h-3 bg-gray-100 rounded-full overflow-hidden">
-                          <motion.div
-                            className="absolute top-0 left-0 h-full bg-gradient-to-r from-blue-600 to-purple-600 rounded-full"
-                            initial={{ width: 0 }}
-                            animate={{ width: `${project.progress}%` }}
-                            transition={{ duration: 1, delay: index * 0.2 }}
-                          />
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              ))}
-            </div>
+
           </TabsContent>
 
           {/* Performance Tab */}
@@ -2357,183 +2154,23 @@ export function Dashboard({ onBack }: DashboardProps) {
             </div>
           </TabsContent>
 
-          {/* Projects Tab */}
-          <TabsContent value="projects" className="space-y-6">
-            <div>
-              <h2 className="text-2xl text-gray-900 mb-2">My Projects</h2>
-              <p className="text-gray-600 mb-6">View and manage your active and completed projects</p>
-            </div>
 
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {projects.map((project, index) => (
-                <motion.div
-                  key={project.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.1 }}
-                  whileHover={{ y: -5 }}
-                  className="cursor-pointer"
-                  onClick={() => {
-                    setSelectedProject(project);
-                    setProjectDetailsOpen(true);
-                  }}
-                >
-                  <Card className="h-full hover:shadow-xl transition-all border-l-4 border-l-blue-500">
-                    <CardHeader>
-                      <div className="flex items-start justify-between mb-2">
-                        <CardTitle className="text-lg">{project.title}</CardTitle>
-                        <Badge className={
-                          project.status === 'active' ? 'bg-green-100 text-green-800 border-green-300' :
-                          project.status === 'completed' ? 'bg-blue-100 text-blue-800 border-blue-300' :
-                          'bg-yellow-100 text-yellow-800 border-yellow-300'
-                        }>
-                          {project.status}
-                        </Badge>
-                      </div>
-                      <CardDescription className="line-clamp-2">
-                        {project.description}
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-4">
-                        {/* Progress */}
-                        <div>
-                          <div className="flex justify-between mb-2">
-                            <span className="text-sm text-gray-600">Progress</span>
-                            <span className="text-sm text-gray-900">{project.progress}%</span>
-                          </div>
-                          <Progress value={project.progress} />
-                        </div>
-
-                        {/* Stats */}
-                        <div className="grid grid-cols-2 gap-3 text-sm">
-                          <div>
-                            <p className="text-gray-600">Tasks</p>
-                            <p className="text-gray-900">{project.tasksCompleted}/{project.totalTasks}</p>
-                          </div>
-                          <div>
-                            <p className="text-gray-600">Quality</p>
-                            <p className="text-green-600">{project.quality}%</p>
-                          </div>
-                          <div>
-                            <p className="text-gray-600">Earnings</p>
-                            <p className="text-green-600">${project.earnings.toFixed(0)}</p>
-                          </div>
-                          <div>
-                            <p className="text-gray-600">Time</p>
-                            <p className="text-gray-900">{project.timeSpent}</p>
-                          </div>
-                        </div>
-
-                        {/* Action Buttons */}
-                        <div className="flex gap-2 pt-2">
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            className="flex-1 gap-2"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedProject(project);
-                              setProjectDetailsOpen(true);
-                            }}
-                          >
-                            <Eye className="h-4 w-4" />
-                            View Details
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              ))}
-            </div>
-
-            {/* Quick Actions Card */}
-            <Card className="bg-gradient-to-br from-blue-50 to-purple-50 border-blue-200">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Sparkles className="h-5 w-5 text-blue-600" />
-                  Quick Actions
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="grid md:grid-cols-3 gap-4">
-                <Button
-                  variant="outline"
-                  className="justify-start gap-2"
-                  onClick={() => setActiveTab('tasks')}
-                >
-                  <Briefcase className="h-4 w-4" />
-                  View All Tasks
-                </Button>
-                <Button
-                  variant="outline"
-                  className="justify-start gap-2"
-                  onClick={() => setActiveTab('settings')}
-                >
-                  <DollarSign className="h-4 w-4" />
-                  Payment Settings
-                </Button>
-                <Button
-                  variant="outline"
-                  className="justify-start gap-2"
-                  onClick={() => setNotificationsDialogOpen(true)}
-                >
-                  <Bell className="h-4 w-4" />
-                  Notifications
-                </Button>
-              </CardContent>
-            </Card>
-          </TabsContent>
 
           {/* Active Projects Tab */}
           <TabsContent value="active-projects" className="space-y-6">
             <ActiveProjects tasks={userTasks} onRefresh={loadDashboardData} />
           </TabsContent>
 
-          {/* My Tasks Tab */}
-          <TabsContent value="tasks" className="space-y-6">
-            <MyTasks />
-          </TabsContent>
 
-          {/* AI Training Tasks Tab */}
-          <TabsContent value="ai-tasks" className="space-y-6">
-            <OutlierTaskWorkspace 
-              tasks={userTasks.map(task => ({
-                ...task,
-                type: task.category as any,
-                category: 'computer_vision' as any,
-                requiredSkills: ['machine_learning', 'data_analysis'],
-                difficultyLevel: 'intermediate' as any,
-                taskData: {
-                  inputs: [],
-                  examples: [],
-                  guidelines: task.description || '',
-                  qualityMetrics: ['Accuracy', 'Completeness', 'Timeliness']
-                },
-                annotationGuidelines: task.description || '',
-                qualityStandards: ['High quality work', 'Follow guidelines', 'Meet deadlines'],
-                timeSpent: task.time_spent || 0,
-                estimatedTime: task.estimated_time || 60,
-                payment: task.payment || 0,
-                qualityScore: task.progress,
-                accuracyRate: undefined
-              }))}
-              onTaskUpdate={(taskId, updates) => {
-                console.log('Task update:', taskId, updates);
-                // Handle task updates here
-              }}
-            />
-          </TabsContent>
+
+
 
           {/* My Issues Tab */}
           <TabsContent value="issues" className="space-y-6">
             <MyIssues />
           </TabsContent>
 
-          {/* Security & Sessions Tab */}
-          <TabsContent value="security" className="space-y-6">
-            <SecuritySessions />
-          </TabsContent>
+
 
           {/* Settings Tab */}
           <TabsContent value="settings" className="space-y-6">
@@ -2554,11 +2191,7 @@ export function Dashboard({ onBack }: DashboardProps) {
       <ViewProfileDialog open={viewProfileOpen} onOpenChange={setViewProfileOpen} />
       <InviteFriendsDialog open={inviteFriendsOpen} onOpenChange={setInviteFriendsOpen} />
       <NotificationsDialog open={notificationsDialogOpen} onOpenChange={setNotificationsDialogOpen} />
-      <ProjectDetailsDialog 
-        open={projectDetailsOpen} 
-        onOpenChange={setProjectDetailsOpen} 
-        project={selectedProject}
-      />
+
     </div>
   );
 }
