@@ -129,15 +129,15 @@ export function CreateTaskDialog({ open, onClose, onTaskCreated, users }: Create
     try {
       setLoading(true);
       
-      // Get token from infera_session
-      const inferaSession = localStorage.getItem('infera_session');
+      // Get token from taskify_session
+      const taskifySession = localStorage.getItem('taskify_session');
       let token = null;
-      if (inferaSession) {
+      if (taskifySession) {
         try {
-          const session = JSON.parse(inferaSession);
+          const session = JSON.parse(taskifySession);
           token = session.accessToken;
         } catch (e) {
-          console.error('Error parsing infera_session:', e);
+          console.error('Error parsing taskify_session:', e);
         }
       }
       
@@ -157,12 +157,6 @@ export function CreateTaskDialog({ open, onClose, onTaskCreated, users }: Create
       };
 
       // Detailed logging for debugging
-      console.log('🚀 Creating task with payload:', {
-        ...payload,
-        instructions: payload.instructions || 'EMPTY',
-        instructionsLength: payload.instructions ? payload.instructions.length : 0
-      });
-
       // Validate required fields before sending
       if (!payload.instructions || payload.instructions.trim() === '') {
         alert('❌ Instructions field is required but empty. Please fill in the task instructions.');
@@ -185,7 +179,7 @@ export function CreateTaskDialog({ open, onClose, onTaskCreated, users }: Create
         alert('✅ Task created successfully!');
       } else {
         const errorText = await response.text();
-        console.error('Task creation failed:', response.status, errorText);
+        console.error('❌ Task creation failed:', response.status, errorText);
         alert(`❌ Failed to create task: ${response.status} - ${response.statusText}`);
       }
     } catch (error) {

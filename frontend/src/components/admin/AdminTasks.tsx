@@ -149,20 +149,38 @@ export function AdminTasks({ onBack, accessToken }: AdminTasksProps) {
   };
 
   const createTask = async () => {
+    console.log('🚀 CREATE TASK CALLED');
+    console.log('📋 Form data:', createTaskForm);
+    console.log('🔐 Final token being used:', finalToken ? 'Present' : 'Missing');
+    console.log('🌐 API URL being used:', getApiUrl());
+    console.log('📡 Full endpoint URL:', `${getApiUrl()}/tasks/create`);
+    console.log('🔑 Token length:', finalToken ? finalToken.length : 0);
+    console.log('🔑 Token preview:', finalToken ? `${finalToken.substring(0, 20)}...` : 'None');
+    
     // Validate required fields
     if (!createTaskForm.title.trim()) {
+      console.log('❌ Title validation failed');
       alert('Task title is required');
       return;
     }
     if (!createTaskForm.description.trim()) {
+      console.log('❌ Description validation failed');
       alert('Task description is required');
+      return;
+    }
+    if (!createTaskForm.type.trim()) {
+      console.log('❌ Type validation failed');
+      alert('Task type is required');
       return;
     }
     // User assignment is now optional - tasks can be created as drafts
     if (createTaskForm.category === 'DATA_ANNOTATION' && !createTaskForm.imageUrl.trim() && !createTaskForm.datasetUrl.trim()) {
+      console.log('❌ Data annotation URL validation failed');
       alert('Image URL or Dataset URL is required for data annotation tasks');
       return;
     }
+    
+    console.log('✅ All validations passed, proceeding with API call');
     try {
       const finalAssignedTo = createTaskForm.assignedTo && createTaskForm.assignedTo.trim() !== '' ? createTaskForm.assignedTo : null;
       console.log('🔑 Creating task with assignedTo:', finalAssignedTo);
@@ -175,7 +193,9 @@ export function AdminTasks({ onBack, accessToken }: AdminTasksProps) {
         assignedTo: finalAssignedTo
       };
       
-
+      console.log('📦 Request body:', JSON.stringify(requestBody, null, 2));
+      console.log('🚀 Making fetch request to:', `${getApiUrl()}/tasks/create`);
+      console.log('🔐 Authorization header:', `Bearer ${finalToken ? finalToken.substring(0, 20) + '...' : 'MISSING'}`);
       
       const response = await fetch(`${getApiUrl()}/tasks/create`, {
         method: 'POST',
