@@ -142,7 +142,7 @@ export function NotificationsDialog({ open, onOpenChange }: NotificationsDialogP
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[80vh]">
+      <DialogContent className="max-w-2xl max-h-[90vh]">
         <DialogHeader>
           <div className="flex items-center justify-between">
             <div>
@@ -176,8 +176,8 @@ export function NotificationsDialog({ open, onOpenChange }: NotificationsDialogP
           </TabsList>
 
           <TabsContent value="all" className="mt-4">
-            <ScrollArea className="h-[500px] pr-4">
-              <div className="space-y-2">
+            <ScrollArea className="h-[400px] w-full">
+              <div className="space-y-3 pr-4 pb-4">
                 {notifications.map((notification, index) => (
                   <motion.div
                     key={notification.id}
@@ -223,8 +223,8 @@ export function NotificationsDialog({ open, onOpenChange }: NotificationsDialogP
           </TabsContent>
 
           <TabsContent value="unread" className="mt-4">
-            <ScrollArea className="h-[500px] pr-4">
-              <div className="space-y-2">
+            <ScrollArea className="h-[400px] w-full">
+              <div className="space-y-3 pr-4 pb-4">
                 {unreadNotifications.length > 0 ? (
                   unreadNotifications.map((notification, index) => (
                     <motion.div
@@ -273,8 +273,8 @@ export function NotificationsDialog({ open, onOpenChange }: NotificationsDialogP
           </TabsContent>
 
           <TabsContent value="read" className="mt-4">
-            <ScrollArea className="h-[500px] pr-4">
-              <div className="space-y-2">
+            <ScrollArea className="h-[400px] w-full">
+              <div className="space-y-3 pr-4 pb-4">
                 {readNotifications.map((notification, index) => (
                   <motion.div
                     key={notification.id}

@@ -443,53 +443,12 @@ export function ActiveProjects({ tasks: assignedTasks = [], onRefresh }: ActiveP
 
   return (
     <div className="space-y-6">
-      {/* Real Tasks Info */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="font-semibold text-blue-900">
-              Real Database Tasks: {realTasks.length} assigned
-            </h3>
-            <p className="text-blue-700 text-sm">
-              {loadingTasks ? 'Loading...' : `Tasks created by admin and assigned to you`}
-            </p>
-          </div>
-          <button
-            onClick={() => {
-              console.log('🔄 Refreshing tasks from database...');
-              fetchUserTasks();
-              toast.info('Refreshing tasks...');
-            }}
-            className="px-3 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
-          >
-            🔄 Refresh
-          </button>
-        </div>
-        {realTasks.length > 0 && (
-          <div className="mt-3 space-y-2">
-            {realTasks.slice(0, 3).map(task => (
-              <div key={task.id} className="text-sm text-blue-800">
-                • {task.title} - ${task.payment} ({task.status})
-              </div>
-            ))}
-            {realTasks.length > 3 && (
-              <div className="text-sm text-blue-600">
-                ... and {realTasks.length - 3} more tasks
-              </div>
-            )}
-          </div>
-        )}
-      </div>
 
-      {/* Header with switch to new system option */}
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-gray-900">Database Tasks</h2>
-        <button
-          onClick={() => setShowNewTaskSystem(true)}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
-        >
-          Switch to New Task System →
-        </button>
+
+      {/* Header */}
+      <div>
+        <h2 className="text-xl font-semibold text-gray-900">Active Projects</h2>
+        <p className="text-gray-600 mt-1">Your ongoing projects and their progress</p>
       </div>
 
       

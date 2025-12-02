@@ -75,6 +75,16 @@ export function SignInDialog({ open, onOpenChange, onSignInSuccess, onSwitchToAp
         onOpenChange(false);
         if (onSignInSuccess) onSignInSuccess();
       } catch (error: any) {
+        // Handle verification requirement for new accounts
+        if (error.needsVerification) {
+          toast.success("Account created successfully!", {
+            description: "Please check your email to verify your account before signing in.",
+            duration: 8000
+          });
+          setIsRegistering(false); // Switch back to sign-in mode
+          return;
+        }
+        
         toast.error(error.message || "Failed to create account");
       } finally {
         setLoading(false);
@@ -110,6 +120,19 @@ export function SignInDialog({ open, onOpenChange, onSignInSuccess, onSwitchToAp
         setTimeout(() => onSignInSuccess(userData), 500);
       }
     } catch (error: any) {
+      // Handle verification-specific errors
+      if (error.needsVerification) {
+        toast.error("Email verification required", {
+          description: "Please check your email and verify your account before signing in.",
+          action: {
+            label: "Resend Email",
+            onClick: () => window.open('/auth/resend-verification', '_blank')
+          },
+          duration: 8000
+        });
+        return;
+      }
+      
       const errorMsg = error.message || "Sign in failed. Please check your credentials.";
       
       // Dispatch event so AuthHealthBanner can respond

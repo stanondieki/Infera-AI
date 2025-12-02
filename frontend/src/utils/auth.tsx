@@ -9,6 +9,8 @@ interface User {
   name: string;
   role: 'user' | 'admin';
   isActive?: boolean;
+  isVerified?: boolean;
+  approvalStatus?: 'pending' | 'approved' | 'rejected';
   avatar?: string;
   createdAt?: string;
   
@@ -36,6 +38,7 @@ interface AuthContextType {
   forgotPassword: (email: string) => Promise<void>;
   resetPassword: (token: string, newPassword: string) => Promise<void>;
   signOut: () => void;
+  logout: () => void;
   isLoading: boolean;
   isAuthenticated: boolean;
 }
@@ -134,8 +137,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       console.log('[AUTH] Login response:', response);
 
+      // Handle email verification requirement
+      if (!response.success && response.needsVerification) {
+        const error = new Error(response.message || 'Please verify your email before signing in') as any;
+        error.needsVerification = true;
+        error.email = response.email;
+        throw error;
+      }
+
       if (!response.success || !response.user || !response.accessToken) {
-        throw new Error('Invalid response from server');
+        throw new Error(response.message || 'Invalid response from server');
       }
 
       const userData: User = {
@@ -144,6 +155,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         name: response.user.name,
         role: response.user.role || 'user',
         isActive: response.user.isActive,
+        isVerified: response.user.isVerified,
+        approvalStatus: response.user.approvalStatus,
         avatar: response.user.avatar,
         createdAt: response.user.createdAt,
       };
@@ -151,12 +164,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(userData);
       setAccessToken(response.accessToken);
       
+      // Store additional flags
+      if (response.needsApproval) {
+        (userData as any).needsApproval = true;
+      }
+      
       console.log('[AUTH] Sign in successful:', userData.email);
       return userData;
 
     } catch (error: any) {
       console.error('[AUTH] Sign in failed:', error);
-      throw new Error(error.message || 'Sign in failed. Please check your credentials.');
+      throw error;
     }
   };
 
@@ -172,8 +190,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       console.log('[AUTH] Registration response:', response);
 
-      if (!response.success || !response.user || !response.accessToken) {
-        throw new Error('Invalid response from server');
+      if (!response.success || !response.user) {
+        throw new Error(response.message || 'Registration failed');
       }
 
       const userData: User = {
@@ -182,9 +200,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         name: response.user.name,
         role: response.user.role || 'user',
         isActive: response.user.isActive,
+        isVerified: response.user.isVerified,
+        approvalStatus: response.user.approvalStatus,
         avatar: response.user.avatar,
         createdAt: response.user.createdAt,
       };
+
+      // Don't set user/token for unverified accounts
+      if (response.needsVerification) {
+        const error = new Error(response.message || 'Please check your email to verify your account') as any;
+        error.needsVerification = true;
+        error.userData = userData;
+        throw error;
+      }
 
       setUser(userData);
       setAccessToken(response.accessToken);
@@ -369,6 +397,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         forgotPassword,
         resetPassword,
         signOut,
+        logout: signOut, // Add logout as alias to signOut
         isLoading,
         isAuthenticated,
       }}

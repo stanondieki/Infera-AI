@@ -1,5 +1,6 @@
 import express, { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 import { User, IUser } from '../models';
 import { validateUserRegistration, validateUserLogin } from '../middleware/validation';
 import { authLimiter } from '../middleware/rateLimiter';
@@ -157,6 +158,25 @@ const generateToken = (userId: string, sessionId?: string): string => {
   );
 };
 
+// Generate verification token
+const generateVerificationToken = (): string => {
+  return crypto.randomBytes(32).toString('hex');
+};
+
+// Send verification email
+const sendVerificationEmail = async (email: string, name: string, token: string): Promise<void> => {
+  // For now, just log the verification link
+  // TODO: Implement actual email sending using existing email service
+  const verificationLink = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth/verify-email?token=${token}`;
+  console.log(`📧 Verification email for ${email}:`);
+  console.log(`Name: ${name}`);
+  console.log(`Verification Link: ${verificationLink}`);
+  
+  // You can implement actual email sending here using the existing emailService
+  // const emailService = new EmailService();
+  // await emailService.sendVerificationEmail(email, name, verificationLink);
+};
+
 // Register new user or update existing user for application flow
 router.post('/register', authLimiter, validateUserRegistration, async (req: Request, res: Response) => {
   try {
@@ -199,19 +219,27 @@ router.post('/register', authLimiter, validateUserRegistration, async (req: Requ
       });
     }
 
-    // Create new user
+    // Create new user with verification token
+    const verificationToken = generateVerificationToken();
     const user = new User({
       name,
       email,
       password,
       role,
-      isVerified: false
+      isVerified: false,
+      verificationToken,
+      approvalStatus: 'pending'
     });
 
     await user.save();
 
-    // Generate token
-    const token = generateToken(user._id.toString());
+    // Send verification email
+    try {
+      await sendVerificationEmail(user.email, user.name, verificationToken);
+    } catch (emailError) {
+      console.error('Failed to send verification email:', emailError);
+      // Continue with registration even if email fails
+    }
 
     // Remove password from response
     const userResponse = {
@@ -221,14 +249,15 @@ router.post('/register', authLimiter, validateUserRegistration, async (req: Requ
       role: user.role,
       avatar: user.avatar,
       isVerified: user.isVerified,
+      approvalStatus: user.approvalStatus,
       joinedDate: user.joinedDate
     };
 
     res.status(201).json({ 
       success: true, 
-      message: 'User registered successfully',
+      message: 'Registration successful! Please check your email to verify your account.',
       user: userResponse,
-      accessToken: token
+      needsVerification: true
     });
   } catch (error) {
     console.error('Registration error:', error);
@@ -270,6 +299,24 @@ router.post('/login', authLimiter, validateUserLogin, async (req: Request, res: 
       });
     }
 
+    // Check if email is verified
+    if (!user.isVerified) {
+      return res.status(401).json({
+        success: false,
+        message: 'Please verify your email before signing in',
+        needsVerification: true,
+        email: user.email
+      });
+    }
+
+    // Check approval status
+    if (user.approvalStatus === 'rejected') {
+      return res.status(401).json({
+        success: false,
+        message: 'Your application has been rejected. Please contact support for more information.'
+      });
+    }
+
     // Update last login date
     user.lastLoginDate = new Date();
     await user.save();
@@ -298,9 +345,21 @@ router.post('/login', authLimiter, validateUserLogin, async (req: Request, res: 
       rating: user.rating,
       reviewCount: user.reviewCount,
       isVerified: user.isVerified,
+      approvalStatus: user.approvalStatus,
       joinedDate: user.joinedDate,
       lastLoginDate: user.lastLoginDate
     };
+
+    // Check if user needs approval
+    if (user.approvalStatus === 'pending') {
+      return res.json({
+        success: true,
+        message: 'Login successful',
+        user: userResponse,
+        accessToken: token,
+        needsApproval: true
+      });
+    }
 
     res.json({ 
       success: true, 
@@ -675,6 +734,108 @@ router.post('/logout', authenticateToken, async (req: AuthRequest, res: Response
     res.status(500).json({ 
       success: false, 
       message: 'Server error during logout' 
+    });
+  }
+});
+
+// Email verification route
+router.get('/verify-email', async (req: Request, res: Response) => {
+  try {
+    const { token } = req.query;
+
+    if (!token) {
+      return res.status(400).json({
+        success: false,
+        message: 'Verification token is required'
+      });
+    }
+
+    // Find user with verification token
+    const user = await User.findOne({ verificationToken: token as string });
+
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid or expired verification token'
+      });
+    }
+
+    if (user.isVerified) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email is already verified'
+      });
+    }
+
+    // Verify the user
+    user.isVerified = true;
+    user.verificationToken = undefined;
+    await user.save();
+
+    res.json({
+      success: true,
+      message: 'Email verified successfully! Your account is now pending admin approval.'
+    });
+
+  } catch (error) {
+    console.error('Email verification error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error during email verification'
+    });
+  }
+});
+
+// Resend verification email
+router.post('/resend-verification', async (req: Request, res: Response) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email is required'
+      });
+    }
+
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    if (user.isVerified) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email is already verified'
+      });
+    }
+
+    // Generate new verification token
+    const verificationToken = generateVerificationToken();
+    user.verificationToken = verificationToken;
+    await user.save();
+
+    // Send verification email
+    try {
+      await sendVerificationEmail(user.email, user.name, verificationToken);
+    } catch (emailError) {
+      console.error('Failed to send verification email:', emailError);
+    }
+
+    res.json({
+      success: true,
+      message: 'Verification email sent successfully'
+    });
+
+  } catch (error) {
+    console.error('Resend verification error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while resending verification email'
     });
   }
 });

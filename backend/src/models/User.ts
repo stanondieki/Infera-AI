@@ -35,6 +35,7 @@ export interface IUser extends Document {
   // Account status
   isActive: boolean;
   isVerified: boolean;
+  approvalStatus: 'pending' | 'approved' | 'rejected';
   verificationToken?: string;
   resetPasswordToken?: string;
   resetPasswordExpires?: Date;
@@ -159,6 +160,11 @@ const UserSchema = new Schema<IUser>({
   isVerified: {
     type: Boolean,
     default: false
+  },
+  approvalStatus: {
+    type: String,
+    enum: ['pending', 'approved', 'rejected'],
+    default: 'pending'
   },
   verificationToken: String,
   resetPasswordToken: String,

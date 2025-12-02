@@ -784,37 +784,37 @@ export function Dashboard({ onBack }: DashboardProps) {
                     ></motion.span>
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-80 p-0" align="end">
-                  <div className="p-4 border-b">
-                    <h4 className="text-sm">Notifications</h4>
-                    <p className="text-xs text-gray-500 mt-1">You have 3 unread notifications</p>
+                <PopoverContent className="w-80 p-0 bg-white/95 backdrop-blur-xl border border-gray-200 shadow-xl" align="end">
+                  <div className="p-4 border-b border-gray-100 bg-white/90">
+                    <h4 className="text-sm font-semibold text-gray-900">Notifications</h4>
+                    <p className="text-xs text-gray-600 mt-1">You have 3 unread notifications</p>
                   </div>
                   <ScrollArea className="h-80">
                     <div className="p-2 space-y-2">
                       {activities.slice(0, 5).map((activity) => (
                         <motion.div
                           key={activity.id}
-                          whileHover={{ backgroundColor: 'rgba(59, 130, 246, 0.05)' }}
-                          className="p-3 rounded-lg cursor-pointer transition-colors"
+                          whileHover={{ backgroundColor: 'rgba(59, 130, 246, 0.1)' }}
+                          className="p-3 rounded-lg cursor-pointer transition-colors bg-white/80 backdrop-blur-sm border border-gray-100 hover:border-blue-200 shadow-sm"
                         >
                           <div className="flex gap-3">
                             <div className="flex-shrink-0 mt-1">
                               {getActivityIcon(activity.icon)}
                             </div>
                             <div className="flex-grow">
-                              <p className="text-xs text-gray-900">{activity.title}</p>
-                              <p className="text-xs text-gray-500 mt-0.5">{activity.description}</p>
-                              <p className="text-xs text-gray-400 mt-1">{formatTime(activity.timestamp)}</p>
+                              <p className="text-xs font-medium text-gray-900">{activity.title}</p>
+                              <p className="text-xs text-gray-600 mt-0.5">{activity.description}</p>
+                              <p className="text-xs text-gray-500 mt-1">{formatTime(activity.timestamp)}</p>
                             </div>
                           </div>
                         </motion.div>
                       ))}
                     </div>
                   </ScrollArea>
-                  <div className="p-2 border-t">
+                  <div className="p-2 border-t border-gray-100 bg-white/90">
                     <Button 
                       variant="ghost" 
-                      className="w-full text-xs" 
+                      className="w-full text-xs hover:bg-blue-50" 
                       size="sm"
                       onClick={() => {
                         setNotificationsOpen(false);
