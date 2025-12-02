@@ -68,6 +68,8 @@ import {
   Info,
   Sparkle,
   RefreshCw,
+  Upload,
+  FileCheck,
 } from "lucide-react";
 import { Progress } from "./ui/progress";
 import { Badge } from "./ui/badge";
@@ -230,6 +232,12 @@ export function ApplyDialog({ open, onOpenChange, onSwitchToSignIn }: ApplyDialo
   const [startTime] = useState(Date.now());
   const [locationDetected, setLocationDetected] = useState(false);
   const [skillDemand, setSkillDemand] = useState<{ [skill: string]: number }>({});
+  
+  // Resume upload state
+  const [resumeFile, setResumeFile] = useState<File | null>(null);
+  const [resumePreview, setResumePreview] = useState<string>("");
+  const [isResumeUploading, setIsResumeUploading] = useState(false);
+  const [resumeUploadStatus, setResumeUploadStatus] = useState<'none' | 'uploading' | 'success' | 'error'>('none');
   
   // Refs
   const formRef = useRef<HTMLFormElement>(null);
@@ -714,6 +722,7 @@ export function ApplyDialog({ open, onOpenChange, onSwitchToSignIn }: ApplyDialo
         }
         if (!formData.earningGoals) errors.push("Earning goals is required");
         if (!formData.communicationStyle) errors.push("Communication style is required");
+        if (!resumeFile && !formData.resume) errors.push("Resume upload is required");
         if (!formData.agreeToTerms) errors.push("You must agree to the terms and conditions");
         if (!formData.agreeToDataProcessing) errors.push("You must agree to data processing");
         break;
@@ -915,6 +924,66 @@ export function ApplyDialog({ open, onOpenChange, onSwitchToSignIn }: ApplyDialo
 
   const handleGoogleSignUp = () => {
     toast.info("🚀 Google Sign-Up will be available soon! Stay tuned.", { duration: 3000 });
+  };
+
+  const handleResumeUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error("Please upload a PDF or Word document");
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("File size must be less than 5MB");
+      return;
+    }
+
+    setResumeFile(file);
+    setResumeUploadStatus('uploading');
+    setIsResumeUploading(true);
+
+    try {
+      // Create preview URL for PDFs
+      if (file.type === 'application/pdf') {
+        const url = URL.createObjectURL(file);
+        setResumePreview(url);
+      }
+
+      // Simulate upload process
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Update form data with file name
+      setFormData(prev => ({
+        ...prev,
+        resume: file.name
+      }));
+
+      setResumeUploadStatus('success');
+      toast.success("Resume uploaded successfully! ✅");
+    } catch (error) {
+      setResumeUploadStatus('error');
+      toast.error("Failed to upload resume. Please try again.");
+    } finally {
+      setIsResumeUploading(false);
+    }
+  };
+
+  const removeResume = () => {
+    setResumeFile(null);
+    setResumePreview("");
+    setResumeUploadStatus('none');
+    setFormData(prev => ({
+      ...prev,
+      resume: ""
+    }));
+    if (resumePreview) {
+      URL.revokeObjectURL(resumePreview);
+    }
   };
 
   return (
@@ -1995,6 +2064,84 @@ export function ApplyDialog({ open, onOpenChange, onSwitchToSignIn }: ApplyDialo
                               className="pl-12 h-10 border-2 focus:border-pink-500 transition-colors bg-white"
                             />
                           </div>
+                        </div>
+
+                        {/* Resume Upload Section */}
+                        <div className="space-y-3">
+                          <Label className="text-sm font-semibold text-gray-700">Resume/CV *</Label>
+                          
+                          {!resumeFile ? (
+                            <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-pink-400 transition-colors bg-gray-50">
+                              <input
+                                type="file"
+                                accept=".pdf,.doc,.docx"
+                                onChange={handleResumeUpload}
+                                className="hidden"
+                                id="resume-upload"
+                              />
+                              <label htmlFor="resume-upload" className="cursor-pointer">
+                                <Upload className="mx-auto h-8 w-8 text-gray-400 mb-2" />
+                                <p className="text-sm font-medium text-gray-700 mb-1">Upload your resume</p>
+                                <p className="text-xs text-gray-500">PDF, DOC, or DOCX (max 5MB)</p>
+                              </label>
+                            </div>
+                          ) : (
+                            <div className="border-2 border-green-200 rounded-lg p-4 bg-green-50">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                  <div className="h-10 w-10 bg-green-100 rounded-lg flex items-center justify-center">
+                                    {resumeUploadStatus === 'uploading' ? (
+                                      <RefreshCw className="h-5 w-5 text-green-600 animate-spin" />
+                                    ) : (
+                                      <FileCheck className="h-5 w-5 text-green-600" />
+                                    )}
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-medium text-green-900">{resumeFile.name}</p>
+                                    <p className="text-xs text-green-700">
+                                      {resumeUploadStatus === 'uploading' ? 'Uploading...' : 
+                                       resumeUploadStatus === 'success' ? 'Successfully uploaded' : 
+                                       `${(resumeFile.size / 1024 / 1024).toFixed(1)} MB`}
+                                    </p>
+                                  </div>
+                                </div>
+                                
+                                <div className="flex items-center gap-2">
+                                  {resumeUploadStatus === 'success' && (
+                                    <Badge variant="secondary" className="bg-green-100 text-green-800 border-green-200">
+                                      ✅ Uploaded
+                                    </Badge>
+                                  )}
+                                  {resumeUploadStatus !== 'uploading' && (
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={removeResume}
+                                      className="text-gray-500 hover:text-red-600 p-1 h-8 w-8"
+                                    >
+                                      <X className="h-4 w-4" />
+                                    </Button>
+                                  )}
+                                </div>
+                              </div>
+                              
+                              {resumePreview && (
+                                <div className="mt-3 pt-3 border-t border-green-200">
+                                  <p className="text-xs text-green-700 mb-2">Preview:</p>
+                                  <iframe
+                                    src={resumePreview}
+                                    className="w-full h-32 border border-green-200 rounded bg-white"
+                                    title="Resume Preview"
+                                  />
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          
+                          <p className="text-xs text-gray-500">
+                            📄 Upload your most recent resume or CV. This helps us better understand your background and match you with suitable opportunities.
+                          </p>
                         </div>
 
                         <div className="space-y-4">

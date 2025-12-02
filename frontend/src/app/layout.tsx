@@ -3,7 +3,6 @@ import type { Metadata } from "next";
 import { Toaster } from "sonner";
 // import "./globals.css";
 import { AuthProvider } from "../utils/auth";
-import { DebugPanel } from "../components/DebugPanel";
 
 // Temporarily use system fonts for build
 // const inter = Inter({
@@ -40,7 +39,6 @@ export default function RootLayout({
         <AuthProvider>
           {children}
           <Toaster position="top-right" richColors />
-          <DebugPanel />
         </AuthProvider>
       </body>
     </html>

@@ -154,8 +154,8 @@ export function LogoSimple() {
         </svg>
       </div>
       <span className="text-2xl font-bold">
-        <span className="text-gray-900">task</span>
-        <span className="bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">-ify</span>
+        <span className="text-white">task</span>
+        <span className="bg-gradient-to-r from-purple-400 to-indigo-400 bg-clip-text text-transparent">-ify</span>
       </span>
     </div>
   );

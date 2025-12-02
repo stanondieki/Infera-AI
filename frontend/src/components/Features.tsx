@@ -125,7 +125,7 @@ export function Features({ onApplyClick }: FeatureProps) {
           </motion.div>
           
           <h2 className="text-4xl md:text-5xl text-gray-900 mb-6">
-            Why Choose <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Infera AI?</span>
+            Why Choose <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Tasikfy?</span>
           </h2>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto">
             Join the leading platform for AI training and unlock opportunities that match your expertise and lifestyle

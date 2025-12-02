@@ -86,9 +86,8 @@ export function Footer({ onApplyClick, onAdminClick }: FooterProps) {
             onClick={() => onAdminClick?.()}
             title="Click to access Admin Panel"
           >
-            © 2025 Infera AI. All rights reserved.
+            © 2025 Taskify. All rights reserved.
             <span className="text-xs text-purple-500 opacity-0 group-hover:opacity-100 transition-opacity ml-2">
-              [Admin]
             </span>
           </p>
           <div className="flex gap-6 flex-wrap justify-center">

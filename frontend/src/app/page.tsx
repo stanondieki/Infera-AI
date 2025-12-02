@@ -111,15 +111,6 @@ function AppContent() {
             onApplyClick={handleApplyClick} 
             onDashboardClick={handleDashboardClick}
           />
-          {/* Temporary test button for direct dashboard access */}
-          <div className="fixed top-20 right-4 z-50 bg-yellow-100 border border-yellow-300 rounded p-2">
-            <button 
-              onClick={() => setCurrentView('dashboard')} 
-              className="text-xs text-yellow-800 hover:text-yellow-900"
-            >
-              🧪 Test Dashboard
-            </button>
-          </div>
           <Hero 
             onGetStartedClick={handleApplyClick}
             onLearnMoreClick={() => {
