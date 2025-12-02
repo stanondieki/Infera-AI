@@ -1,4 +1,4 @@
-// Load environment variables FIRST
+﻿// Load environment variables FIRST
 import dotenv from 'dotenv';
 dotenv.config();
 
@@ -27,8 +27,8 @@ const connectDB = async () => {
   try {
     const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/infera_ai';
     
-    console.log('🔗 Attempting to connect to MongoDB...');
-    console.log('📍 Connection URI format:', mongoURI.replace(/:\/\/[^@]+@/, '://***:***@'));
+    console.log('ðŸ”— Attempting to connect to MongoDB...');
+    console.log('ðŸ“ Connection URI format:', mongoURI.replace(/:\/\/[^@]+@/, '://***:***@'));
     
     // Connection options for better reliability
     await mongoose.connect(mongoURI, {
@@ -37,35 +37,35 @@ const connectDB = async () => {
       socketTimeoutMS: 45000,
     });
     
-    console.log('✅ MongoDB connected successfully');
+    console.log('âœ… MongoDB connected successfully');
     
     // Create initial admin user if none exists
     await createInitialAdmin();
   } catch (error) {
-    console.error('❌ MongoDB connection error:', error);
+    console.error('âŒ MongoDB connection error:', error);
     
     if (error instanceof Error) {
       if (error.message.includes('ETIMEDOUT')) {
-        console.log('\n🔧 Connection Timeout Solutions:');
+        console.log('\nðŸ”§ Connection Timeout Solutions:');
         console.log('1. Check your internet connection');
         console.log('2. Verify MongoDB Atlas cluster is running (not paused)');
         console.log('3. Check if your IP address is whitelisted in Atlas');
         console.log('4. Try connecting from MongoDB Compass with the same URI');
       } else if (error.message.includes('authentication failed')) {
-        console.log('\n🔐 Authentication Error Solutions:');
+        console.log('\nðŸ” Authentication Error Solutions:');
         console.log('1. Verify username and password in MONGODB_URI');
         console.log('2. Check database user permissions in MongoDB Atlas');
       }
     }
     
-    console.log('\n🔧 General MongoDB Setup Instructions:');
+    console.log('\nðŸ”§ General MongoDB Setup Instructions:');
     console.log('1. Install MongoDB Community Server from: https://www.mongodb.com/try/download/community');
     console.log('2. Or use MongoDB Atlas (cloud): https://www.mongodb.com/atlas');
     console.log('3. Update MONGODB_URI in .env file if using a different connection string');
     console.log('4. Make sure MongoDB service is running\n');
     
     // Don't exit immediately, allow for retries
-    console.log('🔄 Retrying connection in 5 seconds...');
+    console.log('ðŸ”„ Retrying connection in 5 seconds...');
     setTimeout(connectDB, 5000);
   }
 };
@@ -77,7 +77,7 @@ const createInitialAdmin = async () => {
     
     // First, let's see what users exist
     const allUsers = await User.find({}).select('name email role isActive createdAt');
-    console.log('📋 Current users in database:', allUsers.length);
+    console.log('ðŸ“‹ Current users in database:', allUsers.length);
     allUsers.forEach(user => {
       console.log(`  - ${user.email} (${user.role}) - Active: ${user.isActive} - Created: ${user.createdAt?.toISOString()?.split('T')[0] || 'Unknown'}`);
     });
@@ -87,7 +87,7 @@ const createInitialAdmin = async () => {
     const totalUsers = await User.countDocuments();
     
     if (!adminExists && totalUsers === 0) {
-      console.log('🔧 No users found, creating initial admin user...');
+      console.log('ðŸ”§ No users found, creating initial admin user...');
       const adminUser = new User({
         name: 'Taskify Admin', 
         email: '39839125o@gmail.com',
@@ -98,9 +98,9 @@ const createInitialAdmin = async () => {
       });
       
       await adminUser.save();
-      console.log('✅ Initial admin user created: 39839125o@gmail.com / TaskifyAdmin2025!');
+      console.log('âœ… Initial admin user created: 39839125o@gmail.com / TaskifyAdmin2025!');
     } else if (!adminExists) {
-      console.log('🔧 No admin found, creating admin user...');
+      console.log('ðŸ”§ No admin found, creating admin user...');
       const adminUser = new User({
         name: 'Taskify Admin', 
         email: '39839125o@gmail.com',
@@ -111,9 +111,9 @@ const createInitialAdmin = async () => {
       });
       
       await adminUser.save();
-      console.log('✅ Admin user created: 39839125o@gmail.com / TaskifyAdmin2025!');
+      console.log('âœ… Admin user created: 39839125o@gmail.com / TaskifyAdmin2025!');
     } else {
-      console.log(`ℹ️ Found ${totalUsers} existing users including admin - using live accounts`);
+      console.log(`â„¹ï¸ Found ${totalUsers} existing users including admin - using live accounts`);
     }
 
     // REMOVED: Demo user creation - using live accounts instead
@@ -142,8 +142,8 @@ app.use(cors({
     if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
-      console.log('🚫 Blocked by CORS:', origin);
-      console.log('📋 Allowed origins:', allowedOrigins);
+      console.log('ðŸš« Blocked by CORS:', origin);
+      console.log('ðŸ“‹ Allowed origins:', allowedOrigins);
       callback(new Error('Not allowed by CORS'));
     }
   },
@@ -284,9 +284,9 @@ app.use((req, res) => {
 const startServer = async () => {
   await connectDB();
   app.listen(PORT, () => {
-    console.log(`🚀 Server running on port ${PORT}`);
-    console.log(`🌐 API available at http://localhost:${PORT}`);
-    console.log(`📊 Health check: http://localhost:${PORT}/health`);
+    console.log(`ðŸš€ Server running on port ${PORT}`);
+    console.log(`ðŸŒ API available at http://localhost:${PORT}`);
+    console.log(`ðŸ“Š Health check: http://localhost:${PORT}/health`);
   });
 };
 
@@ -304,5 +304,6 @@ process.on('uncaughtException', (err: any) => {
 
 startServer().catch(console.error);
 
-export default app;/ /   F o r c e   d e p l o y m e n t   -   1 2 / 0 2 / 2 0 2 5   2 0 : 3 5 : 1 0  
- 
+export default app;
+
+export default app;/ /   F o r c e   d e p l o y m e n t   -   1 2 / 0 2 / 2 0 2 5   2 0 : 3 5 : 1 0 
