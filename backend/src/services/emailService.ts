@@ -12,9 +12,25 @@ interface EmailConfig {
 }
 
 class EmailService {
-  private transporter: nodemailer.Transporter;
+  public transporter: nodemailer.Transporter;
 
   constructor() {
+    // Debug: Log environment variables
+    console.log('🔍 Debug - Environment variables:');
+    console.log('SMTP_HOST:', process.env.SMTP_HOST);
+    console.log('SMTP_USER:', process.env.SMTP_USER);
+    console.log('SMTP_PASS:', process.env.SMTP_PASS ? '[SET]' : '[NOT SET]');
+    
+    // Check if SMTP is configured
+    const isSmtpConfigured = process.env.SMTP_USER && process.env.SMTP_PASS;
+    
+    if (!isSmtpConfigured) {
+      console.log('⚠️  SMTP not configured. Email sending will be simulated.');
+      console.log('💡 To enable emails, set SMTP_HOST, SMTP_USER, and SMTP_PASS environment variables');
+    } else {
+      console.log('✅ SMTP configured successfully!');
+    }
+
     this.transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST || 'smtp.gmail.com',
       port: parseInt(process.env.SMTP_PORT || '587'),
@@ -300,6 +316,90 @@ class EmailService {
       console.log('📧 HTML Content:');
       console.log(mailOptions.html);
       console.log('📧 ─────────────────────────────────────────────');
+      return false;
+    }
+  }
+
+  async sendVerificationEmail(email: string, name: string, verificationLink: string) {
+    try {
+      const isSmtpConfigured = process.env.SMTP_USER && process.env.SMTP_PASS;
+      
+      if (!isSmtpConfigured) {
+        // Simulate email sending for development
+        console.log('\n📧 SIMULATED VERIFICATION EMAIL (SMTP not configured):');
+        console.log('══════════════════════════════════════════════════');
+        console.log(`To: ${email}`);
+        console.log(`Subject: Verify Your Infera AI Account`);
+        console.log(`Name: ${name}`);
+        console.log(`Verification Link: ${verificationLink}`);
+        console.log('══════════════════════════════════════════════════\n');
+        
+        // Return true to simulate successful sending
+        return true;
+      }
+
+      const emailHtml = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+          .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
+          .button { display: inline-block; background: #6366f1; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+          .footer { text-align: center; margin-top: 30px; color: #666; font-size: 14px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>🚀 Welcome to Infera AI!</h1>
+            <p>Please verify your email address</p>
+          </div>
+          
+          <div class="content">
+            <h2>Hello ${name}!</h2>
+            <p>Thank you for signing up for Infera AI. To complete your registration, please verify your email address by clicking the button below:</p>
+            
+            <div style="text-align: center;">
+              <a href="${verificationLink}" class="button">Verify Email Address</a>
+            </div>
+            
+            <p>Or copy and paste this link into your browser:</p>
+            <p style="background: #e8f4fd; padding: 10px; border-radius: 5px; word-break: break-all;">
+              ${verificationLink}
+            </p>
+            
+            <p><strong>What happens next?</strong></p>
+            <ul>
+              <li>Click the verification link above</li>
+              <li>Your account will be verified and submitted for review</li>
+              <li>You'll receive another email once your account is approved</li>
+              <li>After approval, you can start using Infera AI!</li>
+            </ul>
+          </div>
+          
+          <div class="footer">
+            <p>This link will expire in 24 hours for security reasons.</p>
+            <p>If you didn't create an account, please ignore this email.</p>
+          </div>
+        </div>
+      </body>
+      </html>`;
+
+      const mailOptions = {
+        from: process.env.SMTP_USER || 'noreply@inferaai.com',
+        to: email,
+        subject: 'Verify Your Infera AI Account',
+        html: emailHtml
+      };
+
+      await this.transporter.sendMail(mailOptions);
+      console.log('✅ Verification email sent successfully to:', email);
+      return true;
+    } catch (error) {
+      console.error('❌ Failed to send verification email:', error);
       return false;
     }
   }

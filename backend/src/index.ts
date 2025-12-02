@@ -1,6 +1,9 @@
+// Load environment variables FIRST
+import dotenv from 'dotenv';
+dotenv.config();
+
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 import { generalLimiter } from './middleware/rateLimiter';
 
@@ -15,9 +18,6 @@ import taskRoutes from './routes/tasks';
 import taskProjectRoutes from './routes/taskProjects';
 import userRoutes from './routes/users';
 import sessionsRoutes from './routes/sessions';
-
-// Load environment variables
-dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;

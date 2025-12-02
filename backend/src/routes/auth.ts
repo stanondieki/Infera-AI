@@ -165,16 +165,22 @@ const generateVerificationToken = (): string => {
 
 // Send verification email
 const sendVerificationEmail = async (email: string, name: string, token: string): Promise<void> => {
-  // For now, just log the verification link
-  // TODO: Implement actual email sending using existing email service
   const verificationLink = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth/verify-email?token=${token}`;
-  console.log(`📧 Verification email for ${email}:`);
-  console.log(`Name: ${name}`);
-  console.log(`Verification Link: ${verificationLink}`);
   
-  // You can implement actual email sending here using the existing emailService
-  // const emailService = new EmailService();
-  // await emailService.sendVerificationEmail(email, name, verificationLink);
+  try {
+    // Import and use the existing email service
+    const { emailService } = await import('../services/emailService');
+    
+    // Send verification email
+    await emailService.sendVerificationEmail(email, name, verificationLink);
+    
+    console.log(`✅ Verification email sent to ${email}`);
+  } catch (error) {
+    console.error('❌ Failed to send verification email:', error);
+    // Log the verification link as fallback
+    console.log(`📧 Verification link for ${email}: ${verificationLink}`);
+    throw error;
+  }
 };
 
 // Register new user or update existing user for application flow
@@ -226,7 +232,7 @@ router.post('/register', authLimiter, validateUserRegistration, async (req: Requ
       email,
       password,
       role,
-      isVerified: false,
+      isVerified: false, // Explicitly set to false
       verificationToken,
       approvalStatus: 'pending'
     });
