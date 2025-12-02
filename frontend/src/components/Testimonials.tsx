@@ -12,7 +12,7 @@ const testimonials = [
     name: "Sarah Chen",
     role: "Software Engineer",
     location: "San Francisco, CA",
-    text: "Infera AI has been incredible for supplementing my income. I work on code review projects during evenings and weekends, and the flexibility is unmatched.",
+    text: "Taskify has been incredible for supplementing my income. I work on code review projects during evenings and weekends, and the flexibility is unmatched.",
     rating: 5,
     earnings: "$12,450",
     projects: 156,
@@ -22,7 +22,7 @@ const testimonials = [
     name: "Marcus Johnson",
     role: "Data Scientist",
     location: "New York, NY",
-    text: "The quality of projects and the support from the Infera AI team is outstanding. I've grown my skills significantly while earning great income.",
+    text: "The quality of projects and the support from the Taskify team is outstanding. I've grown my skills significantly while earning great income.",
     rating: 5,
     earnings: "$18,920",
     projects: 203,
@@ -32,7 +32,7 @@ const testimonials = [
     name: "Emily Rodriguez",
     role: "Content Writer",
     location: "Toronto, Canada",
-    text: "I've been with Infera AI for 6 months and it's been amazing. The platform is easy to use and payments are always on time.",
+    text: "I've been with Taskify for 6 months and it's been amazing. The platform is easy to use and payments are always on time.",
     rating: 5,
     earnings: "$9,340",
     projects: 124,
@@ -42,7 +42,7 @@ const testimonials = [
     name: "David Kim",
     role: "ML Engineer",
     location: "Seattle, WA",
-    text: "Working with Infera AI has allowed me to explore cutting-edge AI projects while maintaining my work-life balance. Highly recommended!",
+    text: "Working with Taskify has allowed me to explore cutting-edge AI projects while maintaining my work-life balance. Highly recommended!",
     rating: 5,
     earnings: "$21,560",
     projects: 187,
@@ -137,7 +137,7 @@ export function Testimonials() {
             Loved by <span className="bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Thousands</span>
           </h2>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            Join thousands of satisfied contributors earning with Infera AI
+            Join thousands of satisfied contributors earning with Taskify
           </p>
         </motion.div>
 

@@ -254,23 +254,7 @@ export function SignInDialog({ open, onOpenChange, onSignInSuccess, onSwitchToAp
                   </div>
                 )}
 
-                {/* Admin Credentials Helper */}
-                {isAdminSignIn && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    className="bg-blue-50 border border-blue-200 rounded-lg p-3"
-                  >
-                    <div className="flex items-center gap-2 text-blue-800">
-                      <Shield className="h-4 w-4" />
-                      <span className="text-sm font-medium">Admin Credentials</span>
-                    </div>
-                    <div className="mt-2 text-xs text-blue-700 space-y-1">
-                      <div><strong>Email:</strong> admin@inferaai.com</div>
-                      <div><strong>Password:</strong> Admin123!</div>
-                    </div>
-                  </motion.div>
-                )}
+
 
                 {/* Email Field */}
                 <div className="space-y-1">

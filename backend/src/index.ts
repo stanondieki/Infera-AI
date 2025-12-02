@@ -89,18 +89,31 @@ const createInitialAdmin = async () => {
     if (!adminExists && totalUsers === 0) {
       console.log('🔧 No users found, creating initial admin user...');
       const adminUser = new User({
-        name: 'Admin User', 
-        email: 'admin@inferaai.com',
-        password: 'Admin123!',
+        name: 'Taskify Admin', 
+        email: '39839125o@gmail.com',
+        password: 'TaskifyAdmin2025!',
         role: 'admin',
         isVerified: true,
         isActive: true
       });
       
       await adminUser.save();
-      console.log('✅ Initial admin user created: admin@inferaai.com / Admin123!');
+      console.log('✅ Initial admin user created: 39839125o@gmail.com / TaskifyAdmin2025!');
+    } else if (!adminExists) {
+      console.log('🔧 No admin found, creating admin user...');
+      const adminUser = new User({
+        name: 'Taskify Admin', 
+        email: '39839125o@gmail.com',
+        password: 'TaskifyAdmin2025!',
+        role: 'admin',
+        isVerified: true,
+        isActive: true
+      });
+      
+      await adminUser.save();
+      console.log('✅ Admin user created: 39839125o@gmail.com / TaskifyAdmin2025!');
     } else {
-      console.log(`ℹ️ Found ${totalUsers} existing users - using live accounts`);
+      console.log(`ℹ️ Found ${totalUsers} existing users including admin - using live accounts`);
     }
 
     // REMOVED: Demo user creation - using live accounts instead

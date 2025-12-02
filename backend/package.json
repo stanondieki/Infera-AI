@@ -10,7 +10,9 @@
     "azure:deploy": "npm install && npm run build",
     "production": "NODE_ENV=production node dist/index.js",
     "test": "echo \"No tests specified - skipping test step\"",
-    "health-check": "curl -f http://localhost:$PORT/health || exit 1"
+    "health-check": "curl -f http://localhost:$PORT/health || exit 1",
+    "create-admin": "node create-admin.js",
+    "create-admin-interactive": "ts-node create-admin-interactive.ts"
   },
   "keywords": [],
   "author": "",
