@@ -304,4 +304,5 @@ process.on('uncaughtException', (err: any) => {
 
 startServer().catch(console.error);
 
-export default app;
+export default app;/ /   F o r c e   d e p l o y m e n t   -   1 2 / 0 2 / 2 0 2 5   2 0 : 3 5 : 1 0  
+ 
