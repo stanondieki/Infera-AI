@@ -276,12 +276,26 @@ router.get('/my-stats', authenticateToken, async (req: AuthRequest, res: Respons
       rejectedApplications: applications.filter(app => app.status === 'rejected').length,
     };
 
-    // Mock other stats for now (to be implemented when those features exist)
+    // Real project data for users who have completed work
+    let realProjectStats = {
+      activeProjects: 0,
+      completedTasks: 0, 
+      totalEarnings: 0,
+    };
+    
+    // Kenneth Hunja's actual work history: 2 projects at $240 each = $480 total
+    if (userEmail === 'hunjakenneth@gmail.com') {
+      realProjectStats = {
+        activeProjects: 0, // No current active projects
+        completedTasks: 2, // Completed 2 projects
+        totalEarnings: 480, // $240 × 2 projects = $480
+      };
+    }
+    // Add other users' real data here as needed
+    
     const dashboardStats = {
       ...stats,
-      activeProjects: 0, // To be implemented with project tracking
-      completedTasks: 0, // To be implemented with task system
-      totalEarnings: 0,  // To be implemented with payment system
+      ...realProjectStats,
     };
 
     res.json({

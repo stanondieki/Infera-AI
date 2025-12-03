@@ -463,10 +463,12 @@ export function Dashboard({ onBack }: DashboardProps) {
         step++;
         const progress = step / steps;
         
+        const calculatedRate = Math.floor((dashboardStats.successRate || 0) * progress);
+        console.log('🎭 Animation step - dashboardStats.successRate:', dashboardStats.successRate, 'calculated rate:', calculatedRate);
         setAnimatedStats({
           earnings: Math.floor(totalEarnings * progress),
           tasks: Math.floor(completedTasks * progress),
-          rate: Math.floor((dashboardStats.successRate || 0) * progress),
+          rate: calculatedRate,
         });
         
         if (step >= steps) {
@@ -972,6 +974,9 @@ export function Dashboard({ onBack }: DashboardProps) {
   const loadDashboardData = async () => {
     setIsLoading(true);
     try {
+      // Define William check for conditional logic
+      const isWilliam = user?.email === 'william.macy@email.com' || user?.email === 'william.macy.ai@gmail.com';
+      
       // Temporarily store token for API calls (use the same key as auth system)
       if (accessToken) {
         localStorage.setItem('token', accessToken);
@@ -986,16 +991,8 @@ export function Dashboard({ onBack }: DashboardProps) {
       
       // Load all dashboard data
       const [statsData, applicationsData, tasksData, opportunitiesData] = await Promise.all([
-        // Use user data directly instead of API call for stats
-        Promise.resolve({
-          totalApplications: 0,
-          activeProjects: 0,
-          completedTasks: user?.completedTasks || 0,
-          totalEarnings: user?.totalEarnings || 0,
-          pendingApplications: 0,
-          approvedApplications: 0,
-          rejectedApplications: 0,
-        }),
+        // Fetch real user stats from database
+        dashboardService.getDashboardStats(),
         dashboardService.getUserApplications(),
         dashboardService.getUserTasks(),
         dashboardService.getOpportunities(),
@@ -1003,6 +1000,8 @@ export function Dashboard({ onBack }: DashboardProps) {
 
       console.log('📊 Dashboard stats:', statsData);
       console.log('📋 User tasks:', tasksData);
+      console.log('👤 User email:', user?.email);
+      console.log('🔍 Is William?', isWilliam);
 
       // Update stats based on actual tasks data
       console.log('📋 Raw tasks data:', tasksData);
@@ -1030,17 +1029,30 @@ export function Dashboard({ onBack }: DashboardProps) {
         return sum;
       }, 0);
 
-      // For William Macy, calculate realistic success rate and achievements based on his profile
-      const userCompletedTasks = user?.completedTasks || 47;
-      const userTotalEarnings = user?.totalEarnings || 4940;
+      // Use showcase data for William, actual database data for other users
+      const userCompletedTasks = isWilliam ? 47 : (statsData.completedTasks || 0);
+      const userTotalEarnings = isWilliam ? 4940 : (statsData.totalEarnings || 0);
       
-      // Calculate success rate based on William's work history (3 months, high performer)
-      // Assume he had 50 total assignments and completed 47 successfully
-      const totalAssignedTasks = Math.max(userCompletedTasks + 3, 50); // Add some failed/pending tasks
+      // Calculate success rate based on actual task performance
+      // For William, maintain his showcase status, for others use realistic calculation
+      let successRate;
+      if (isWilliam) {
+        successRate = 94; // William's showcase success rate
+      } else {
+        // Calculate based on actual tasks vs completed tasks
+        const totalAssignedTasks = Math.max(completedTasks.length + activeTasks.length, 1);
+        successRate = totalAssignedTasks > 0 ? Math.round((completedTasks.length / totalAssignedTasks) * 100) : 0;
+        
+        console.log('🔍 Success Rate Debug for', user?.name || user?.email);
+        console.log('  - Completed tasks length:', completedTasks.length);
+        console.log('  - Active tasks length:', activeTasks.length);
+        console.log('  - Total assigned tasks:', totalAssignedTasks);
+        console.log('  - Calculated success rate:', successRate);
+      }
       const successfulTasks = userCompletedTasks;
-      const successRate = totalAssignedTasks > 0 ? Math.round((successfulTasks / totalAssignedTasks) * 100) : 94;
+      const totalAssignedTasks = Math.max(userCompletedTasks + activeTasks.length, 1);
 
-      // Calculate achievements based on William's impressive profile
+      // Calculate achievements based on actual user performance
       const achievements = [];
       if (successfulTasks >= 1) achievements.push('First Task Completed');
       if (successfulTasks >= 5) achievements.push('Task Master');
@@ -1129,6 +1141,7 @@ export function Dashboard({ onBack }: DashboardProps) {
       setActiveTasks(activeTasksOnly);
       console.log('📋 Set active tasks for overview:', activeTasksOnly);
 
+      console.log('📊 Setting dashboardStats to:', updatedStats);
       setDashboardStats(updatedStats);
       setApplications(applicationsData);
       setUserTasks(transformedTasks);
@@ -2174,7 +2187,7 @@ export function Dashboard({ onBack }: DashboardProps) {
                       <span className="text-lg text-gray-900">
                         {user?.email === 'william.macy@email.com' || user?.email === 'william.macy.ai@gmail.com' 
                           ? user?.completedTasks || 47
-                          : dashboardStats.completedTasks || 68}
+                          : user?.completedTasks || 0}
                       </span>
                     </div>
                     <div className="flex items-center justify-between">
@@ -2190,7 +2203,7 @@ export function Dashboard({ onBack }: DashboardProps) {
                       <span className="text-lg text-green-600">
                         {user?.email === 'william.macy@email.com' || user?.email === 'william.macy.ai@gmail.com' 
                           ? `$${(user?.totalEarnings || 4940).toLocaleString()}`
-                          : `$${(dashboardStats.totalEarnings || 3240).toLocaleString()}`}
+                          : `$${(user?.totalEarnings || 0).toLocaleString()}`}
                       </span>
                     </div>
                   </CardContent>
