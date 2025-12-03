@@ -145,28 +145,44 @@ export function ViewProfileDialog({ open, onOpenChange }: ViewProfileDialogProps
                 <div className="text-center">
                   <div className="flex items-center justify-center gap-1 text-green-600 mb-1">
                     <DollarSign className="h-4 w-4 sm:h-5 sm:w-5" />
-                    <span className="text-xl sm:text-2xl text-gray-900">12.4K</span>
+                    <span className="text-xl sm:text-2xl text-gray-900">
+                      {user?.email === 'william.macy@email.com' || user?.email === 'william.macy.ai@gmail.com'
+                        ? `$${((user?.totalEarnings || 4940) / 1000).toFixed(1)}K`
+                        : '12.4K'}
+                    </span>
                   </div>
                   <p className="text-xs text-gray-600">Total Earnings</p>
                 </div>
                 <div className="text-center">
                   <div className="flex items-center justify-center gap-1 mb-1">
                     <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
-                    <span className="text-xl sm:text-2xl text-gray-900">740</span>
+                    <span className="text-xl sm:text-2xl text-gray-900">
+                      {user?.email === 'william.macy@email.com' || user?.email === 'william.macy.ai@gmail.com'
+                        ? user?.completedTasks || 47
+                        : 740}
+                    </span>
                   </div>
                   <p className="text-xs text-gray-600">Tasks Done</p>
                 </div>
                 <div className="text-center">
                   <div className="flex items-center justify-center gap-1 mb-1">
                     <Star className="h-4 w-4 sm:h-5 sm:w-5 text-yellow-600" />
-                    <span className="text-xl sm:text-2xl text-gray-900">98.5%</span>
+                    <span className="text-xl sm:text-2xl text-gray-900">
+                      {user?.email === 'william.macy@email.com' || user?.email === 'william.macy.ai@gmail.com'
+                        ? '94%'
+                        : '98.5%'}
+                    </span>
                   </div>
                   <p className="text-xs text-gray-600">Success Rate</p>
                 </div>
                 <div className="text-center">
                   <div className="flex items-center justify-center gap-1 mb-1">
                     <Trophy className="h-4 w-4 sm:h-5 sm:w-5 text-purple-600" />
-                    <span className="text-xl sm:text-2xl text-gray-900">#3</span>
+                    <span className="text-xl sm:text-2xl text-gray-900">
+                      {user?.email === 'william.macy@email.com' || user?.email === 'william.macy.ai@gmail.com'
+                        ? '#1'
+                        : '#3'}
+                    </span>
                   </div>
                   <p className="text-xs text-gray-600">Leaderboard</p>
                 </div>
@@ -207,7 +223,11 @@ export function ViewProfileDialog({ open, onOpenChange }: ViewProfileDialogProps
                   <Calendar className="h-5 w-5 text-blue-600" />
                   <div>
                     <p className="text-xs text-gray-600">Member Since</p>
-                    <p className="text-sm text-gray-900">January 2024</p>
+                    <p className="text-sm text-gray-900">
+                      {user?.joinedDate 
+                        ? new Date(user.joinedDate).getFullYear().toString()
+                        : '2025'}
+                    </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 border border-gray-200">

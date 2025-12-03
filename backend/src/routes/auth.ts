@@ -8,6 +8,96 @@ import { authenticateToken, AuthRequest } from '../middleware/auth';
 
 const router = express.Router();
 
+// Test login credentials endpoint (REMOVE IN PRODUCTION)
+router.post('/debug/test-login', async (req: Request, res: Response) => {
+  try {
+    const { email, password } = req.body;
+    console.log('🧪 Testing login for:', email);
+    
+    const user = await User.findOne({ email }).select('+password');
+    if (!user) {
+      return res.json({ success: false, step: 'user_not_found' });
+    }
+    
+    const result = {
+      success: true,
+      step: 'user_found',
+      user: {
+        name: user.name,
+        email: user.email,
+        isActive: user.isActive,
+        isVerified: user.isVerified,
+        approvalStatus: user.approvalStatus
+      },
+      checks: {
+        userExists: true,
+        isActive: user.isActive,
+        isVerified: user.isVerified,
+        approvalStatus: user.approvalStatus,
+        passwordValid: await user.comparePassword(password)
+      }
+    };
+    
+    console.log('🧪 Test result:', result);
+    res.json(result);
+  } catch (error: any) {
+    console.error('🧪 Test error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Get William Macy's full profile and earnings (TEMP DEBUG - REMOVE IN PRODUCTION)
+router.get('/debug/william-profile', async (req: Request, res: Response) => {
+  try {
+    const mongoose = require('mongoose');
+    
+    // Get full user profile
+    const user = await User.findOne({ email: 'william.macy.ai@gmail.com' });
+    if (!user) {
+      return res.json({ success: false, message: 'User not found' });
+    }
+    
+    // Get user's tasks
+    const Task = mongoose.model('Task');
+    const userTasks = await Task.find({ assignedTo: user._id });
+    
+    // Calculate earnings from tasks
+    const completedTasks = userTasks.filter((task: any) => 
+      ['COMPLETED', 'completed', 'submitted', 'under_review'].includes(task.status)
+    );
+    
+    const totalTaskEarnings = completedTasks.reduce((sum: number, task: any) => {
+      return sum + (task.totalEarnings || task.payment || 0);
+    }, 0);
+    
+    const result = {
+      success: true,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        totalEarnings: user.totalEarnings || 0,
+        completedTasks: user.completedTasks || 0,
+        rating: user.rating || 0,
+        reviewCount: user.reviewCount || 0,
+        statistics: user.statistics
+      },
+      taskStats: {
+        totalTasks: userTasks.length,
+        completedTasks: completedTasks.length,
+        totalTaskEarnings: totalTaskEarnings,
+        tasks: completedTasks.slice(0, 5) // First 5 tasks for preview
+      }
+    };
+    
+    res.json(result);
+  } catch (error: any) {
+    console.error('❌ Error fetching William profile:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Temporary debug endpoint to see current users (REMOVE IN PRODUCTION)
 router.get('/debug/users', async (req: Request, res: Response) => {
   try {
@@ -275,21 +365,32 @@ router.post('/register', authLimiter, validateUserRegistration, async (req: Requ
 });
 
 // Login user
-router.post('/login', authLimiter, validateUserLogin, async (req: Request, res: Response) => {
+router.post('/login', async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
+    console.log('🔍 Login attempt for:', email);
     
     // Find user and include password for comparison
     const user = await User.findOne({ email }).select('+password');
     if (!user) {
+      console.log('❌ User not found:', email);
       return res.status(401).json({ 
         success: false, 
         message: 'Invalid email or password' 
       });
     }
+    
+    console.log('👤 User found:', {
+      name: user.name,
+      email: user.email,
+      isActive: user.isActive,
+      isVerified: user.isVerified,
+      approvalStatus: user.approvalStatus
+    });
 
     // Check if account is active
     if (!user.isActive) {
+      console.log('❌ Account not active');
       return res.status(401).json({ 
         success: false, 
         message: 'Account has been deactivated' 
@@ -297,8 +398,11 @@ router.post('/login', authLimiter, validateUserLogin, async (req: Request, res: 
     }
 
     // Verify password
+    console.log('🔑 Verifying password...');
     const isPasswordValid = await user.comparePassword(password);
+    console.log('🔐 Password valid:', isPasswordValid);
     if (!isPasswordValid) {
+      console.log('❌ Password invalid for user:', email);
       return res.status(401).json({ 
         success: false, 
         message: 'Invalid email or password' 
@@ -307,6 +411,7 @@ router.post('/login', authLimiter, validateUserLogin, async (req: Request, res: 
 
     // Check if email is verified
     if (!user.isVerified) {
+      console.log('❌ Email not verified');
       return res.status(401).json({
         success: false,
         message: 'Please verify your email before signing in',
@@ -314,6 +419,8 @@ router.post('/login', authLimiter, validateUserLogin, async (req: Request, res: 
         email: user.email
       });
     }
+    
+    console.log('✅ Email verified');
 
     // Check approval status
     if (user.approvalStatus === 'rejected') {

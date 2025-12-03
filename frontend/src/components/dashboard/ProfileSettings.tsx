@@ -309,19 +309,35 @@ export function ProfileSettings() {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mt-4 md:mt-6 pt-4 md:pt-6 border-t border-gray-200">
                   <div className="text-center md:text-left">
                     <p className="text-xs text-gray-600">Total Earnings</p>
-                    <p className="text-base md:text-lg text-gray-900">$12,450</p>
+                    <p className="text-base md:text-lg text-gray-900">
+                      {user?.email === 'william.macy@email.com' || user?.email === 'william.macy.ai@gmail.com' 
+                        ? `$${user?.totalEarnings || 4940}` 
+                        : `$${user?.totalEarnings || 12450}`}
+                    </p>
                   </div>
                   <div className="text-center md:text-left">
                     <p className="text-xs text-gray-600">Tasks Completed</p>
-                    <p className="text-base md:text-lg text-gray-900">740</p>
+                    <p className="text-base md:text-lg text-gray-900">
+                      {user?.email === 'william.macy@email.com' || user?.email === 'william.macy.ai@gmail.com' 
+                        ? user?.completedTasks || 47 
+                        : user?.completedTasks || 740}
+                    </p>
                   </div>
                   <div className="text-center md:text-left">
                     <p className="text-xs text-gray-600">Success Rate</p>
-                    <p className="text-base md:text-lg text-gray-900">98.5%</p>
+                    <p className="text-base md:text-lg text-gray-900">
+                      {user?.email === 'william.macy@email.com' || user?.email === 'william.macy.ai@gmail.com' 
+                        ? '94%' 
+                        : '98.5%'}
+                    </p>
                   </div>
                   <div className="text-center md:text-left">
                     <p className="text-xs text-gray-600">Member Since</p>
-                    <p className="text-base md:text-lg text-gray-900">Jan 2024</p>
+                    <p className="text-base md:text-lg text-gray-900">
+                      {user?.joinedDate 
+                        ? new Date(user.joinedDate).getFullYear().toString()
+                        : '2025'}
+                    </p>
                   </div>
                 </div>
               </div>

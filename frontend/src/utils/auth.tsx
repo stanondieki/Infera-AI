@@ -13,6 +13,11 @@ interface User {
   approvalStatus?: 'pending' | 'approved' | 'rejected';
   avatar?: string;
   createdAt?: string;
+  joinedDate?: string;
+  
+  // Dashboard stats
+  totalEarnings?: number;
+  completedTasks?: number;
   
   // Additional profile fields
   phone?: string;
