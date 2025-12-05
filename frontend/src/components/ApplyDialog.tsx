@@ -51,8 +51,6 @@ import {
   Cloud,
   Building,
   X,
-  Eye,
-  EyeOff,
   Loader2,
   TrendingDown,
   Search,
@@ -150,10 +148,6 @@ interface FormData {
   agreeToTerms: boolean;
   agreeToNewsletter: boolean;
   agreeToDataProcessing: boolean;
-  
-  // Account Setup
-  password: string;
-  confirmPassword: string;
 }
 
 export function ApplyDialog({ open, onOpenChange, onSwitchToSignIn }: ApplyDialogProps) {
@@ -209,10 +203,6 @@ export function ApplyDialog({ open, onOpenChange, onSwitchToSignIn }: ApplyDialo
     agreeToTerms: false,
     agreeToNewsletter: false,
     agreeToDataProcessing: false,
-    
-    // Account Setup
-    password: "",
-    confirmPassword: "",
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -222,8 +212,6 @@ export function ApplyDialog({ open, onOpenChange, onSwitchToSignIn }: ApplyDialo
   
   // Enhanced state for live features
   const [liveValidation, setLiveValidation] = useState<FormValidation>({});
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [suggestions, setSuggestions] = useState<{ [key: string]: string[] }>({});
   const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
   const [profileStrength, setProfileStrength] = useState(0);
@@ -243,7 +231,7 @@ export function ApplyDialog({ open, onOpenChange, onSwitchToSignIn }: ApplyDialo
   const formRef = useRef<HTMLFormElement>(null);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   
-  const totalSteps = 6;
+  const totalSteps = 5;
   const progress = (currentStep / totalSteps) * 100;
 
   const steps = [
@@ -397,13 +385,7 @@ export function ApplyDialog({ open, onOpenChange, onSwitchToSignIn }: ApplyDialo
         if (value.length > 300) return { isValid: false, error: `Motivation is too long (${value.length}/300)` };
         return { isValid: true, error: '' };
       
-      case 'password':
-        if (!value) return { isValid: false, error: 'Password is required' };
-        if (value.length < 8) return { isValid: false, error: 'Password must be at least 8 characters' };
-        if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(value)) {
-          return { isValid: false, error: 'Password must contain uppercase, lowercase, and number' };
-        }
-        return { isValid: true, error: '' };
+
       
       default:
         return { isValid: true, error: '' };
@@ -727,19 +709,7 @@ export function ApplyDialog({ open, onOpenChange, onSwitchToSignIn }: ApplyDialo
         if (!formData.agreeToDataProcessing) errors.push("You must agree to data processing");
         break;
         
-      case 6: // Account Setup
-        if (!formData.password?.trim()) errors.push("Password is required");
-        else {
-          if (formData.password.length < 6) errors.push("Password must be at least 6 characters");
-          // More lenient - require at least one letter and one number
-          if (!/[a-zA-Z]/.test(formData.password)) errors.push("Password must contain at least one letter");
-          if (!/\d/.test(formData.password)) errors.push("Password must contain at least one number");
-        }
-        if (!formData.confirmPassword?.trim()) errors.push("Password confirmation is required");
-        else if (formData.password !== formData.confirmPassword) {
-          errors.push("Passwords do not match");
-        }
-        break;
+
     }
     
     return errors;
@@ -779,9 +749,9 @@ export function ApplyDialog({ open, onOpenChange, onSwitchToSignIn }: ApplyDialo
     console.log('🔄 Submit button clicked!', { currentStep, totalSteps });
     
     // Always validate the final step before submission
-    if (!validateStep(6)) {
+    if (!validateStep(5)) {
       toast.error("Please fill in all required fields correctly", { duration: 3000 });
-      console.log('❌ Validation failed for step 6');
+      console.log('❌ Validation failed for step 5');
       return;
     }
     
@@ -797,11 +767,7 @@ export function ApplyDialog({ open, onOpenChange, onSwitchToSignIn }: ApplyDialo
       
       setIsSubmitting(false);
       
-      if (response.userCreated) {
-        toast.success("🎉 Application submitted and account created! Check your email for login instructions.", { duration: 7000 });
-      } else {
-        toast.success("🎉 Application submitted successfully! You can create an account using the sign-in dialog.", { duration: 5000 });
-      }
+      toast.success("🎉 Application submitted successfully! Please create an account using 'Create Account' to access your dashboard and start earning.", { duration: 7000 });
       
       // Clear draft from localStorage
       localStorage.removeItem('inferaAI_draft_application');
@@ -861,10 +827,6 @@ export function ApplyDialog({ open, onOpenChange, onSwitchToSignIn }: ApplyDialo
           agreeToTerms: false,
           agreeToNewsletter: false,
           agreeToDataProcessing: false,
-          
-          // Account Setup
-          password: "",
-          confirmPassword: "",
         });
         setValidationErrors([]);
       }, 500);
@@ -2219,167 +2181,7 @@ export function ApplyDialog({ open, onOpenChange, onSwitchToSignIn }: ApplyDialo
                     </div>
                   )}
 
-                  {/* Step 6: Account Setup */}
-                  {currentStep === 6 && (
-                    <div className="space-y-4">
-                      <Card className="bg-gradient-to-r from-green-50 to-emerald-50 border-green-200">
-                        <CardContent className="p-4">
-                          <h3 className="text-lg font-bold text-gray-900 mb-2 flex items-center gap-2">
-                            <div className="h-8 w-8 bg-green-600 rounded-full flex items-center justify-center">
-                              <Shield className="h-4 w-4 text-white" />
-                            </div>
-                            Account Setup
-                          </h3>
-                          <p className="text-gray-600 mb-3 text-sm">Create your secure account to access the platform.</p>
-                        </CardContent>
-                      </Card>
 
-                      <div className="space-y-6">
-                        <div className="space-y-2">
-                          <Label htmlFor="password" className="text-sm font-semibold text-gray-700">Password *</Label>
-                          <div className="relative">
-                            <Shield className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-                            <Input
-                              id="password"
-                              type={showPassword ? "text" : "password"}
-                              placeholder="Create a strong password"
-                              value={formData.password}
-                              onChange={(e) => {
-                                const value = e.target.value;
-                                setFormData({ ...formData, password: value });
-                                debouncedValidation('password', value);
-                              }}
-                              className={`pl-12 pr-20 h-10 border-2 transition-all bg-white ${
-                                liveValidation.password ? 
-                                  liveValidation.password.isValid ? 'border-green-500' : 'border-red-500' : 
-                                  'border-gray-300 focus:border-green-500'
-                              }`}
-                            />
-                            <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
-                              {liveValidation.password && (
-                                liveValidation.password.isValid ? (
-                                  <CheckCircle2 className="h-4 w-4 text-green-500" />
-                                ) : (
-                                  <AlertTriangle className="h-4 w-4 text-red-500" />
-                                )
-                              )}
-                              <button
-                                type="button"
-                                onClick={() => setShowPassword(!showPassword)}
-                                className="text-gray-400 hover:text-gray-600"
-                              >
-                                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                              </button>
-                            </div>
-                          </div>
-                          <div className="text-xs space-y-1">
-                            <p className="text-gray-600 font-medium">Password requirements:</p>
-                            <ul className="space-y-1 ml-2">
-                              <li className={`flex items-center gap-2 ${formData.password.length >= 8 ? 'text-green-600' : 'text-gray-500'}`}>
-                                {formData.password.length >= 8 ? <CheckCircle2 className="h-3 w-3" /> : <div className="h-3 w-3 border border-gray-300 rounded-full" />}
-                                At least 8 characters ({formData.password.length}/8)
-                              </li>
-                              <li className={`flex items-center gap-2 ${/[a-zA-Z]/.test(formData.password) ? 'text-green-600' : 'text-gray-500'}`}>
-                                {/[a-zA-Z]/.test(formData.password) ? <CheckCircle2 className="h-3 w-3" /> : <div className="h-3 w-3 border border-gray-300 rounded-full" />}
-                                At least one letter
-                              </li>
-                              <li className={`flex items-center gap-2 ${/\d/.test(formData.password) ? 'text-green-600' : 'text-gray-500'}`}>
-                                {/\d/.test(formData.password) ? <CheckCircle2 className="h-3 w-3" /> : <div className="h-3 w-3 border border-gray-300 rounded-full" />}
-                                At least one number
-                              </li>
-                              <li className={`flex items-center gap-2 ${/[A-Z]/.test(formData.password) ? 'text-green-600' : 'text-gray-500'}`}>
-                                {/[A-Z]/.test(formData.password) ? <CheckCircle2 className="h-3 w-3" /> : <div className="h-3 w-3 border border-gray-300 rounded-full" />}
-                                At least one uppercase letter
-                              </li>
-                            </ul>
-                          </div>
-                          {liveValidation.password && !liveValidation.password.isValid && (
-                            <p className="text-xs text-red-600 flex items-center gap-1">
-                              <AlertTriangle className="h-3 w-3" />
-                              {liveValidation.password.error}
-                            </p>
-                          )}
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label htmlFor="confirmPassword" className="text-sm font-semibold text-gray-700">Confirm Password *</Label>
-                          <div className="relative">
-                            <Shield className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-                            <Input
-                              id="confirmPassword"
-                              type={showConfirmPassword ? "text" : "password"}
-                              placeholder="Confirm your password"
-                              value={formData.confirmPassword}
-                              onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                              className={`pl-12 pr-20 h-10 border-2 transition-all bg-white ${
-                                formData.confirmPassword ? 
-                                  formData.password === formData.confirmPassword && formData.password.length > 0 ? 
-                                    'border-green-500' : 'border-red-500' : 
-                                  'border-gray-300 focus:border-green-500'
-                              }`}
-                            />
-                            <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
-                              {formData.confirmPassword && (
-                                formData.password === formData.confirmPassword && formData.password.length > 0 ? (
-                                  <CheckCircle2 className="h-4 w-4 text-green-500" />
-                                ) : (
-                                  <AlertTriangle className="h-4 w-4 text-red-500" />
-                                )
-                              )}
-                              <button
-                                type="button"
-                                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                                className="text-gray-400 hover:text-gray-600"
-                              >
-                                {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                              </button>
-                            </div>
-                          </div>
-                          {formData.confirmPassword && formData.password !== formData.confirmPassword && (
-                            <motion.p 
-                              initial={{ opacity: 0 }}
-                              animate={{ opacity: 1 }}
-                              className="text-xs text-red-600 flex items-center gap-1"
-                            >
-                              <AlertTriangle className="h-3 w-3" />
-                              Passwords do not match
-                            </motion.p>
-                          )}
-                          {formData.confirmPassword && formData.password === formData.confirmPassword && formData.password.length > 0 && (
-                            <motion.p 
-                              initial={{ opacity: 0, scale: 0.9 }}
-                              animate={{ opacity: 1, scale: 1 }}
-                              className="text-xs text-green-600 flex items-center gap-1"
-                            >
-                              <CheckCircle2 className="h-3 w-3" />
-                              Passwords match perfectly!
-                            </motion.p>
-                          )}
-                        </div>
-
-                        <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
-                          <CardContent className="p-4">
-                            <div className="flex items-start gap-3">
-                              <div className="h-8 w-8 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
-                                <Shield className="h-4 w-4 text-white" />
-                              </div>
-                              <div>
-                                <h4 className="font-semibold text-gray-900 mb-1">Secure Account Creation</h4>
-                                <p className="text-sm text-gray-600 mb-2">
-                                  Your account will be created immediately after successful application submission.
-                                </p>
-                                <ul className="text-sm text-gray-600 space-y-1">
-                                  <li>• Instant access to your dashboard</li>
-                                  <li>• Secure password encryption</li>
-                                  <li>• Email notifications for new opportunities</li>
-                                </ul>
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      </div>
-                    </div>
-                  )}
 
                   {/* Add steps 3, 4, and 5 here - continuing in next part due to length */}
                 </motion.div>
@@ -2400,7 +2202,7 @@ export function ApplyDialog({ open, onOpenChange, onSwitchToSignIn }: ApplyDialo
                     {currentStep === 3 && "⭐ Tip: Adding more skills increases your project match rate by 40%"}
                     {currentStep === 4 && "💰 Tip: Higher weekly availability = More earning opportunities"}
                     {currentStep === 5 && "📈 Tip: Complete portfolio links increase acceptance rate by 60%"}
-                    {currentStep === 6 && "🔐 Tip: Strong passwords protect your earnings and personal data"}
+
                   </div>
                 </div>
               </div>

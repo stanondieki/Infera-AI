@@ -47,17 +47,13 @@ export interface ApplicationFormData {
   mentorshipInterest: boolean;
   collaborationPreference: string;
   
-  // Account Setup
-  password: string;
-  confirmPassword: string;
-  
   // Agreement
   agreeToTerms: boolean;
   agreeToNewsletter: boolean;
   agreeToDataProcessing: boolean;
 }
 
-export interface Application extends Omit<ApplicationFormData, 'password' | 'confirmPassword'> {
+export interface Application extends ApplicationFormData {
   id: string;
   status: 'pending' | 'reviewing' | 'accepted' | 'rejected';
   submittedDate: string;
@@ -70,55 +66,15 @@ export async function submitApplication(formData: ApplicationFormData) {
   try {
     console.log('🚀 Starting application submission...', { email: formData.email });
     
-    // Prepare application data (exclude password fields)
-    const { password, confirmPassword, ...applicationData } = formData;
-    
-    // First submit the application
+    // Submit the application (no password fields to exclude now)
     console.log('📝 Submitting application to backend...');
-    const response = await apiClient.post(buildApiUrl(API_ENDPOINTS.APPLICATIONS.SUBMIT), applicationData);
+    const response = await apiClient.post(buildApiUrl(API_ENDPOINTS.APPLICATIONS.SUBMIT), formData);
     console.log('✅ Application submitted successfully:', response);
     
-
-    
-    // Create user account after successful application submission
-    try {
-      console.log('👤 Creating user account...');
-      
-      // Create user account with user's chosen password (allow updating existing users)
-      const userResponse = await apiClient.post(buildApiUrl(API_ENDPOINTS.AUTH.REGISTER), {
-        email: formData.email,
-        password: formData.password,
-        name: `${formData.firstName} ${formData.lastName}`,
-        allowUpdate: true
-      });
-      
-      console.log('✅ User account created successfully:', userResponse);
-      
-      return {
-        ...response,
-        userCreated: true,
-        message: userResponse.message?.includes('updated') 
-          ? 'Application submitted and account updated successfully! You can now sign in with your new password.'
-          : 'Application submitted and account created successfully! You can now sign in with your chosen password.'
-      };
-    } catch (userError: any) {
-      console.log('⚠️ Account creation failed, but application was submitted:', userError.message);
-      
-      // If user already exists, that's actually fine - they can sign in with existing account
-      if (userError.message?.includes('already exists')) {
-        return {
-          ...response,
-          userCreated: false,
-          message: 'Application submitted successfully! An account with this email already exists. Please sign in with your existing credentials.'
-        };
-      }
-      
-      return {
-        ...response,
-        userCreated: false,
-        message: 'Application submitted successfully! Please create an account using the sign-in dialog to access your dashboard.'
-      };
-    }
+    return {
+      ...response,
+      message: 'Application submitted successfully! Please create an account using "Create Account" to access your dashboard and start earning.'
+    };
   } catch (error: any) {
     console.error('❌ Application submission error:', error);
     console.error('Error details:', error.response?.data);

@@ -329,7 +329,7 @@ class EmailService {
         console.log('\n📧 SIMULATED VERIFICATION EMAIL (SMTP not configured):');
         console.log('══════════════════════════════════════════════════');
         console.log(`To: ${email}`);
-        console.log(`Subject: Verify Your Infera AI Account`);
+        console.log(`Subject: Verify Your Taskify Account`);
         console.log(`Name: ${name}`);
         console.log(`Verification Link: ${verificationLink}`);
         console.log('══════════════════════════════════════════════════\n');
@@ -343,7 +343,7 @@ class EmailService {
       <html>
       <head>
         <style>
-          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          body { font-family: Arial, sans-serif; line-1.6; color: #333; }
           .container { max-width: 600px; margin: 0 auto; padding: 20px; }
           .header { background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
           .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
@@ -354,13 +354,13 @@ class EmailService {
       <body>
         <div class="container">
           <div class="header">
-            <h1>🚀 Welcome to Infera AI!</h1>
+            <h1>🚀 Welcome to Taskify!</h1>
             <p>Please verify your email address</p>
           </div>
           
           <div class="content">
             <h2>Hello ${name}!</h2>
-            <p>Thank you for signing up for Infera AI. To complete your registration, please verify your email address by clicking the button below:</p>
+            <p>Thank you for signing up for Taskify. To complete your registration, please verify your email address by clicking the button below:</p>
             
             <div style="text-align: center;">
               <a href="${verificationLink}" class="button">Verify Email Address</a>
@@ -376,7 +376,7 @@ class EmailService {
               <li>Click the verification link above</li>
               <li>Your account will be verified and submitted for review</li>
               <li>You'll receive another email once your account is approved</li>
-              <li>After approval, you can start using Infera AI!</li>
+              <li>After approval, you can start using Taskify!</li>
             </ul>
           </div>
           
@@ -389,9 +389,9 @@ class EmailService {
       </html>`;
 
       const mailOptions = {
-        from: process.env.SMTP_USER || 'noreply@inferaai.com',
+        from: process.env.SMTP_USER || 'noreply@taskify.com',
         to: email,
-        subject: 'Verify Your Infera AI Account',
+        subject: 'Verify Your Taskify Account',
         html: emailHtml
       };
 
