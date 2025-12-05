@@ -6,6 +6,7 @@ import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { useAuth } from '../utils/auth';
 import { getOpportunities, type Opportunity } from '../utils/opportunities';
+import { API_CONFIG } from '../utils/api';
 import { ArrowLeft, Search, Sparkles, Users, TrendingUp } from 'lucide-react';
 import { Input } from './ui/input';
 import { Header } from './Header';
@@ -72,7 +73,7 @@ export function AllOpportunities({ onBack, onSignInClick, onApplyClick }: AllOpp
       const checkPromises = opportunities.map(async (opportunity) => {
         const opportunityId = opportunity._id || opportunity.id;
         try {
-          const response = await fetch(`/api/opportunity-applications/${opportunityId}/check-application`, {
+          const response = await fetch(`${API_CONFIG.BASE_URL}/opportunity-applications/${opportunityId}/check-application`, {
             headers: {
               'Authorization': `Bearer ${token}`,
             },
@@ -114,7 +115,7 @@ export function AllOpportunities({ onBack, onSignInClick, onApplyClick }: AllOpp
         return;
       }
 
-      const response = await fetch(`/api/opportunity-applications/${opportunityId}/apply`, {
+      const response = await fetch(`${API_CONFIG.BASE_URL}/opportunity-applications/${opportunityId}/apply`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
