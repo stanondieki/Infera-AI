@@ -30,39 +30,11 @@ router.post('/submit', applicationLimiter, validateApplication, async (req: Requ
     const application = new Application(applicationData);
     await application.save();
 
-    // Try to create user account and send welcome email
-    let userCreated = false;
-    let userPassword = '';
-    
-    try {
-      // Generate a temporary password if not provided
-      userPassword = applicationData.password || Math.random().toString(36).slice(-8) + 'A1!';
-      
-      // Create user account
-      const newUser = new User({
-        name: `${applicationData.firstName} ${applicationData.lastName}`,
-        email: applicationData.email,
-        password: userPassword,
-        role: 'user',
-        isVerified: true,
-        isActive: true
-      });
-      
-      await newUser.save();
-      userCreated = true;
-      
-      // Send welcome email
-      await emailService.sendWelcomeEmail(application, userPassword);
-      
-      console.log(`✅ User account created for: ${applicationData.email}`);
-    } catch (userError: any) {
-      console.log(`⚠️ User account creation failed for ${applicationData.email}:`, userError.message);
-    }
+    console.log(`✅ Application submitted successfully: ${applicationData.email}`);
 
     res.status(201).json({
       success: true,
-      message: 'Application submitted successfully',
-      userCreated,
+      message: 'Application submitted successfully! Please create an account using "Create Account" to access your dashboard.',
       application: {
         id: application._id,
         email: application.email,
