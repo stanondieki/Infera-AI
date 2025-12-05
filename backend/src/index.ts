@@ -13,6 +13,7 @@ import { generalLimiter } from './middleware/rateLimiter';
 import authRoutes from './routes/auth';
 import applicationRoutes from './routes/applications';
 import opportunityRoutes from './routes/projects';
+import opportunityApplicationRoutes from './routes/opportunityApplications';
 import projectsManagementRoutes from './routes/projectsManagement';
 import taskRoutes from './routes/tasks';
 import taskProjectRoutes from './routes/taskProjects';
@@ -220,6 +221,7 @@ app.get('/health', async (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/applications', applicationRoutes);
 app.use('/api/opportunities', opportunityRoutes);
+app.use('/api/opportunity-applications', opportunityApplicationRoutes);
 app.use('/api/projects', opportunityRoutes); // Also mount under /projects for frontend compatibility
 app.use('/api/projects', projectsManagementRoutes);
 app.use('/api/tasks', taskRoutes);

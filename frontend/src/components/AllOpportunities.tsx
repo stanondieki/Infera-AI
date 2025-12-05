@@ -35,10 +35,17 @@ export function AllOpportunities({ onBack, onSignInClick, onApplyClick }: AllOpp
   const [hoveredCard, setHoveredCard] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [applying, setApplying] = useState<string | null>(null);
+  const [appliedOpportunities, setAppliedOpportunities] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetchOpportunities();
   }, [selectedCategory]);
+
+  useEffect(() => {
+    if (user) {
+      checkAppliedOpportunities();
+    }
+  }, [user, opportunities]);
 
   const fetchOpportunities = async () => {
     try {
@@ -52,6 +59,43 @@ export function AllOpportunities({ onBack, onSignInClick, onApplyClick }: AllOpp
     }
   };
 
+  const checkAppliedOpportunities = async () => {
+    if (!user || opportunities.length === 0) return;
+    
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      const appliedSet = new Set<string>();
+      
+      // Check each opportunity to see if user has applied
+      const checkPromises = opportunities.map(async (opportunity) => {
+        const opportunityId = opportunity._id || opportunity.id;
+        try {
+          const response = await fetch(`/api/opportunity-applications/${opportunityId}/check-application`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+            },
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            if (data.hasApplied) {
+              appliedSet.add(opportunityId);
+            }
+          }
+        } catch (error) {
+          console.error(`Error checking application for opportunity ${opportunityId}:`, error);
+        }
+      });
+      
+      await Promise.all(checkPromises);
+      setAppliedOpportunities(appliedSet);
+    } catch (error) {
+      console.error('Error checking applied opportunities:', error);
+    }
+  };
+
   const handleApply = async (opportunity: Opportunity) => {
     if (!user) {
       toast.error('Please sign in to apply');
@@ -59,17 +103,53 @@ export function AllOpportunities({ onBack, onSignInClick, onApplyClick }: AllOpp
       return;
     }
 
-    setApplying(opportunity._id || opportunity.id);
+    const opportunityId = opportunity._id || opportunity.id;
+    setApplying(opportunityId);
     
     try {
-      // Simulate application process for signed-in users
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      const token = localStorage.getItem('token');
+      if (!token) {
+        toast.error('Authentication required. Please sign in again.');
+        onSignInClick();
+        return;
+      }
+
+      const response = await fetch(`/api/opportunity-applications/${opportunityId}/apply`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          // You can add optional fields here in the future like coverLetter, portfolioUrl, etc.
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 409) {
+          toast.error('You have already applied to this opportunity', {
+            description: `Applied on: ${new Date(data.appliedAt).toLocaleDateString()}`,
+            duration: 5000,
+          });
+        } else if (response.status === 404) {
+          toast.error('Opportunity not found');
+        } else {
+          toast.error(data.error || 'Failed to submit application');
+        }
+        return;
+      }
+
+      // Add to applied opportunities set
+      setAppliedOpportunities(prev => new Set([...prev, opportunityId]));
       
       toast.success(`Successfully applied to: ${opportunity.title}`, {
         description: "Your application has been submitted and is under review.",
         duration: 5000,
       });
     } catch (error) {
+      console.error('Application submission error:', error);
       toast.error('Failed to submit application. Please try again.');
     } finally {
       setApplying(null);
@@ -444,28 +524,47 @@ export function AllOpportunities({ onBack, onSignInClick, onApplyClick }: AllOpp
                       whileTap={{ scale: 0.98 }}
                       className="relative z-30"
                     >
-                      <Button
-                        className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 transition-all duration-300 shadow-lg hover:shadow-xl relative z-40"
-                        onClick={() => handleApply(opp)}
-                        disabled={applying === (opp._id || opp.id)}
-                      >
-                        {applying === (opp._id || opp.id) ? (
-                          <motion.div
-                            className="flex items-center gap-2"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
+                      {(() => {
+                        const opportunityId = opp._id || opp.id;
+                        const hasApplied = appliedOpportunities.has(opportunityId);
+                        const isApplying = applying === opportunityId;
+                        
+                        return (
+                          <Button
+                            className={`w-full transition-all duration-300 shadow-lg hover:shadow-xl relative z-40 ${
+                              hasApplied 
+                                ? 'bg-green-600 hover:bg-green-700 cursor-default' 
+                                : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700'
+                            }`}
+                            onClick={() => hasApplied ? null : handleApply(opp)}
+                            disabled={isApplying || hasApplied}
                           >
-                            <motion.div
-                              className="w-4 h-4 border-2 border-white border-t-transparent rounded-full"
-                              animate={{ rotate: 360 }}
-                              transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                            />
-                            Applying...
-                          </motion.div>
-                        ) : (
-                          'Apply Now'
-                        )}
-                      </Button>
+                            {isApplying ? (
+                              <motion.div
+                                className="flex items-center gap-2"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                              >
+                                <motion.div
+                                  className="w-4 h-4 border-2 border-white border-t-transparent rounded-full"
+                                  animate={{ rotate: 360 }}
+                                  transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                                />
+                                Applying...
+                              </motion.div>
+                            ) : hasApplied ? (
+                              <div className="flex items-center gap-2">
+                                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                </svg>
+                                Applied
+                              </div>
+                            ) : (
+                              'Apply Now'
+                            )}
+                          </Button>
+                        );
+                      })()}
                     </motion.div>
                   </CardContent>
                 </Card>

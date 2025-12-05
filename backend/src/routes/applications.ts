@@ -81,7 +81,7 @@ router.post('/submit', applicationLimiter, validateApplication, async (req: Requ
 // Get user's application status (for authenticated users)
 router.get('/my-application', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
-    const userId = req.user?.userId;
+    const userId = req.user?._id;
     if (!userId) {
       return res.status(401).json({
         success: false,
