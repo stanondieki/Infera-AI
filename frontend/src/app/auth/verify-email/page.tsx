@@ -37,9 +37,9 @@ export default function VerifyEmailPage() {
         if (data.success) {
           setStatus('success');
           setMessage(data.message);
-          // Redirect to login after 3 seconds
+          // Redirect to home page after 3 seconds where user can sign in
           setTimeout(() => {
-            router.push('/auth/signin?verified=true');
+            router.push('/?verified=true');
           }, 3000);
         } else {
           setStatus('error');

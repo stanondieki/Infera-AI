@@ -329,6 +329,19 @@ router.post('/register', authLimiter, validateUserRegistration, async (req: Requ
 
     await user.save();
 
+    // Link any existing applications to this user account
+    try {
+      const { Application } = await import('../models');
+      await Application.updateMany(
+        { email: user.email, userId: { $exists: false } },
+        { userId: user._id }
+      );
+      console.log(`✅ Linked existing applications for ${user.email} to user account`);
+    } catch (linkError) {
+      console.error('Failed to link existing applications:', linkError);
+      // Continue even if linking fails
+    }
+
     // Send verification email
     try {
       await sendVerificationEmail(user.email, user.name, verificationToken);

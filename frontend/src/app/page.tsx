@@ -33,6 +33,15 @@ function AppContent() {
     };
 
     window.addEventListener('viewAllOpportunities', handleViewAllOpportunities);
+
+    // Check for verification success in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('verified') === 'true') {
+      setIsSignInOpen(true);
+      // Clean up URL without the parameter
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+
     return () => {
       window.removeEventListener('viewAllOpportunities', handleViewAllOpportunities);
     };

@@ -106,6 +106,65 @@ router.post('/submit', applicationLimiter, validateApplication, async (req: Requ
   }
 });
 
+// Get user's application status (for authenticated users)
+router.get('/my-application', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'User not authenticated'
+      });
+    }
+
+    // Find application by userId first, then by email as fallback
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    let application = await Application.findOne({ userId: userId });
+    
+    // If no application found by userId, try by email
+    if (!application) {
+      application = await Application.findOne({ email: user.email });
+      
+      // If found by email but no userId, link it
+      if (application && !application.userId) {
+        application.userId = new mongoose.Types.ObjectId(userId);
+        await application.save();
+      }
+    }
+
+    if (!application) {
+      return res.status(404).json({
+        success: false,
+        message: 'No application found'
+      });
+    }
+
+    res.json({
+      success: true,
+      application: {
+        id: application._id,
+        status: application.status,
+        submittedAt: application.submittedAt,
+        reviewedAt: application.reviewedAt,
+        reviewNotes: application.reviewNotes
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching user application:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
 // Get application status (public endpoint with email verification)
 router.get('/status/:email', async (req: Request, res: Response) => {
   try {

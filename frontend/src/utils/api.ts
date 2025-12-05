@@ -24,6 +24,7 @@ export const API_ENDPOINTS = {
     STATUS: '/applications/status',
     LIST: '/applications',
     MY_APPLICATIONS: '/applications/my-applications',
+    MY_APPLICATION: '/applications/my-application',
     GET: (id: string) => `/applications/${id}`,
     UPDATE_STATUS: (id: string) => `/applications/${id}/status`,
     STATS: '/applications/stats/overview',
