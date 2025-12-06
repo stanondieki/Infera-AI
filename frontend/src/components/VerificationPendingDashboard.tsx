@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import Link from 'next/link';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
@@ -310,21 +311,25 @@ export default function VerificationPendingDashboard({ onBack }: VerificationPen
                     <span className="text-xs">Refresh Status</span>
                   </Button>
                   
-                  <Button
-                    variant="ghost"
-                    className="h-20 flex-col gap-2 hover:bg-green-50 hover:text-green-600 transition-all duration-200"
-                  >
-                    <Mail className="h-6 w-6" />
-                    <span className="text-xs">Contact Support</span>
-                  </Button>
+                  <Link href="/contact-sales">
+                    <Button
+                      variant="ghost"
+                      className="h-20 flex-col gap-2 hover:bg-green-50 hover:text-green-600 transition-all duration-200"
+                    >
+                      <Mail className="h-6 w-6" />
+                      <span className="text-xs">Contact Support</span>
+                    </Button>
+                  </Link>
                   
-                  <Button
-                    variant="ghost"
-                    className="h-20 flex-col gap-2 hover:bg-purple-50 hover:text-purple-600 transition-all duration-200"
-                  >
-                    <HelpCircle className="h-6 w-6" />
-                    <span className="text-xs">Help Center</span>
-                  </Button>
+                  <Link href="/faq">
+                    <Button
+                      variant="ghost"
+                      className="h-20 flex-col gap-2 hover:bg-purple-50 hover:text-purple-600 transition-all duration-200"
+                    >
+                      <HelpCircle className="h-6 w-6" />
+                      <span className="text-xs">Help Center</span>
+                    </Button>
+                  </Link>
                   
                   <Button
                     variant="ghost"
@@ -574,18 +579,24 @@ export default function VerificationPendingDashboard({ onBack }: VerificationPen
                   {/* Support Options */}
                   <div className="space-y-4">
                     <h3 className="font-semibold text-gray-900 mb-3">Get Help</h3>
-                    <Button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg">
-                      <Mail className="h-4 w-4 mr-2" />
-                      Contact Support Team
-                    </Button>
-                    <Button variant="outline" className="w-full border-blue-200 text-blue-700 hover:bg-blue-50">
-                      <HelpCircle className="h-4 w-4 mr-2" />
-                      Browse Help Center
-                    </Button>
-                    <Button variant="outline" className="w-full border-green-200 text-green-700 hover:bg-green-50">
-                      <FileText className="h-4 w-4 mr-2" />
-                      View FAQ & Guides
-                    </Button>
+                    <Link href="/contact-sales">
+                      <Button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg">
+                        <Mail className="h-4 w-4 mr-2" />
+                        Contact Support Team
+                      </Button>
+                    </Link>
+                    <Link href="/faq">
+                      <Button variant="outline" className="w-full border-blue-200 text-blue-700 hover:bg-blue-50">
+                        <HelpCircle className="h-4 w-4 mr-2" />
+                        Browse Help Center
+                      </Button>
+                    </Link>
+                    <Link href="/faq">
+                      <Button variant="outline" className="w-full border-green-200 text-green-700 hover:bg-green-50">
+                        <FileText className="h-4 w-4 mr-2" />
+                        View FAQ & Guides
+                      </Button>
+                    </Link>
                   </div>
 
                   {/* Account Options */}
@@ -602,6 +613,10 @@ export default function VerificationPendingDashboard({ onBack }: VerificationPen
                     <Button 
                       variant="outline" 
                       className="w-full border-gray-200 text-gray-700 hover:bg-gray-50"
+                      onClick={() => {
+                        // For now, show a coming soon message since profile page doesn't exist yet
+                        alert('Profile update feature coming soon! You will be able to update your profile after verification is complete.');
+                      }}
                     >
                       <Settings className="h-4 w-4 mr-2" />
                       Update Profile Info
