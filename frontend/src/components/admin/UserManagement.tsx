@@ -6,6 +6,7 @@ import {
   CheckCircle, AlertCircle, Filter, Download, MoreVertical, Sparkles, Award
 } from 'lucide-react';
 import { User, createUser, updateUser, deleteUser, generatePassword, resetUserPassword } from '../../utils/users';
+import { useAuth } from '../../utils/auth';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Badge } from '../ui/badge';
@@ -45,9 +46,11 @@ interface UserManagementProps {
 }
 
 export function UserManagement({ users, onRefresh }: UserManagementProps) {
+  const { accessToken } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [roleFilter, setRoleFilter] = useState<string>('all');
+  const [approvalFilter, setApprovalFilter] = useState<string>('all');
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -63,6 +66,7 @@ export function UserManagement({ users, onRefresh }: UserManagementProps) {
     role: 'user' as 'user' | 'admin',
     hourly_rate: '',
     status: 'active' as 'active' | 'inactive' | 'suspended',
+    approvalStatus: 'pending' as 'pending' | 'approved' | 'rejected',
   });
 
   const filteredUsers = users.filter(user => {
@@ -72,14 +76,16 @@ export function UserManagement({ users, onRefresh }: UserManagementProps) {
     
     const matchesStatus = statusFilter === 'all' || (user.isActive ? 'active' : 'inactive') === statusFilter;
     const matchesRole = roleFilter === 'all' || user.role === roleFilter;
+    const matchesApproval = approvalFilter === 'all' || (user.approvalStatus || 'pending') === approvalFilter;
     
-    return matchesSearch && matchesStatus && matchesRole;
+    return matchesSearch && matchesStatus && matchesRole && matchesApproval;
   });
 
   const stats = {
     total: users.length,
     active: users.filter(u => u.isActive).length,
     admins: users.filter(u => u.role === 'admin').length,
+    pending: users.filter(u => u.approvalStatus === 'pending' || !u.approvalStatus).length,
     avgEarnings: users.reduce((sum, u) => sum + (u.totalEarnings || 0), 0) / (users.length || 1),
   };
 
@@ -92,7 +98,7 @@ export function UserManagement({ users, onRefresh }: UserManagementProps) {
         role: formData.role,
         hourly_rate: formData.hourly_rate ? parseFloat(formData.hourly_rate) : undefined,
         password: password,
-      });
+      }, accessToken || undefined);
 
       setGeneratedPassword(result.password);
       toast.success('User created successfully!', {
@@ -116,7 +122,8 @@ export function UserManagement({ users, onRefresh }: UserManagementProps) {
         role: formData.role,
         isActive: formData.status === 'active',
         hourly_rate: formData.hourly_rate ? parseFloat(formData.hourly_rate) : undefined,
-      });
+        approvalStatus: formData.approvalStatus,
+      }, accessToken || undefined);
 
       toast.success('User updated successfully!');
       onRefresh();
@@ -132,8 +139,8 @@ export function UserManagement({ users, onRefresh }: UserManagementProps) {
     if (!confirm(`Are you sure you want to delete ${user.name}?`)) return;
 
     try {
-      await deleteUser(user.id);
-      toast.success('User deleted successfully');
+      await deleteUser(user.id, accessToken || undefined);
+      toast.success('User deleted successfully!');
       onRefresh();
     } catch (error: any) {
       toast.error('Failed to delete user', {
@@ -142,9 +149,35 @@ export function UserManagement({ users, onRefresh }: UserManagementProps) {
     }
   };
 
+  const handleQuickApprove = async (user: User) => {
+    try {
+      await updateUser(user.id, { approvalStatus: 'approved' }, accessToken || undefined);
+      toast.success(`${user.name} has been approved!`);
+      onRefresh();
+    } catch (error: any) {
+      toast.error('Failed to approve user', {
+        description: error.message,
+      });
+    }
+  };
+
+  const handleQuickReject = async (user: User) => {
+    if (!confirm(`Are you sure you want to reject ${user.name}?`)) return;
+    
+    try {
+      await updateUser(user.id, { approvalStatus: 'rejected' }, accessToken || undefined);
+      toast.success(`${user.name} has been rejected.`);
+      onRefresh();
+    } catch (error: any) {
+      toast.error('Failed to reject user', {
+        description: error.message,
+      });
+    }
+  };
+
   const handleResetPassword = async (user: User) => {
     try {
-      const result = await resetUserPassword(user.id);
+      const result = await resetUserPassword(user.id, accessToken || undefined);
       toast.success('Password reset successfully!', {
         description: `New password: ${result.password}`,
         duration: 15000,
@@ -181,6 +214,7 @@ export function UserManagement({ users, onRefresh }: UserManagementProps) {
       role: 'user',
       hourly_rate: '',
       status: 'active',
+      approvalStatus: 'pending',
     });
   };
 
@@ -192,6 +226,7 @@ export function UserManagement({ users, onRefresh }: UserManagementProps) {
       role: user.role,
       hourly_rate: user.hourly_rate?.toString() || '',
       status: user.isActive ? 'active' : 'inactive',
+      approvalStatus: user.approvalStatus || 'pending',
     });
     setIsEditing(true);
   };
@@ -300,15 +335,35 @@ export function UserManagement({ users, onRefresh }: UserManagementProps) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
         >
-          <Card className="border-0 shadow-lg bg-gradient-to-br from-purple-500 to-indigo-600 text-white overflow-hidden">
+          <Card className="border-0 shadow-lg bg-gradient-to-br from-orange-500 to-yellow-600 text-white overflow-hidden">
+            <CardContent className="p-6 relative">
+              <div className="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-white/10 backdrop-blur-xl" />
+              <div className="relative">
+                <p className="text-white/80 mb-2">Pending Approval</p>
+                <h3 className="text-white text-3xl mb-1">{stats.pending}</h3>
+                <div className="flex items-center gap-1 text-sm text-white/80">
+                  <Clock className="h-4 w-4" />
+                  <span>Awaiting review</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+        >
+          <Card className="border-0 shadow-lg bg-gradient-to-br from-purple-500 to-pink-600 text-white overflow-hidden">
             <CardContent className="p-6 relative">
               <div className="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-white/10 backdrop-blur-xl" />
               <div className="relative">
                 <p className="text-white/80 mb-2">Administrators</p>
                 <h3 className="text-white text-3xl mb-1">{stats.admins}</h3>
                 <div className="flex items-center gap-1 text-sm text-white/80">
-                  <Shield className="h-4 w-4" />
-                  <span>Admin access</span>
+                  <Crown className="h-4 w-4" />
+                  <span>System admins</span>
                 </div>
               </div>
             </CardContent>
@@ -370,6 +425,18 @@ export function UserManagement({ users, onRefresh }: UserManagementProps) {
                   <SelectItem value="all">All Roles</SelectItem>
                   <SelectItem value="user">Users</SelectItem>
                   <SelectItem value="admin">Admins</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select value={approvalFilter} onValueChange={setApprovalFilter}>
+                <SelectTrigger className="w-44">
+                  <SelectValue placeholder="Approval Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Approvals</SelectItem>
+                  <SelectItem value="pending">Pending Approval</SelectItem>
+                  <SelectItem value="approved">Approved</SelectItem>
+                  <SelectItem value="rejected">Rejected</SelectItem>
                 </SelectContent>
               </Select>
 
@@ -450,6 +517,16 @@ export function UserManagement({ users, onRefresh }: UserManagementProps) {
                                 <Badge className={statusConfig.color}>
                                   {user.isActive ? 'Active' : 'Inactive'}
                                 </Badge>
+                                <Badge className={
+                                  user.approvalStatus === 'approved' ? 'bg-green-100 text-green-800 border-green-300' :
+                                  user.approvalStatus === 'rejected' ? 'bg-red-100 text-red-800 border-red-300' :
+                                  'bg-orange-100 text-orange-800 border-orange-300'
+                                }>
+                                  {user.approvalStatus === 'approved' && <CheckCircle className="h-3 w-3 mr-1" />}
+                                  {user.approvalStatus === 'rejected' && <AlertCircle className="h-3 w-3 mr-1" />}
+                                  {(user.approvalStatus === 'pending' || !user.approvalStatus) && <Clock className="h-3 w-3 mr-1" />}
+                                  {user.approvalStatus || 'pending'}
+                                </Badge>
                               </div>
                             </div>
 
@@ -475,6 +552,19 @@ export function UserManagement({ users, onRefresh }: UserManagementProps) {
                                   Reset Password
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
+                                {(user.approvalStatus === 'pending' || !user.approvalStatus) && (
+                                  <>
+                                    <DropdownMenuItem onClick={() => handleQuickApprove(user)} className="text-green-600">
+                                      <CheckCircle className="h-4 w-4 mr-2" />
+                                      Approve User
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleQuickReject(user)} className="text-red-600">
+                                      <AlertCircle className="h-4 w-4 mr-2" />
+                                      Reject User
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                  </>
+                                )}
                                 <DropdownMenuItem onClick={() => handleDeleteUser(user)} className="text-red-600">
                                   <Trash2 className="h-4 w-4 mr-2" />
                                   Delete User

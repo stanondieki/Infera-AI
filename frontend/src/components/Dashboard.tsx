@@ -16,6 +16,7 @@ import { getUnresolvedIssuesCount } from '../utils/issues';
 import { ViewProfileDialog } from './dashboard/ViewProfileDialog';
 import { InviteFriendsDialog } from './dashboard/InviteFriendsDialog';
 import { NotificationsDialog } from './dashboard/NotificationsDialog';
+import VerificationPendingDashboard from './VerificationPendingDashboard';
 import { ReportDialog } from './dashboard/ReportDialog';
 import { MilestoneDialog } from './dashboard/MilestoneDialog';
 import { CourseDialog } from './dashboard/CourseDialog';
@@ -1267,6 +1268,11 @@ export function Dashboard({ onBack }: DashboardProps) {
         </motion.div>
       </div>
     );
+  }
+
+  // Check if user needs verification/approval
+  if (!user.isVerified || user.approvalStatus !== 'approved') {
+    return <VerificationPendingDashboard onBack={onBack} />;
   }
 
   return (

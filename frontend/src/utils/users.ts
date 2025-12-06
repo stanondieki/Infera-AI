@@ -17,6 +17,7 @@ export interface User {
   bio?: string;
   skills?: string[];
   isVerified?: boolean;
+  approvalStatus?: 'pending' | 'approved' | 'rejected';
 }
 
 export interface PaymentMethod {
@@ -140,7 +141,8 @@ function saveUsers(users: User[]): void {
 export async function getUsers(accessToken?: string): Promise<User[]> {
   try {
     console.log('👥 Fetching users from backend...');
-    const response = await apiClient.get(API_ENDPOINTS.USERS.LIST, accessToken);
+    // Request a higher limit to get all users (or implement pagination later)
+    const response = await apiClient.get(`${API_ENDPOINTS.USERS.LIST}?limit=100`, accessToken);
     console.log('👥 Backend users response:', response);
     
     if (response.success && response.users) {
@@ -160,6 +162,7 @@ export async function getUsers(accessToken?: string): Promise<User[]> {
         bio: user.bio,
         skills: user.skills,
         isVerified: user.isVerified,
+        approvalStatus: user.approvalStatus,
       }));
     }
     
