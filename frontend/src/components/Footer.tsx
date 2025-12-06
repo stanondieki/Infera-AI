@@ -55,27 +55,27 @@ export function Footer({ onApplyClick, onAdminClick }: FooterProps) {
               <li><button onClick={onApplyClick} className="hover:text-blue-400 transition-colors">Apply Now</button></li>
               <li><button onClick={() => scrollToSection('how-it-works')} className="hover:text-blue-400 transition-colors">How It Works</button></li>
               <li><button onClick={() => scrollToSection('opportunities')} className="hover:text-blue-400 transition-colors">Opportunities</button></li>
-              <li><button onClick={() => handleComingSoon('FAQ')} className="hover:text-blue-400 transition-colors">FAQ</button></li>
+              <li><a href="/faq" className="hover:text-blue-400 transition-colors">FAQ</a></li>
             </ul>
           </div>
 
           <div>
             <h3 className="text-white mb-4">For Businesses</h3>
             <ul className="space-y-2">
-              <li><button onClick={() => handleComingSoon('Enterprise Solutions')} className="hover:text-blue-400 transition-colors">Enterprise Solutions</button></li>
-              <li><button onClick={() => handleComingSoon('Case Studies')} className="hover:text-blue-400 transition-colors">Case Studies</button></li>
-              <li><button onClick={() => handleComingSoon('Pricing')} className="hover:text-blue-400 transition-colors">Pricing</button></li>
-              <li><button onClick={() => handleComingSoon('Contact Sales')} className="hover:text-blue-400 transition-colors">Contact Sales</button></li>
+              <li><a href="/enterprise" className="hover:text-blue-400 transition-colors">Enterprise Solutions</a></li>
+              <li><a href="/case-studies" className="hover:text-blue-400 transition-colors">Case Studies</a></li>
+              <li><a href="/pricing" className="hover:text-blue-400 transition-colors">Pricing</a></li>
+              <li><a href="/contact-sales" className="hover:text-blue-400 transition-colors">Contact Sales</a></li>
             </ul>
           </div>
 
           <div>
             <h3 className="text-white mb-4">Company</h3>
             <ul className="space-y-2">
-              <li><button onClick={() => handleComingSoon('About Us')} className="hover:text-blue-400 transition-colors">About Us</button></li>
-              <li><button onClick={() => handleComingSoon('Blog')} className="hover:text-blue-400 transition-colors">Blog</button></li>
-              <li><button onClick={() => handleComingSoon('Careers')} className="hover:text-blue-400 transition-colors">Careers</button></li>
-              <li><button onClick={() => handleComingSoon('Press')} className="hover:text-blue-400 transition-colors">Press</button></li>
+              <li><a href="/about" className="hover:text-blue-400 transition-colors">About Us</a></li>
+              <li><a href="/blog" className="hover:text-blue-400 transition-colors">Blog</a></li>
+              <li><a href="/careers" className="hover:text-blue-400 transition-colors">Careers</a></li>
+              <li><a href="/press" className="hover:text-blue-400 transition-colors">Press</a></li>
             </ul>
           </div>
         </div>

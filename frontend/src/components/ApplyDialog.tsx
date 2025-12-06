@@ -966,6 +966,16 @@ export function ApplyDialog({ open, onOpenChange, onSwitchToSignIn }: ApplyDialo
         >
           {/* Header */}
           <div className="relative bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 p-3 text-white flex-shrink-0">
+            {/* Close Button */}
+            <button
+              onClick={() => onOpenChange(false)}
+              className="absolute top-2 right-2 z-20 p-1 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
+              type="button"
+              aria-label="Close dialog"
+            >
+              <X className="h-4 w-4 text-white" />
+            </button>
+            
             <div className="relative z-10">
               <div className="flex justify-center mb-1">
                 <LogoSimple />
