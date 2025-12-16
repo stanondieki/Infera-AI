@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { useAuth } from '../../utils/auth';
 import { TaskReviewDialog } from './TaskReviewDialog';
-import { CreateTaskDialog } from './CreateTaskDialogFixed';
+import { CreateTaskDialogV2 } from './CreateTaskDialogV2';
 
 // Get API base URL from environment or fallback to production
 const getApiUrl = () => {
@@ -236,9 +236,13 @@ export function AdminTasks({ onBack, accessToken }: AdminTasksProps) {
           loadTasks(); // Reload to ensure we have the latest data
           
           // Show success message
-          if (newTask.assignedTo) {
-            const assignedUser = users.find(u => u.id === newTask.assignedTo);
-            alert(`✅ Task created and assigned to ${assignedUser?.name || 'user'}!`);
+          const assignedToArray = Array.isArray(newTask.assignedTo) ? newTask.assignedTo : (newTask.assignedTo ? [newTask.assignedTo] : []);
+          if (assignedToArray.length > 0) {
+            const assignedNames = assignedToArray.map((userId: string) => {
+              const user = users.find(u => u.id === userId);
+              return user?.name || 'user';
+            }).join(', ');
+            alert(`✅ Task created and assigned to ${assignedNames}!`);
           } else {
             alert('✅ Task created successfully! You can assign it to a user from the task list.');
           }
@@ -566,7 +570,10 @@ export function AdminTasks({ onBack, accessToken }: AdminTasksProps) {
                           <span>Est. Hours: {task.estimatedHours}</span>
                           <span>Total: ${task.hourlyRate * task.estimatedHours}</span>
                           <span>Deadline: {new Date(task.deadline).toLocaleDateString()}</span>
-                          {task.assignedTo && (
+                          {Array.isArray(task.assignedTo) && task.assignedTo.length > 0 && (
+                            <span>Assigned to: {task.assignedTo.map((u: any) => u.name || u).join(', ')}</span>
+                          )}
+                          {!Array.isArray(task.assignedTo) && task.assignedTo && (
                             <span>Assigned to: {task.assignedTo.name}</span>
                           )}
                         </div>
@@ -584,7 +591,7 @@ export function AdminTasks({ onBack, accessToken }: AdminTasksProps) {
                             Review
                           </Button>
                         )}
-                        {!task.assignedTo && task.status !== 'under_review' && (
+                        {(!task.assignedTo || (Array.isArray(task.assignedTo) && task.assignedTo.length === 0)) && task.status !== 'under_review' && (
                           <Button 
                             size="sm" 
                             variant="outline"
@@ -649,7 +656,10 @@ export function AdminTasks({ onBack, accessToken }: AdminTasksProps) {
                             </div>
                             
                             <div className="flex items-center gap-6 text-sm text-gray-500">
-                              <span>Assigned to: {task.assignedTo?.name}</span>
+                              <span>Assigned to: {Array.isArray(task.assignedTo) 
+                                ? task.assignedTo.map((u: any) => u?.name || u).join(', ') 
+                                : task.assignedTo?.name
+                              }</span>
                               <span>Submitted: {new Date(task.submittedAt || '').toLocaleDateString()}</span>
                               <span>Rate: ${task.hourlyRate}/hr</span>
                               {task.actualHours && (
@@ -688,7 +698,7 @@ export function AdminTasks({ onBack, accessToken }: AdminTasksProps) {
       </div>
 
       {/* Create Task Dialog */}
-      <CreateTaskDialog
+      <CreateTaskDialogV2
         open={showCreateDialog}
         onClose={() => setShowCreateDialog(false)}
         onTaskCreated={(task) => {

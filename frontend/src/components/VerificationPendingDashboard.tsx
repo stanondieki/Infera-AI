@@ -43,9 +43,11 @@ interface VerificationPendingDashboardProps {
 }
 
 export default function VerificationPendingDashboard({ onBack }: VerificationPendingDashboardProps) {
-  const { user, signOut } = useAuth();
+  const { user, signOut, refreshUser } = useAuth();
   const [applicationStatus, setApplicationStatus] = useState<ApplicationStatus | null>(null);
   const [loadingApplication, setLoadingApplication] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
 
   const getStatusColor = (status: string | undefined) => {
     switch (status) {
@@ -82,6 +84,49 @@ export default function VerificationPendingDashboard({ onBack }: VerificationPen
         return 'Pending Review';
     }
   };
+
+  // Manual refresh function
+  const handleRefreshStatus = async () => {
+    setIsRefreshing(true);
+    try {
+      await refreshUser();
+      setLastRefresh(new Date());
+    } catch (error) {
+      console.error('Error refreshing status:', error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  // Auto-poll for status changes every 30 seconds
+  useEffect(() => {
+    const pollInterval = setInterval(async () => {
+      console.log('[Verification] Auto-checking approval status...');
+      await refreshUser();
+      setLastRefresh(new Date());
+    }, 30000); // Check every 30 seconds
+
+    return () => clearInterval(pollInterval);
+  }, [refreshUser]);
+
+  // Initial refresh on mount
+  useEffect(() => {
+    if (user) {
+      refreshUser();
+    }
+  }, []);
+
+  // Auto-redirect when user gets approved
+  useEffect(() => {
+    if (user?.approvalStatus === 'approved' && user?.isVerified) {
+      console.log('[Verification] User approved! Redirecting to dashboard...');
+      // Small delay to show the success message
+      const redirectTimeout = setTimeout(() => {
+        window.location.reload(); // This will reload and Dashboard.tsx will redirect to main dashboard
+      }, 2000);
+      return () => clearTimeout(redirectTimeout);
+    }
+  }, [user?.approvalStatus, user?.isVerified]);
 
   useEffect(() => {
     const fetchApplicationStatus = async () => {
@@ -132,11 +177,13 @@ export default function VerificationPendingDashboard({ onBack }: VerificationPen
               <Button
                 variant="ghost"
                 size="sm"
-                className="hidden md:flex hover:bg-gray-100 transition-colors"
+                className="hidden md:flex hover:bg-gray-100 transition-colors gap-2"
                 title="Refresh Status"
-                onClick={() => window.location.reload()}
+                onClick={handleRefreshStatus}
+                disabled={isRefreshing}
               >
-                <RefreshCw className="h-4 w-4" />
+                <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                {isRefreshing ? 'Checking...' : 'Check Status'}
               </Button>
               
               <Button
@@ -275,13 +322,42 @@ export default function VerificationPendingDashboard({ onBack }: VerificationPen
                 <div className="w-full bg-gray-200 rounded-full h-2">
                   <motion.div
                     initial={{ width: "0%" }}
-                    animate={{ width: "66%" }}
+                    animate={{ width: user?.approvalStatus === 'approved' ? "100%" : "66%" }}
                     transition={{ duration: 1, delay: 1 }}
-                    className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full relative"
+                    className={`h-2 rounded-full relative ${
+                      user?.approvalStatus === 'approved' 
+                        ? 'bg-gradient-to-r from-green-400 to-green-600' 
+                        : 'bg-gradient-to-r from-blue-500 to-purple-500'
+                    }`}
                   >
-                    <div className="absolute right-0 top-1/2 transform translate-x-1/2 -translate-y-1/2 w-3 h-3 bg-white border-2 border-purple-500 rounded-full"></div>
+                    <div className={`absolute right-0 top-1/2 transform translate-x-1/2 -translate-y-1/2 w-3 h-3 bg-white border-2 rounded-full ${
+                      user?.approvalStatus === 'approved' ? 'border-green-500' : 'border-purple-500'
+                    }`}></div>
                   </motion.div>
                 </div>
+                
+                {/* Auto-refresh indicator */}
+                <div className="mt-4 text-xs text-gray-400 flex items-center justify-center gap-2">
+                  <RefreshCw className="h-3 w-3" />
+                  <span>Auto-checking every 30 seconds • Last checked: {lastRefresh.toLocaleTimeString()}</span>
+                </div>
+                
+                {/* Show message if approved */}
+                {user?.approvalStatus === 'approved' && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg"
+                  >
+                    <div className="flex items-center justify-center gap-2 text-green-700">
+                      <CheckCircle className="h-5 w-5" />
+                      <span className="font-medium">Your account has been approved!</span>
+                    </div>
+                    <p className="text-sm text-green-600 mt-2">
+                      Redirecting to your dashboard...
+                    </p>
+                  </motion.div>
+                )}
               </motion.div>
             </CardContent>
           </Card>

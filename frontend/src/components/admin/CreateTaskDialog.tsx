@@ -148,15 +148,22 @@ export function CreateTaskDialog({ open, onClose, onTaskCreated, users }: Create
   const handleSubmit = async () => {
     try {
       setLoading(true);
-      // Get token from infera_session like the browser console test
-      const inferaSession = localStorage.getItem('infera_session');
+      // Try multiple session storage keys for compatibility
       let token = null;
-      if (inferaSession) {
-        try {
-          const session = JSON.parse(inferaSession);
-          token = session.accessToken;
-        } catch (e) {
-          console.error('Error parsing infera_session:', e);
+      const sessionKeys = ['taskify_session', 'infera_session'];
+      
+      for (const key of sessionKeys) {
+        const sessionData = localStorage.getItem(key);
+        if (sessionData) {
+          try {
+            const session = JSON.parse(sessionData);
+            if (session.accessToken) {
+              token = session.accessToken;
+              break;
+            }
+          } catch (e) {
+            console.error(`Error parsing ${key}:`, e);
+          }
         }
       }
       

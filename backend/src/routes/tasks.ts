@@ -34,30 +34,38 @@ router.post('/create', authenticateToken, requireAdmin, async (req: AuthRequest,
       });
     }
 
-    // Validate and convert assignedTo to ObjectId if provided
-    let assignedToId = null;
-    if (taskData.assignedTo && taskData.assignedTo !== '' && taskData.assignedTo !== 'null') {
+    // Validate and convert assignedTo to array of ObjectIds if provided
+    let assignedToIds: mongoose.Types.ObjectId[] = [];
+    const rawAssignedTo = taskData.assignedTo;
+    
+    // Handle both single ID and array of IDs
+    const assignedToArray = Array.isArray(rawAssignedTo) 
+      ? rawAssignedTo 
+      : (rawAssignedTo && rawAssignedTo !== '' && rawAssignedTo !== 'null' ? [rawAssignedTo] : []);
+    
+    if (assignedToArray.length > 0) {
       try {
-        // Check if it's a valid ObjectId string
-        if (mongoose.Types.ObjectId.isValid(taskData.assignedTo)) {
-          assignedToId = new mongoose.Types.ObjectId(taskData.assignedTo);
-          console.log('✅ Valid assignedTo ObjectId:', assignedToId);
-        } else {
-          console.log('❌ Invalid assignedTo ObjectId format:', taskData.assignedTo);
-          return res.status(400).json({
-            success: false,
-            message: 'Invalid user ID format for assignedTo field'
-          });
+        for (const userId of assignedToArray) {
+          if (mongoose.Types.ObjectId.isValid(userId)) {
+            assignedToIds.push(new mongoose.Types.ObjectId(userId));
+          } else {
+            console.log('❌ Invalid assignedTo ObjectId format:', userId);
+            return res.status(400).json({
+              success: false,
+              message: 'Invalid user ID format for assignedTo field'
+            });
+          }
         }
+        console.log('✅ Valid assignedTo ObjectIds:', assignedToIds.length, 'users');
       } catch (error) {
-        console.log('❌ Error converting assignedTo to ObjectId:', error);
+        console.log('❌ Error converting assignedTo to ObjectIds:', error);
         return res.status(400).json({
           success: false,
           message: 'Invalid user ID for assignedTo field'
         });
       }
     } else {
-      console.log('💭 No user assigned (assignedTo is empty or null)');
+      console.log('💭 No users assigned (assignedTo is empty)');
     }
 
     // Create the task
@@ -72,8 +80,8 @@ router.post('/create', authenticateToken, requireAdmin, async (req: AuthRequest,
       deadline: taskData.deadline ? new Date(taskData.deadline) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       hourlyRate: taskData.hourlyRate || 15,
       priority: taskData.priority || 'medium',
-      status: assignedToId ? 'assigned' : 'draft',
-      assignedTo: assignedToId,
+      status: assignedToIds.length > 0 ? 'assigned' : 'draft',
+      assignedTo: assignedToIds,
       createdBy: req.user!._id,
       // AI Training specific fields
       taskData: {
@@ -655,7 +663,11 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res: Response) =>
     }
 
     // Check if user has permission to view this task
-    if (!isAdmin && task.assignedTo._id.toString() !== userId?.toString()) {
+    // assignedTo is now an array of ObjectIds
+    const assignedUserIds = task.assignedTo?.map((id: any) => id.toString()) || [];
+    const hasAccess = isAdmin || assignedUserIds.includes(userId?.toString());
+    
+    if (!hasAccess) {
       return res.status(403).json({
         success: false,
         message: 'Access denied'
@@ -698,8 +710,9 @@ router.post('/:id/submit', authenticateToken, async (req: AuthRequest, res: Resp
       });
     }
 
-    // Check if user is assigned to this task
-    if (task.assignedTo.toString() !== userId?.toString()) {
+    // Check if user is assigned to this task (assignedTo is an array)
+    const assignedUserIds = task.assignedTo?.map((id: any) => id.toString()) || [];
+    if (!assignedUserIds.includes(userId?.toString())) {
       return res.status(403).json({
         success: false,
         message: 'Access denied'
@@ -786,8 +799,9 @@ router.put('/:id/progress', authenticateToken, async (req: AuthRequest, res: Res
       });
     }
 
-    // Check if user is assigned to this task
-    if (task.assignedTo.toString() !== userId?.toString()) {
+    // Check if user is assigned to this task (assignedTo is an array)
+    const assignedUserIds = task.assignedTo?.map((id: any) => id.toString()) || [];
+    if (!assignedUserIds.includes(userId?.toString())) {
       return res.status(403).json({
         success: false,
         message: 'Access denied'

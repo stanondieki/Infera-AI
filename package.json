@@ -1,6 +1,21 @@
 {
+  "name": "infera-ai",
+  "version": "1.0.0",
+  "description": "Infera AI Training Platform",
+  "scripts": {
+    "seed-user": "node quick-seed.js",
+    "seed-user-ts": "npx ts-node seed-user-data.ts"
+  },
   "dependencies": {
+    "axios": "^1.13.2",
+    "bcryptjs": "^2.4.3",
     "dotenv": "^17.2.3",
     "mongoose": "^9.0.0"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^20.0.0",
+    "ts-node": "^10.9.0",
+    "typescript": "^5.0.0"
   }
 }

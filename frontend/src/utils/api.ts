@@ -4,6 +4,32 @@ export const API_CONFIG = {
   TIMEOUT: 10000, // 10 seconds
 };
 
+// Session storage keys - order matters, first match wins
+const SESSION_STORAGE_KEYS = ['taskify_session', 'infera_session'];
+
+/**
+ * Get access token from localStorage
+ * Checks multiple session storage keys for backwards compatibility
+ */
+export const getAccessToken = (): string | null => {
+  if (typeof window === 'undefined') return null;
+  
+  for (const key of SESSION_STORAGE_KEYS) {
+    const sessionData = localStorage.getItem(key);
+    if (sessionData) {
+      try {
+        const session = JSON.parse(sessionData);
+        if (session.accessToken) {
+          return session.accessToken;
+        }
+      } catch (e) {
+        console.error(`Error parsing ${key}:`, e);
+      }
+    }
+  }
+  return null;
+};
+
 // API endpoints
 export const API_ENDPOINTS = {
   // Authentication

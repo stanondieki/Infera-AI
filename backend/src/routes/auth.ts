@@ -548,6 +548,8 @@ router.get('/me', authenticateToken, async (req: AuthRequest, res: Response) => 
       rating: user.rating,
       reviewCount: user.reviewCount,
       isVerified: user.isVerified,
+      isActive: user.isActive,
+      approvalStatus: user.approvalStatus || 'pending',
       joinedDate: user.joinedDate,
       lastLoginDate: user.lastLoginDate
     };

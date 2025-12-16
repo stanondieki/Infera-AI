@@ -5,7 +5,7 @@ export interface ITask extends Document {
   title: string;
   description: string;
   type: string;
-  assignedTo: mongoose.Types.ObjectId;
+  assignedTo: mongoose.Types.ObjectId[];  // Array for multiple assignees
   createdBy: mongoose.Types.ObjectId;
   opportunityId?: mongoose.Types.ObjectId;
   instructions: string;
@@ -75,11 +75,10 @@ const TaskSchema = new Schema<ITask>({
     type: String,
     required: true
   },
-  assignedTo: {
+  assignedTo: [{
     type: Schema.Types.ObjectId,
-    ref: 'User',
-    required: false
-  },
+    ref: 'User'
+  }],
   createdBy: {
     type: Schema.Types.ObjectId,
     ref: 'User',

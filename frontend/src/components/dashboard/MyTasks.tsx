@@ -27,7 +27,7 @@ import { toast } from 'sonner';
 import { getTasks, submitTask, Task } from '../../utils/tasks';
 import { useAuth } from '../../utils/auth';
 import { apiClient, API_ENDPOINTS } from '../../utils/api';
-import { TaskWorkInterface } from '../tasks/TaskWorkInterface';
+import { TaskApp } from '../tasks/TaskApp';
 
 export function MyTasks() {
   const { user, accessToken } = useAuth();
@@ -63,22 +63,40 @@ export function MyTasks() {
       
       if (response.success && response.tasks) {
         // Map backend tasks to frontend format
-        const mappedTasks = response.tasks.map((task: any) => ({
-          id: task._id,
-          user_id: typeof task.assignedTo === 'object' ? task.assignedTo._id : task.assignedTo,
-          user_name: typeof task.assignedTo === 'object' ? task.assignedTo.name : 'Unknown User',
-          title: task.title,
-          description: task.description,
-          category: task.type, // Keep backend type for now
-          status: task.status,
-          priority: task.priority,
-          deadline: task.deadline,
-          estimated_hours: task.estimatedHours,
-          hourly_rate: task.hourlyRate,
-          progress: task.progress || 0,
-          created_at: task.createdAt,
-          updated_at: task.updatedAt,
-        }));
+        const mappedTasks = response.tasks.map((task: any) => {
+          // Handle assignedTo as array or single value
+          let userId = '';
+          let userName = 'Unknown User';
+          
+          if (Array.isArray(task.assignedTo)) {
+            // Get first assignee for user_id, join all names
+            const assignees = task.assignedTo;
+            userId = assignees[0]?._id || assignees[0] || '';
+            userName = assignees.map((a: any) => a?.name || a).join(', ') || 'Unknown User';
+          } else if (typeof task.assignedTo === 'object') {
+            userId = task.assignedTo?._id || '';
+            userName = task.assignedTo?.name || 'Unknown User';
+          } else {
+            userId = task.assignedTo || '';
+          }
+          
+          return {
+            id: task._id,
+            user_id: userId,
+            user_name: userName,
+            title: task.title,
+            description: task.description,
+            category: task.type, // Keep backend type for now
+            status: task.status,
+            priority: task.priority,
+            deadline: task.deadline,
+            estimated_hours: task.estimatedHours,
+            hourly_rate: task.hourlyRate,
+            progress: task.progress || 0,
+            created_at: task.createdAt,
+            updated_at: task.updatedAt,
+          };
+        });
         setTasks(mappedTasks);
       } else {
         setTasks([]);
@@ -448,9 +466,15 @@ export function MyTasks() {
       {/* Task Work Interface */}
       {showWorkInterface && workTask && (
         <div className="fixed inset-0 z-50 bg-white">
-          <TaskWorkInterface 
+          <TaskApp 
             task={workTask}
-            onBack={() => {
+            onSubmit={(submissionData) => {
+              setShowWorkInterface(false);
+              setWorkTask(null);
+              loadTasks();
+              toast.success('Task submitted successfully!');
+            }}
+            onClose={() => {
               setShowWorkInterface(false);
               setWorkTask(null);
               loadTasks(); // Refresh tasks after work session

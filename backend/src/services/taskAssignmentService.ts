@@ -363,7 +363,17 @@ export class TaskAssignmentService {
    */
   async submitTask(taskId: string, userId: string, submission: any) {
     const task = await ProjectTask.findById(taskId).populate('projectId');
-    if (!task || task.assignedTo?.toString() !== userId) {
+    // Handle assignedTo - can be single ObjectId or array
+    const assignedTo = task?.assignedTo;
+    let isAssignedToUser = false;
+    
+    if (Array.isArray(assignedTo)) {
+      isAssignedToUser = assignedTo.some((id: any) => id.toString() === userId);
+    } else if (assignedTo) {
+      isAssignedToUser = assignedTo.toString() === userId;
+    }
+    
+    if (!task || !isAssignedToUser) {
       throw new Error('Task not found or not assigned to user');
     }
     

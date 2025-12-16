@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { TaskDashboard } from './TaskDashboard';
 import { UniversalTaskWorker } from './UniversalTaskWorker';
+import { UniversalTaskWorkerV2 } from './UniversalTaskWorkerV2';
 import { ImageBoundingBox } from './components/ImageBoundingBox';
 import { TextEntityAnnotation } from './components/TextEntityAnnotation';
 import { ImageClassification } from './components/ImageClassification';
@@ -125,10 +126,10 @@ export function TaskApp({ task, onSubmit, onClose }: TaskAppProps) {
   };
 
   const renderTask = () => {
-    // If we have a real task from the database, use the universal worker
+    // If we have a real task from the database, use the enhanced universal worker
     if (task && (task._id || task.id)) {
       return (
-        <UniversalTaskWorker 
+        <UniversalTaskWorkerV2 
           task={task}
           onComplete={handleTaskComplete} 
           onBack={onClose} 

@@ -129,15 +129,22 @@ export function CreateTaskDialog({ open, onClose, onTaskCreated, users }: Create
     try {
       setLoading(true);
       
-      // Get token from taskify_session
-      const taskifySession = localStorage.getItem('taskify_session');
+      // Try multiple session storage keys for compatibility
       let token = null;
-      if (taskifySession) {
-        try {
-          const session = JSON.parse(taskifySession);
-          token = session.accessToken;
-        } catch (e) {
-          console.error('Error parsing taskify_session:', e);
+      const sessionKeys = ['taskify_session', 'infera_session'];
+      
+      for (const key of sessionKeys) {
+        const sessionData = localStorage.getItem(key);
+        if (sessionData) {
+          try {
+            const session = JSON.parse(sessionData);
+            if (session.accessToken) {
+              token = session.accessToken;
+              break;
+            }
+          } catch (e) {
+            console.error(`Error parsing ${key}:`, e);
+          }
         }
       }
       

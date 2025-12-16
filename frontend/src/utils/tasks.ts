@@ -29,15 +29,34 @@ interface BackendTask {
 
 // Convert backend task to frontend task format
 function mapBackendTaskToFrontend(backendTask: BackendTask): Task {
-  // Safely handle assignedTo field - it could be null, string, or object
+  // Safely handle assignedTo field - it could be null, string, object, or array
   let userId = '';
   let userName = 'Unassigned';
+  let userIds: string[] = [];
+  let userNames: string[] = [];
   
   if (backendTask.assignedTo) {
-    if (typeof backendTask.assignedTo === 'object' && backendTask.assignedTo !== null) {
+    // Handle array of assignees
+    if (Array.isArray(backendTask.assignedTo)) {
+      for (const assignee of backendTask.assignedTo) {
+        if (typeof assignee === 'object' && assignee !== null) {
+          userIds.push(assignee._id || '');
+          userNames.push(assignee.name || 'Unknown User');
+        } else if (typeof assignee === 'string') {
+          userIds.push(assignee);
+          userNames.push('Unknown User');
+        }
+      }
+      userId = userIds[0] || '';
+      userName = userNames.length > 0 ? userNames.join(', ') : 'Unassigned';
+    }
+    // Handle single object assignee (backwards compatibility)
+    else if (typeof backendTask.assignedTo === 'object' && backendTask.assignedTo !== null) {
       userId = backendTask.assignedTo._id || '';
       userName = backendTask.assignedTo.name || 'Unknown User';
-    } else if (typeof backendTask.assignedTo === 'string') {
+    } 
+    // Handle string ID (backwards compatibility)
+    else if (typeof backendTask.assignedTo === 'string') {
       userId = backendTask.assignedTo;
       userName = 'Unknown User';
     }

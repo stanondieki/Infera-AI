@@ -44,6 +44,7 @@ interface AuthContextType {
   resetPassword: (token: string, newPassword: string) => Promise<void>;
   signOut: () => void;
   logout: () => void;
+  refreshUser: () => Promise<void>;
   isLoading: boolean;
   isAuthenticated: boolean;
 }
@@ -79,6 +80,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                   name: response.user.name,
                   role: response.user.role || 'user',
                   isActive: response.user.isActive,
+                  isVerified: response.user.isVerified,
+                  approvalStatus: response.user.approvalStatus || 'pending',
                   avatar: response.user.avatar,
                   createdAt: response.user.createdAt,
                   phone: response.user.phone,
@@ -370,6 +373,54 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // Refresh user data from the server (useful for checking approval status changes)
+  const refreshUser = async () => {
+    if (!accessToken) {
+      console.log('[AUTH] No access token, cannot refresh user');
+      return;
+    }
+
+    try {
+      console.log('[AUTH] Refreshing user data...');
+      const response = await apiClient.get(API_ENDPOINTS.AUTH.ME, accessToken);
+      
+      if (response.success && response.user) {
+        const updatedUser: User = {
+          id: response.user.id,
+          email: response.user.email,
+          name: response.user.name,
+          role: response.user.role || 'user',
+          isActive: response.user.isActive,
+          isVerified: response.user.isVerified,
+          approvalStatus: response.user.approvalStatus || 'pending',
+          avatar: response.user.avatar,
+          createdAt: response.user.createdAt,
+          phone: response.user.phone,
+          location: response.user.location,
+          bio: response.user.bio,
+          jobTitle: response.user.jobTitle,
+          company: response.user.company,
+          website: response.user.website,
+          timezone: response.user.timezone,
+          language: response.user.language,
+          skills: response.user.skills,
+          languages: response.user.languages,
+          github: response.user.github,
+          linkedin: response.user.linkedin
+        };
+        
+        setUser(updatedUser);
+        console.log('[AUTH] User refreshed - approvalStatus:', updatedUser.approvalStatus);
+        
+        // Update session in localStorage
+        const session = { user: updatedUser, accessToken, timestamp: Date.now() };
+        localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+      }
+    } catch (error: any) {
+      console.error('[AUTH] Failed to refresh user:', error.message);
+    }
+  };
+
   const signOut = () => {
     console.log('[AUTH] Signing out');
     
@@ -403,6 +454,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         resetPassword,
         signOut,
         logout: signOut, // Add logout as alias to signOut
+        refreshUser,
         isLoading,
         isAuthenticated,
       }}

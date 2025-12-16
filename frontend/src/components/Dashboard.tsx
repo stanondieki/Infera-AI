@@ -12,6 +12,7 @@ import { ActiveProjects } from './dashboard/ActiveProjects';
 import { SecuritySessions } from './dashboard/SecuritySessions';
 import TaskManagement from './dashboard/TaskManagement';
 import { OutlierTaskWorkspace } from './dashboard/OutlierTaskWorkspace';
+import { TaskWorkspace } from './dashboard/TaskWorkspace';
 import { getUnresolvedIssuesCount } from '../utils/issues';
 import { ViewProfileDialog } from './dashboard/ViewProfileDialog';
 import { InviteFriendsDialog } from './dashboard/InviteFriendsDialog';
@@ -211,6 +212,48 @@ export function Dashboard({ onBack }: DashboardProps) {
   const [courseDialogOpen, setCourseDialogOpen] = useState(false);
   const [selectedChallenge, setSelectedChallenge] = useState<string | null>(null);
   const [challengeDialogOpen, setChallengeDialogOpen] = useState(false);
+  
+  // Task workspace state
+  const [taskWorkspaceOpen, setTaskWorkspaceOpen] = useState(false);
+  const [selectedWorkTask, setSelectedWorkTask] = useState<any>(null);
+
+  // Handler to open task workspace
+  const handleContinueWorking = (task: any) => {
+    setSelectedWorkTask(task);
+    setTaskWorkspaceOpen(true);
+  };
+
+  // Handler to view task details - switches to Tasks tab with task selected
+  const handleViewTaskDetails = (task: any) => {
+    setSelectedWorkTask(task);
+    setActiveTab('tasks');
+  };
+
+  // Handler for clicking stats cards
+  const handleStatsCardClick = (type: 'earnings' | 'tasks' | 'rate' | 'achievements') => {
+    switch (type) {
+      case 'earnings':
+        setActiveTab('earnings');
+        break;
+      case 'tasks':
+        setActiveTab('tasks');
+        break;
+      case 'rate':
+        setActiveTab('performance');
+        break;
+      case 'achievements':
+        setActiveTab('skills');
+        break;
+    }
+  };
+
+  // Handler for task completion from workspace
+  const handleTaskComplete = (taskId: string) => {
+    toast.success('Task completed successfully!');
+    setTaskWorkspaceOpen(false);
+    setSelectedWorkTask(null);
+    loadDashboardData(); // Refresh dashboard data
+  };
 
 
   // Real earnings data will be calculated from user's actual data
@@ -1270,8 +1313,8 @@ export function Dashboard({ onBack }: DashboardProps) {
     );
   }
 
-  // Check if user needs verification/approval
-  if (!user.isVerified || user.approvalStatus !== 'approved') {
+  // Check if user needs verification/approval (admins bypass this)
+  if (user.role !== 'admin' && (!user.isVerified || user.approvalStatus !== 'approved')) {
     return <VerificationPendingDashboard onBack={onBack} />;
   }
 
@@ -1532,8 +1575,9 @@ export function Dashboard({ onBack }: DashboardProps) {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.1 }}
                 whileHover={{ y: -5, transition: { duration: 0.2 } }}
+                onClick={() => handleStatsCardClick('earnings')}
               >
-                <Card className="hover:shadow-2xl transition-all cursor-pointer bg-gradient-to-br from-white to-green-50/50 border-green-100">
+                <Card className="hover:shadow-2xl transition-all cursor-pointer bg-gradient-to-br from-white to-green-50/50 border-green-100 hover:border-green-300">
                   <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
                     <CardTitle className="text-xs sm:text-sm text-gray-600">Total Earnings</CardTitle>
                     <motion.div
@@ -1551,6 +1595,7 @@ export function Dashboard({ onBack }: DashboardProps) {
                       <span className="text-xs sm:text-sm text-green-600">+{earningsGrowth}%</span>
                       <span className="text-xs text-gray-500">vs last month</span>
                     </div>
+                    <p className="text-xs text-green-600 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">Click to view earnings →</p>
                   </CardContent>
                 </Card>
               </motion.div>
@@ -1560,8 +1605,9 @@ export function Dashboard({ onBack }: DashboardProps) {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.2 }}
                 whileHover={{ y: -5, transition: { duration: 0.2 } }}
+                onClick={() => handleStatsCardClick('tasks')}
               >
-                <Card className="hover:shadow-2xl transition-all cursor-pointer bg-gradient-to-br from-white to-blue-50/50 border-blue-100">
+                <Card className="hover:shadow-2xl transition-all cursor-pointer bg-gradient-to-br from-white to-blue-50/50 border-blue-100 hover:border-blue-300">
                   <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
                     <CardTitle className="text-xs sm:text-sm text-gray-600">Total Tasks</CardTitle>
                     <motion.div
@@ -1577,6 +1623,7 @@ export function Dashboard({ onBack }: DashboardProps) {
                     <p className="text-xs sm:text-sm text-gray-600 mt-2">
                       Across {user?.email === 'william.macy@email.com' || user?.email === 'william.macy.ai@gmail.com' ? 9 : (dashboardStats.activeProjects > 0 ? dashboardStats.activeProjects : 1)} project{(user?.email === 'william.macy@email.com' || user?.email === 'william.macy.ai@gmail.com') ? 's' : (dashboardStats.activeProjects !== 1 ? 's' : '')}
                     </p>
+                    <p className="text-xs text-blue-600 mt-2">Click to view all tasks →</p>
                   </CardContent>
                 </Card>
               </motion.div>
@@ -1586,8 +1633,9 @@ export function Dashboard({ onBack }: DashboardProps) {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.3 }}
                 whileHover={{ y: -5, transition: { duration: 0.2 } }}
+                onClick={() => handleStatsCardClick('rate')}
               >
-                <Card className="hover:shadow-2xl transition-all cursor-pointer bg-gradient-to-br from-white to-purple-50/50 border-purple-100">
+                <Card className="hover:shadow-2xl transition-all cursor-pointer bg-gradient-to-br from-white to-purple-50/50 border-purple-100 hover:border-purple-300">
                   <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
                     <CardTitle className="text-xs sm:text-sm text-gray-600">Success Rate</CardTitle>
                     <motion.div
@@ -1603,6 +1651,7 @@ export function Dashboard({ onBack }: DashboardProps) {
                     <p className="text-xs sm:text-sm text-gray-600 mt-2">
                       Above platform average
                     </p>
+                    <p className="text-xs text-purple-600 mt-2">Click to view performance →</p>
                   </CardContent>
                 </Card>
               </motion.div>
@@ -1612,8 +1661,9 @@ export function Dashboard({ onBack }: DashboardProps) {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.4 }}
                 whileHover={{ y: -5, transition: { duration: 0.2 } }}
+                onClick={() => handleStatsCardClick('achievements')}
               >
-                <Card className="hover:shadow-2xl transition-all cursor-pointer bg-gradient-to-br from-white to-yellow-50/50 border-yellow-100">
+                <Card className="hover:shadow-2xl transition-all cursor-pointer bg-gradient-to-br from-white to-yellow-50/50 border-yellow-100 hover:border-yellow-300">
                   <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
                     <CardTitle className="text-xs sm:text-sm text-gray-600">Achievements</CardTitle>
                     <motion.div
@@ -1629,6 +1679,7 @@ export function Dashboard({ onBack }: DashboardProps) {
                     <p className="text-xs sm:text-sm text-gray-600 mt-2">
                       Based on your task performance
                     </p>
+                    <p className="text-xs text-yellow-600 mt-2">Click to view skills →</p>
                   </CardContent>
                 </Card>
               </motion.div>
@@ -1765,15 +1816,39 @@ export function Dashboard({ onBack }: DashboardProps) {
               <div className="lg:col-span-2 space-y-3 sm:space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg sm:text-xl text-gray-900">Active Projects</h3>
-                  <Button variant="outline" size="sm" className="gap-1 sm:gap-2 text-xs sm:text-sm">
-                    <Filter className="h-3 w-3 sm:h-4 sm:w-4" />
-                    <span className="hidden sm:inline">Filter</span>
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="gap-1 sm:gap-2 text-xs sm:text-sm"
+                      onClick={() => setActiveTab('tasks')}
+                    >
+                      View All
+                    </Button>
+                    <Button variant="outline" size="sm" className="gap-1 sm:gap-2 text-xs sm:text-sm">
+                      <Filter className="h-3 w-3 sm:h-4 sm:w-4" />
+                      <span className="hidden sm:inline">Filter</span>
+                    </Button>
+                  </div>
                 </div>
                 
-                {activeTasks
-                  .slice(0, 3)
-                  .map((task, index) => (
+                {activeTasks.length === 0 ? (
+                  <Card className="bg-white/80 backdrop-blur-xl border-gray-200/50">
+                    <CardContent className="p-6 text-center">
+                      <div className="text-gray-400 mb-4">
+                        <CheckCircle2 className="h-12 w-12 mx-auto" />
+                      </div>
+                      <h4 className="text-lg font-medium text-gray-700 mb-2">No Active Projects</h4>
+                      <p className="text-gray-500 text-sm mb-4">You don't have any active projects at the moment.</p>
+                      <Button onClick={onBack} className="bg-gradient-to-r from-blue-600 to-purple-600">
+                        Browse Opportunities
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  activeTasks
+                    .slice(0, 3)
+                    .map((task, index) => (
                     <motion.div
                       key={task.id}
                       initial={{ opacity: 0, y: 20 }}
@@ -1919,10 +1994,17 @@ export function Dashboard({ onBack }: DashboardProps) {
                             </div>
                             
                             <div className="flex gap-2">
-                              <Button className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600">
+                              <Button 
+                                className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                                onClick={() => handleContinueWorking(task)}
+                              >
                                 Continue Working
                               </Button>
-                              <Button variant="outline" className="flex-1">
+                              <Button 
+                                variant="outline" 
+                                className="flex-1"
+                                onClick={() => handleViewTaskDetails(task)}
+                              >
                                 View Details
                               </Button>
                             </div>
@@ -1930,7 +2012,8 @@ export function Dashboard({ onBack }: DashboardProps) {
                         </DialogContent>
                       </Dialog>
                     </motion.div>
-                  ))}
+                  ))
+                )}
               </div>
 
               {/* Milestones and Quick Actions - 1 column */}
@@ -2817,6 +2900,29 @@ export function Dashboard({ onBack }: DashboardProps) {
       <ViewProfileDialog open={viewProfileOpen} onOpenChange={setViewProfileOpen} />
       <InviteFriendsDialog open={inviteFriendsOpen} onOpenChange={setInviteFriendsOpen} />
       <NotificationsDialog open={notificationsDialogOpen} onOpenChange={setNotificationsDialogOpen} />
+
+      {/* Task Workspace */}
+      <TaskWorkspace
+        open={taskWorkspaceOpen}
+        onOpenChange={setTaskWorkspaceOpen}
+        task={selectedWorkTask ? {
+          id: selectedWorkTask.id,
+          project_name: selectedWorkTask.project_name || selectedWorkTask.title,
+          title: selectedWorkTask.title,
+          description: selectedWorkTask.description,
+          category: selectedWorkTask.category,
+          difficulty: selectedWorkTask.difficulty || 'medium',
+          estimated_time: selectedWorkTask.estimated_time || 30,
+          payment: selectedWorkTask.payment || 0,
+          status: selectedWorkTask.status,
+          progress: selectedWorkTask.progress || 0,
+          deadline: selectedWorkTask.deadline,
+          instructions: selectedWorkTask.instructions || selectedWorkTask.description,
+          requirements: selectedWorkTask.requirements || [],
+          time_spent: selectedWorkTask.time_spent || 0,
+        } : null}
+        onComplete={handleTaskComplete}
+      />
 
     </div>
   );

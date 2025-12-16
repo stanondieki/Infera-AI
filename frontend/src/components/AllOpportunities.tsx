@@ -61,11 +61,9 @@ export function AllOpportunities({ onBack, onSignInClick, onApplyClick }: AllOpp
   };
 
   const checkAppliedOpportunities = async () => {
-    if (!user || opportunities.length === 0) return;
+    if (!user || opportunities.length === 0 || !accessToken) return;
     
     try {
-      const token = localStorage.getItem('token');
-      if (!token) return;
 
       const appliedSet = new Set<string>();
       
@@ -75,7 +73,7 @@ export function AllOpportunities({ onBack, onSignInClick, onApplyClick }: AllOpp
         try {
           const response = await fetch(`${API_CONFIG.BASE_URL}/opportunity-applications/${opportunityId}/check-application`, {
             headers: {
-              'Authorization': `Bearer ${token}`,
+              'Authorization': `Bearer ${accessToken}`,
             },
           });
           
@@ -108,8 +106,7 @@ export function AllOpportunities({ onBack, onSignInClick, onApplyClick }: AllOpp
     setApplying(opportunityId);
     
     try {
-      const token = localStorage.getItem('token');
-      if (!token) {
+      if (!accessToken) {
         toast.error('Authentication required. Please sign in again.');
         onSignInClick();
         return;
@@ -119,7 +116,7 @@ export function AllOpportunities({ onBack, onSignInClick, onApplyClick }: AllOpp
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+          'Authorization': `Bearer ${accessToken}`,
         },
         body: JSON.stringify({
           // You can add optional fields here in the future like coverLetter, portfolioUrl, etc.
